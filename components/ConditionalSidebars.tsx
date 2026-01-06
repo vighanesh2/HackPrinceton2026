@@ -6,11 +6,10 @@ import RightSidebar from './RightSidebar'
 
 export default function ConditionalSidebars() {
   const pathname = usePathname()
-  // Hide questionnaire sidebars on landing page and business copilot page
-  // Business copilot has its own layout with AppSidebar
-  const shouldHide = pathname === '/' || pathname === '/business-copilot'
+  // Only show sidebars on questionnaire page
+  const isQuestionnaire = pathname === '/questionnaire'
 
-  if (shouldHide) {
+  if (!isQuestionnaire) {
     return null
   }
 
@@ -23,11 +22,10 @@ export default function ConditionalSidebars() {
 
 export function ConditionalRightSidebar() {
   const pathname = usePathname()
-  // Hide questionnaire sidebars on landing page and business copilot page
-  // Business copilot has its own layout
-  const shouldHide = pathname === '/' || pathname === '/business-copilot'
+  // Only show sidebars on questionnaire page
+  const isQuestionnaire = pathname === '/questionnaire'
 
-  if (shouldHide) {
+  if (!isQuestionnaire) {
     return null
   }
 

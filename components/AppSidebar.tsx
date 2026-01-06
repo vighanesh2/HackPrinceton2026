@@ -1,8 +1,11 @@
 'use client'
 
 import { MessageSquare, Wrench, MessageCircle, Globe, UserCircle, X, Palette } from 'lucide-react'
+import { usePathname } from 'next/navigation'
+import Link from 'next/link'
 
 export default function AppSidebar() {
+  const pathname = usePathname()
   const historyItems = [
     'Create a pitch deck for a mental...',
     'Generate 3 MVP feature sets fo...',
@@ -12,6 +15,9 @@ export default function AppSidebar() {
     'Turn this idea into a problem/sol...',
     'What KPIs should i track for my...',
   ]
+
+  const isPrototypeBuilder = pathname === '/Prototype-Builder'
+  const isPitchCreation = pathname === '/business-copilot'
 
   return (
     <aside className="sidebar app-sidebar">
@@ -23,14 +29,14 @@ export default function AppSidebar() {
 
         <div className="features-section">
           <h3 className="section-title">FEATURES</h3>
-          <div className="feature-item">
+          <Link href="/Prototype-Builder" className={`feature-item ${isPrototypeBuilder ? 'active' : ''}`}>
             <Wrench className="feature-icon" />
-            <span className="feature-text">MVP Builder</span>
-          </div>
-          <div className="feature-item active">
+            <span className="feature-text">Prototype Builder</span>
+          </Link>
+          <Link href="/business-copilot" className={`feature-item ${isPitchCreation ? 'active' : ''}`}>
             <MessageCircle className="feature-icon" />
             <span className="feature-text">Pitch Creation</span>
-          </div>
+          </Link>
           <div className="feature-item">
             <Globe className="feature-icon" />
             <span className="feature-text">SWOT Insights</span>

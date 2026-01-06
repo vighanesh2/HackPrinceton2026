@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import { QuestionnaireProvider } from '@/contexts/QuestionnaireContext'
+import { ModelProvider } from '@/contexts/ModelContext'
 import ConditionalLayout from '@/components/ConditionalLayout'
 
 const inter = Inter({
@@ -23,9 +24,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.variable}>
-        <QuestionnaireProvider>
-          <ConditionalLayout>{children}</ConditionalLayout>
-        </QuestionnaireProvider>
+        <ModelProvider>
+          <QuestionnaireProvider>
+            <ConditionalLayout>{children}</ConditionalLayout>
+          </QuestionnaireProvider>
+        </ModelProvider>
       </body>
     </html>
   )
