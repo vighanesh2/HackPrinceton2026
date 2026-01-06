@@ -150,8 +150,8 @@ export default function PrototypeBuilder() {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
         content: isRefinement 
-          ? 'I\'ve refined your prototype! Check the updated preview on the right.'
-          : 'I\'ve generated your prototype! Check the preview on the right.',
+          ? 'I&apos;ve refined your prototype! Check the updated preview on the right.'
+          : 'I&apos;ve generated your prototype! Check the preview on the right.',
         timestamp: new Date(),
       }
 
@@ -203,7 +203,7 @@ export default function PrototypeBuilder() {
                   </div>
                   <h3 className="empty-state-title">Start Building</h3>
                   <p className="empty-state-text">
-                    Describe your prototype idea and I'll generate the HTML code for you.
+                    Describe your prototype idea and I&apos;ll generate the HTML code for you.
                   </p>
                   <div className="example-prompts">
                     <p className="example-title">Try examples like:</p>
