@@ -5,26 +5,23 @@ import ConditionalSidebars, { ConditionalRightSidebar } from './ConditionalSideb
 
 export default function ConditionalLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const isBusinessCopilot = pathname === '/business-copilot'
-  const isLandingPage = pathname === '/'
+  const isQuestionnaire = pathname === '/questionnaire'
 
-  // For business copilot, it has its own complete layout structure
-  // For landing page, no sidebars
-  // For questionnaire, use the standard layout with sidebars
-  if (isBusinessCopilot || isLandingPage) {
+  // Only show sidebars on questionnaire page
+  if (isQuestionnaire) {
     return (
       <div className="app-container">
-        {children}
+        <ConditionalSidebars />
+        <main className="main-content">{children}</main>
+        <ConditionalRightSidebar />
       </div>
     )
   }
 
-  // For questionnaire and other pages
+  // For all other pages (business copilot, landing page, prototype builder, etc.), no sidebars
   return (
     <div className="app-container">
-      <ConditionalSidebars />
-      <main className="main-content">{children}</main>
-      <ConditionalRightSidebar />
+      {children}
     </div>
   )
 }

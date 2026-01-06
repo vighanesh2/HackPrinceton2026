@@ -1,6 +1,7 @@
 'use client'
 
 import { Plus, Lock, Radio, ChevronRight } from 'lucide-react'
+import Link from 'next/link'
 
 export default function MainContent() {
   const featureCards = [
@@ -9,6 +10,7 @@ export default function MainContent() {
       emoji: '🧱',
       title: 'Design and launch your MVP in minutes.',
       bgColor: 'card-icon-blue',
+      href: '/Prototype-Builder',
     },
     {
       number: '02/12',
@@ -68,20 +70,32 @@ export default function MainContent() {
           <h2 className="cards-title">What do you want to build today?</h2>
           
           <div className="cards-grid">
-            {featureCards.map((card, index) => (
-              <div key={index} className="feature-card">
-                <div className="card-header">
-                  <span className="card-number">{card.number}</span>
-                  <ChevronRight className="card-arrow" />
+            {featureCards.map((card, index) => {
+              const CardContent = (
+                <>
+                  <div className="card-header">
+                    <span className="card-number">{card.number}</span>
+                    <ChevronRight className="card-arrow" />
+                  </div>
+                  
+                  <div className={`card-icon ${card.bgColor}`}>
+                    {card.emoji}
+                  </div>
+                  
+                  <p className="card-title">{card.title}</p>
+                </>
+              )
+
+              return card.href ? (
+                <Link key={index} href={card.href} className="feature-card">
+                  {CardContent}
+                </Link>
+              ) : (
+                <div key={index} className="feature-card">
+                  {CardContent}
                 </div>
-                
-                <div className={`card-icon ${card.bgColor}`}>
-                  {card.emoji}
-                </div>
-                
-                <p className="card-title">{card.title}</p>
-              </div>
-            ))}
+              )
+            })}
           </div>
 
           <div className="dots-container">
