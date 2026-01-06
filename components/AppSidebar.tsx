@@ -14,7 +14,7 @@ export default function AppSidebar() {
   ]
 
   return (
-    <aside className="sidebar">
+    <aside className="sidebar app-sidebar">
       <div className="sidebar-content">
         <button className="new-chat-button">
           <MessageSquare className="new-chat-icon" />
