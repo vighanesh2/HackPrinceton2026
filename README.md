@@ -1,6 +1,6 @@
 # Rontzen Prototype
 
-MVP,
+Prototype,
 Market Insights,
 SWOT insights,
 Brand Kit Generator,
