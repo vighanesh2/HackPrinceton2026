@@ -1,9 +1,8 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
-import Sidebar from '@/components/Sidebar'
-import RightSidebar from '@/components/RightSidebar'
 import { QuestionnaireProvider } from '@/contexts/QuestionnaireContext'
+import ConditionalSidebars, { ConditionalRightSidebar } from '@/components/ConditionalSidebars'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -26,9 +25,9 @@ export default function RootLayout({
       <body className={inter.variable}>
         <QuestionnaireProvider>
           <div className="app-container">
-            <Sidebar />
+            <ConditionalSidebars />
             <main className="main-content">{children}</main>
-            <RightSidebar />
+            <ConditionalRightSidebar />
           </div>
         </QuestionnaireProvider>
       </body>

@@ -1193,3 +1193,123 @@ a {
   height: 18px;
   stroke-width: 2.5;
 }
+
+/* Landing Page */
+.landing-page {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #faf9f6;
+  padding: 40px;
+}
+
+.landing-content {
+  text-align: center;
+  max-width: 600px;
+  width: 100%;
+}
+
+.landing-logo {
+  margin-bottom: 32px;
+  display: flex;
+  justify-content: center;
+}
+
+.landing-logo-box {
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(135deg, #166534, #22c55e);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(22, 101, 52, 0.2);
+}
+
+.landing-logo-text {
+  color: white;
+  font-weight: bold;
+  font-size: 32px;
+}
+
+.landing-title {
+  font-size: 48px;
+  font-weight: 300;
+  color: #111827;
+  margin: 0 0 16px 0;
+  line-height: 1.2;
+}
+
+.landing-subtitle {
+  font-size: 18px;
+  color: #6b7280;
+  margin: 0 0 48px 0;
+}
+
+.landing-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+.landing-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 20px 32px;
+  border-radius: 12px;
+  font-size: 18px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-inter), system-ui, sans-serif;
+}
+
+.questionnaire-button {
+  background-color: #166534;
+  color: white;
+  box-shadow: 0 4px 12px rgba(22, 101, 52, 0.2);
+}
+
+.questionnaire-button:hover {
+  background-color: #15803d;
+  box-shadow: 0 6px 16px rgba(22, 101, 52, 0.3);
+  transform: translateY(-2px);
+}
+
+.copilot-button {
+  background-color: white;
+  color: #166534;
+  border: 2px solid #166534;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.copilot-button:hover {
+  background-color: #f0fdf4;
+  border-color: #15803d;
+  color: #15803d;
+  box-shadow: 0 4px 12px rgba(22, 101, 52, 0.15);
+  transform: translateY(-2px);
+}
+
+.button-icon {
+  width: 24px;
+  height: 24px;
+  stroke-width: 2.5;
+}
+
+@media (min-width: 640px) {
+  .landing-buttons {
+    flex-direction: row;
+  }
+  
+  .landing-button {
+    flex: 1;
+  }
+}
