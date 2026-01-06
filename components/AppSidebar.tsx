@@ -2,7 +2,7 @@
 
 import { MessageSquare, Wrench, MessageCircle, Globe, UserCircle, X, Palette } from 'lucide-react'
 
-export default function Sidebar() {
+export default function AppSidebar() {
   const historyItems = [
     'Create a pitch deck for a mental...',
     'Generate 3 MVP feature sets fo...',
@@ -74,3 +74,4 @@ export default function Sidebar() {
     </aside>
   )
 }
+

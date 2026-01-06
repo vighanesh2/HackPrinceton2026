@@ -1,13 +1,13 @@
 'use client'
 
 import Header from '@/components/Header'
-import Sidebar from '@/components/Sidebar'
+import AppSidebar from '@/components/AppSidebar'
 import MainContent from '@/components/MainContent'
 
 export default function Home() {
   return (
     <div className="app-container">
-      <Sidebar />
+      <AppSidebar />
       <div className="main-wrapper">
         <Header />
         <MainContent />
