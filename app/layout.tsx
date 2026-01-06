@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import Sidebar from '@/components/Sidebar'
 import RightSidebar from '@/components/RightSidebar'
+import { QuestionnaireProvider } from '@/contexts/QuestionnaireContext'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -23,11 +24,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.variable}>
-        <div className="app-container">
-          <Sidebar />
-          <main className="main-content">{children}</main>
-          <RightSidebar />
-        </div>
+        <QuestionnaireProvider>
+          <div className="app-container">
+            <Sidebar />
+            <main className="main-content">{children}</main>
+            <RightSidebar />
+          </div>
+        </QuestionnaireProvider>
       </body>
     </html>
   )
