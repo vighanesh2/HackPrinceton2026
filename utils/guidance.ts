@@ -7,6 +7,7 @@ interface Question {
   question: string
   type: string
   minChars?: number
+  minValue?: number
 }
 
 export interface Guidance {

@@ -119,7 +119,7 @@ export default function RightSidebar() {
             </div>
             <div className="card-content">
               <h3 className="card-title">Rontzen Insight</h3>
-              <p className="card-quote">"{insight}"</p>
+              <p className="card-quote">&ldquo;{insight}&rdquo;</p>
             </div>
           </div>
         </div>
