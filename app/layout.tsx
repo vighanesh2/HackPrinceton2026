@@ -1,5 +1,15 @@
 import type { Metadata } from 'next'
+import { Inter } from 'next/font/google'
 import './globals.css'
+import Sidebar from '@/components/Sidebar'
+import RightSidebar from '@/components/RightSidebar'
+import { QuestionnaireProvider } from '@/contexts/QuestionnaireContext'
+
+const inter = Inter({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-inter',
+})
 
 export const metadata: Metadata = {
   title: 'Rontzen Prototype',
@@ -13,8 +23,15 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body className={inter.variable}>
+        <QuestionnaireProvider>
+          <div className="app-container">
+            <Sidebar />
+            <main className="main-content">{children}</main>
+            <RightSidebar />
+          </div>
+        </QuestionnaireProvider>
+      </body>
     </html>
   )
 }
-
