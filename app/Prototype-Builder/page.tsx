@@ -24,6 +24,9 @@ export default function PrototypeBuilder() {
   const [generationMode, setGenerationMode] = useState<GenerationMode>('new')
   const [isModeDropdownOpen, setIsModeDropdownOpen] = useState(false)
   const modeDropdownRef = useRef<HTMLDivElement>(null)
+  const [chatPanelWidth, setChatPanelWidth] = useState(400) // Default width in pixels
+  const [isResizing, setIsResizing] = useState(false)
+  const resizeRef = useRef<HTMLDivElement>(null)
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -49,34 +52,95 @@ export default function PrototypeBuilder() {
     }
   }, [generatedHtml, generationMode])
 
+  // Handle resizing
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing) return
+      
+      const newWidth = e.clientX
+      // Constrain width between 300px and 60% of viewport
+      const minWidth = 300
+      const maxWidth = window.innerWidth * 0.6
+      const constrainedWidth = Math.max(minWidth, Math.min(maxWidth, newWidth))
+      setChatPanelWidth(constrainedWidth)
+    }
+
+    const handleMouseUp = () => {
+      setIsResizing(false)
+    }
+
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove)
+      document.addEventListener('mouseup', handleMouseUp)
+      document.body.style.cursor = 'col-resize'
+      document.body.style.userSelect = 'none'
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+  }, [isResizing])
+
   // Function to inject navigation prevention script into HTML
   const injectNavigationPrevention = (html: string): string => {
     const preventionScript = `
       <script>
         (function() {
-          // Prevent all link navigation
+          // Allow hash links and JavaScript handlers, but prevent actual navigation
           document.addEventListener('click', function(e) {
-            const target = e.target.closest('a, button[type="submit"], form');
-            if (target) {
-              // If it's a link, prevent navigation
-              if (target.tagName === 'A' && target.href) {
+            const target = e.target.closest('a');
+            if (target && target.tagName === 'A' && target.href) {
+              // Allow hash links (internal navigation)
+              if (target.hash && target.hash !== '') {
+                // Allow hash navigation but prevent default to avoid iframe navigation
+                e.preventDefault();
+                // Scroll to the element if it exists
+                const targetId = target.hash.substring(1);
+                const targetElement = document.getElementById(targetId);
+                if (targetElement) {
+                  targetElement.scrollIntoView({ behavior: 'smooth' });
+                }
+                return false;
+              }
+              // Allow javascript: links and onclick handlers to work
+              if (target.href.startsWith('javascript:') || target.onclick) {
+                // Let JavaScript handlers execute but prevent navigation
+                return;
+              }
+              // Prevent external/internal navigation
+              if (target.href && !target.href.startsWith('#')) {
                 e.preventDefault();
                 e.stopPropagation();
                 console.log('Navigation prevented:', target.href);
                 return false;
               }
-              // If it's a form, prevent submission
-              if (target.tagName === 'FORM') {
-                e.preventDefault();
-                e.stopPropagation();
-                return false;
+            }
+            
+            // Handle form submissions
+            const form = e.target.closest('form');
+            if (form) {
+              e.preventDefault();
+              e.stopPropagation();
+              // Allow form validation and JavaScript handlers to run
+              if (form.onsubmit) {
+                try {
+                  form.onsubmit(e);
+                } catch (err) {
+                  console.log('Form submission prevented');
+                }
               }
-              // If it's a submit button, prevent form submission
-              if (target.tagName === 'BUTTON' && target.type === 'submit') {
-                e.preventDefault();
-                e.stopPropagation();
-                return false;
-              }
+              return false;
+            }
+            
+            // Handle submit buttons
+            const submitButton = e.target.closest('button[type="submit"]');
+            if (submitButton) {
+              e.preventDefault();
+              e.stopPropagation();
+              return false;
             }
           }, true);
           
@@ -146,12 +210,17 @@ export default function PrototypeBuilder() {
       const htmlWithNavigationPrevention = injectNavigationPrevention(data.html)
       setGeneratedHtml(htmlWithNavigationPrevention)
 
+      // Automatically switch to refinement mode after first generation
+      if (!isRefinement && generationMode === 'new') {
+        setGenerationMode('refinement')
+      }
+
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
         content: isRefinement 
-          ? 'I&apos;ve refined your prototype! Check the updated preview on the right.'
-          : 'I&apos;ve generated your prototype! Check the preview on the right.',
+          ? "I've refined your prototype! Check the updated preview on the right."
+          : "I've generated your prototype! Check the preview on the right.",
         timestamp: new Date(),
       }
 
@@ -184,7 +253,10 @@ export default function PrototypeBuilder() {
         <Header />
         <div className="prototype-split-container">
           {/* Left Side - Chat */}
-          <div className="prototype-chat-panel">
+          <div 
+            className="prototype-chat-panel"
+            style={{ width: `${chatPanelWidth}px` }}
+          >
             <div className="chat-header">
               <div className="chat-header-content">
                 <Sparkles className="chat-header-icon" />
@@ -316,6 +388,16 @@ export default function PrototypeBuilder() {
               </div>
             </div>
           </div>
+
+          {/* Resize Handle */}
+          <div
+            ref={resizeRef}
+            className="resize-handle"
+            onMouseDown={(e) => {
+              e.preventDefault()
+              setIsResizing(true)
+            }}
+          />
 
           {/* Right Side - Preview */}
           <div className="prototype-preview-panel">

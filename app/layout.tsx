@@ -25,9 +25,9 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.variable}>
         <ModelProvider>
-          <QuestionnaireProvider>
-            <ConditionalLayout>{children}</ConditionalLayout>
-          </QuestionnaireProvider>
+        <QuestionnaireProvider>
+          <ConditionalLayout>{children}</ConditionalLayout>
+        </QuestionnaireProvider>
         </ModelProvider>
       </body>
     </html>
