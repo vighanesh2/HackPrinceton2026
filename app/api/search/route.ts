@@ -289,9 +289,7 @@ export async function POST(request: NextRequest) {
       query: searchQuery,
       count: normalizedResults.length,
       totalResults: totalResults,
-      hasMore: hasMore,
-      nextStart: nextStartIndex,
-      hasMore: nextStartIndex !== null && nextStartIndex <= parseInt(totalResults),
+      hasMore: nextStartIndex !== null && nextStartIndex <= totalResults,
       nextStart: nextStartIndex,
     })
   } catch (error: any) {

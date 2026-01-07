@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "dedalus-labs": "^0.1.0-alpha.8",
     "lucide-react": "^0.344.0",
     "next": "^14.2.5",
     "react": "^18.3.1",
