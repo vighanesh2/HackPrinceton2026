@@ -1776,12 +1776,13 @@ a {
 
 /* Chat Panel (Left) */
 .prototype-chat-panel {
-  width: 50%;
   display: flex;
   flex-direction: column;
   background-color: white;
   border-right: 1px solid #e5e7eb;
   overflow: hidden;
+  flex-shrink: 0;
+  position: relative;
 }
 
 .chat-header {
@@ -2145,9 +2146,35 @@ a {
   animation: spin 1s linear infinite;
 }
 
+/* Resize Handle */
+.resize-handle {
+  width: 4px;
+  background-color: #e5e7eb;
+  cursor: col-resize;
+  flex-shrink: 0;
+  position: relative;
+  transition: background-color 0.2s;
+  z-index: 10;
+}
+
+.resize-handle:hover {
+  background-color: #166534;
+}
+
+.resize-handle::before {
+  content: '';
+  position: absolute;
+  left: -2px;
+  right: -2px;
+  top: 0;
+  bottom: 0;
+  cursor: col-resize;
+}
+
 /* Preview Panel (Right) */
 .prototype-preview-panel {
-  width: 50%;
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   background-color: white;
