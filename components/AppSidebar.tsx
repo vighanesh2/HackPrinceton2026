@@ -1,6 +1,6 @@
 'use client'
 
-import { MessageSquare, Wrench, MessageCircle, Globe, UserCircle, X, Palette } from 'lucide-react'
+import { MessageSquare, Wrench, MessageCircle, Globe, UserCircle, X, Palette, Search } from 'lucide-react'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 
@@ -18,6 +18,7 @@ export default function AppSidebar() {
 
   const isPrototypeBuilder = pathname === '/Prototype-Builder'
   const isPitchCreation = pathname === '/business-copilot'
+  const isMarketInsights = pathname === '/Market-Insights'
 
   return (
     <aside className="sidebar app-sidebar">
@@ -36,6 +37,10 @@ export default function AppSidebar() {
           <Link href="/business-copilot" className={`feature-item ${isPitchCreation ? 'active' : ''}`}>
             <MessageCircle className="feature-icon" />
             <span className="feature-text">Pitch Creation</span>
+          </Link>
+          <Link href="/Market-Insights" className={`feature-item ${isMarketInsights ? 'active' : ''}`}>
+            <Search className="feature-icon" />
+            <span className="feature-text">Market Insights</span>
           </Link>
           <div className="feature-item">
             <Globe className="feature-icon" />
