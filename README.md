@@ -24,4 +24,4 @@ async function main() {
 await main();
 
 
-Le Ai for the context awareness
+Leta Ai for the context awareness
