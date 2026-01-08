@@ -25,3 +25,7 @@ await main();
 
 
 Leta Ai for the context awareness
+
+
+UI for the SWOT analysis inspiration
+<img width="1726" height="877" alt="Screenshot 2026-01-08 at 8 59 06 PM" src="https://github.com/user-attachments/assets/cc73bafd-98ec-4225-b974-c95745e29db2" />
