@@ -61,5 +61,7 @@ Should be inpired by this
 
 
 
+inspiring : https://entelligence.ai/
+https://copanion.hypercho.com/
 
 
