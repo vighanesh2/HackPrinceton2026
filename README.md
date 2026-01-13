@@ -72,3 +72,5 @@ https://stitch.withgoogle.com/
 Ui insipiration 
 
 https://trillo.framer.ai/
+
+okibi.ai - Use for LinkedIn and social media marketing
