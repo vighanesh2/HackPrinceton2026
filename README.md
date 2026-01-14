@@ -74,3 +74,6 @@ Ui insipiration
 https://trillo.framer.ai/
 
 okibi.ai - Use for LinkedIn and social media marketing
+
+ui inspo
+https://aichatbott.framer.website/?via=tanjim38
