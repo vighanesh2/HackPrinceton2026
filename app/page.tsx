@@ -1,18 +1,30 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 
 export default function Home() {
+  const [isScrolled, setIsScrolled] = useState(false)
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 50)
+    }
+
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+
   return (
     <div className="hero-landing-page">
       {/* Header */}
-      <header className="hero-header">
+      <header className={`hero-header ${isScrolled ? 'scrolled' : ''}`}>
         <div className="hero-header-content">
           <div className="hero-logo-container">
             <div className="hero-logo-icon">
-              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect x="4" y="4" width="16" height="16" rx="2" stroke="#111827" strokeWidth="2" fill="none"/>
-                <path d="M10 8L16 12L10 16V8Z" fill="#111827"/>
+              <svg className="hero-logo-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect className="logo-rect" x="4" y="4" width="16" height="16" rx="2" strokeWidth="2" fill="none"/>
+                <path className="logo-path" d="M10 8L16 12L10 16V8Z"/>
               </svg>
             </div>
             <span className="hero-brand-name">Rontzen</span>
@@ -28,12 +40,14 @@ export default function Home() {
           </nav>
           
           <div className="hero-header-actions">
-            <button className="hero-header-cta">
+            <Link href="/login" className="hero-header-cta">
               Get 14 Days Free Trial
-              <svg className="header-cta-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
+              <span className="header-cta-icon">
+                <svg className="header-cta-arrow" fill="none" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" stroke="white" />
+                </svg>
+              </span>
+            </Link>
           </div>
         </div>
       </header>
@@ -50,15 +64,15 @@ export default function Home() {
         <div className="hero-content">
           <div className="hero-review-badge">
             <div className="review-avatars">
-              <div className="review-avatar"></div>
-              <div className="review-avatar"></div>
-              <div className="review-avatar"></div>
+              <img src="/brand1.png" alt="Brand 1" className="review-avatar-image" />
+              <img src="/brand2.png" alt="Brand 2" className="review-avatar-image" />
+              <img src="/brand3.png" alt="Brand 3" className="review-avatar-image" />
             </div>
-            <span className="review-text">5900+ 5 Star Reviews</span>
+            <span className="review-text">100+ startups launched</span>
           </div>
           
           <h1 className="hero-headline">
-            Your Co-Founder for Growth &amp; Strategy
+            Your Co-Founder for Growth<br />&amp; Strategy
           </h1>
           
           <p className="hero-description">
@@ -66,14 +80,14 @@ export default function Home() {
           </p>
           
           <div className="hero-cta-buttons">
-            <button className="hero-cta-primary">
+            <Link href="/login" className="hero-cta-primary">
               Get 14 Days Free Trial
               <span className="cta-icon-circle">
                 <svg className="cta-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
                 </svg>
               </span>
-            </button>
+            </Link>
           </div>
 
           {/* Image Generation Window */}
@@ -104,35 +118,37 @@ export default function Home() {
                 <div className="customer-avatar"></div>
               </div>
               <div className="customer-stats">
-                <div className="customer-count">120k+</div>
-                <div className="customer-label">Happy customer</div>
+                <div className="customer-count">500+</div>
+                <div className="customer-label">costumer Matches</div>
               </div>
             </div>
           </div>
 
           {/* Bar Chart Card */}
           <div className="customer-card chart-card">
-            <div className="chart-header-badge">
-              <div className="chart-badge-icon">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
-                </svg>
+            <div className="chart-white-card">
+              <div className="chart-header-badge">
+                <div className="chart-badge-icon">
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                  </svg>
+                </div>
+                <span className="chart-badge-text">34%</span>
               </div>
-              <span className="chart-badge-text">34%</span>
-            </div>
-            <div className="bar-chart-container">
-              <div className="chart-y-axis">
-                <span className="y-axis-label">20 h</span>
-                <span className="y-axis-label">15 h</span>
-                <span className="y-axis-label">10 h</span>
-                <span className="y-axis-label">5 h</span>
-              </div>
-              <div className="chart-bars">
-                <div className="chart-bar bar-high" style={{ height: '85%' }}></div>
-                <div className="chart-bar bar-low" style={{ height: '40%' }}></div>
-                <div className="chart-bar bar-high" style={{ height: '100%' }}></div>
-                <div className="chart-bar bar-low" style={{ height: '60%' }}></div>
-                <div className="chart-bar bar-low" style={{ height: '30%' }}></div>
+              <div className="bar-chart-container">
+                <div className="chart-y-axis">
+                  <span className="y-axis-label">20 h</span>
+                  <span className="y-axis-label">15 h</span>
+                  <span className="y-axis-label">10 h</span>
+                  <span className="y-axis-label">5 h</span>
+                </div>
+                <div className="chart-bars">
+                  <div className="chart-bar bar-high" style={{ height: '85%' }}></div>
+                  <div className="chart-bar bar-low" style={{ height: '40%' }}></div>
+                  <div className="chart-bar bar-high" style={{ height: '100%' }}></div>
+                  <div className="chart-bar bar-low" style={{ height: '60%' }}></div>
+                  <div className="chart-bar bar-low" style={{ height: '30%' }}></div>
+                </div>
               </div>
             </div>
           </div>
@@ -145,7 +161,7 @@ export default function Home() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                 </svg>
               </div>
-              <span className="task-text">Write copy</span>
+              <span className="task-text">Run SWOT Analysis</span>
               <button className="task-add-btn">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -158,7 +174,7 @@ export default function Home() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
               </div>
-              <span className="task-text">Image integration</span>
+              <span className="task-text">Launch Cold Outreach</span>
               <button className="task-add-btn">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -171,7 +187,7 @@ export default function Home() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
               </div>
-              <span className="task-text">Create avatar</span>
+              <span className="task-text">Track Open Rates</span>
               <button className="task-add-btn">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -184,7 +200,7 @@ export default function Home() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
                 </svg>
               </div>
-              <span className="task-text">Write code</span>
+              <span className="task-text">Find Leads</span>
               <button className="task-add-btn">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -941,12 +957,6 @@ export default function Home() {
             </div>
             <div className="footer-bottom-right">
               <p className="footer-copyright">© 2025 Rontzen, Inc. All rights reserved</p>
-              <div className="framer-badge">
-                <svg viewBox="0 0 24 24" fill="white" width="16" height="16">
-                  <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-                </svg>
-                <span>Made in Framer</span>
-              </div>
             </div>
           </div>
         </div>

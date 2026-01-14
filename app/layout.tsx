@@ -4,6 +4,7 @@ import './globals.css'
 import { QuestionnaireProvider } from '@/contexts/QuestionnaireContext'
 import { ModelProvider } from '@/contexts/ModelContext'
 import ConditionalLayout from '@/components/ConditionalLayout'
+import SmoothScroll from '@/components/SmoothScroll'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -24,6 +25,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.variable}>
+        <SmoothScroll />
         <ModelProvider>
         <QuestionnaireProvider>
           <ConditionalLayout>{children}</ConditionalLayout>
