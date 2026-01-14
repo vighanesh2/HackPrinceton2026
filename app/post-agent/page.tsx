@@ -359,7 +359,7 @@ export default function PostAgentPage() {
           </div>
           {postHistory.length === 0 ? (
             <div className="empty-state">
-              <p>No posts yet. Posts will appear here after they're published.</p>
+              <p>No posts yet. Posts will appear here after they&apos;re published.</p>
             </div>
           ) : (
             <div className="post-history">
