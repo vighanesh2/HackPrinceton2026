@@ -41,10 +41,10 @@ export default function Home() {
           
           <div className="hero-header-actions">
             <Link href="/login" className="hero-header-cta">
-              Get 14 Days Free Trial
+              Run Free Scan Now
               <span className="header-cta-icon">
                 <svg className="header-cta-arrow" fill="none" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" stroke="white" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" stroke="#111827" />
                 </svg>
               </span>
             </Link>
@@ -68,20 +68,20 @@ export default function Home() {
               <img src="/brand2.png" alt="Brand 2" className="review-avatar-image" />
               <img src="/brand3.png" alt="Brand 3" className="review-avatar-image" />
             </div>
-            <span className="review-text">100+ startups launched</span>
+            <span className="review-text">500+ Critical Leaks Blocked</span>
           </div>
           
           <h1 className="hero-headline">
-            Your Co-Founder for Growth<br />&amp; Strategy
+            The &apos;Pre-Flight&apos; Check for Fintech Compliance
           </h1>
           
           <p className="hero-description">
-            From validating ideas to closing your first deal. Streamline your networking, automate cold outreach, and build data-backed pricing models—all in one platform.
+            Scan your codebase for PII leaks, hardcoded keys, and regulatory violations before your Sponsor Bank&apos;s audit. Pass technical due diligence in 24 hours.
           </p>
           
           <div className="hero-cta-buttons">
             <Link href="/login" className="hero-cta-primary">
-              Get 14 Days Free Trial
+              Run Free Scan Now
               <span className="cta-icon-circle">
                 <svg className="cta-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
@@ -93,6 +93,27 @@ export default function Home() {
           {/* Image Generation Window */}
           <div className="hero-glass-window">
             <div className="hero-image-window">
+              <video
+                autoPlay
+                loop
+                muted
+                playsInline
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  borderRadius: '16px',
+                  display: 'block',
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0
+                }}
+              >
+                <source src="/rontzen demo.mp4" type="video/mp4" />
+                Your browser does not support the video tag.
+              </video>
             </div>
           </div>
         </div>
@@ -100,54 +121,66 @@ export default function Home() {
 
       {/* Customer Questions Section */}
       <section className="customer-questions-section">
-        <h2 className="customer-questions-title">Execute your entire go-to-market strategy in one place</h2>
+        <h2 className="customer-questions-title">Automate your technical due diligence in 3 steps</h2>
         
         <div className="customer-questions-cards">
           {/* Profile and Review Card */}
           <div className="customer-card profile-review-card">
-            <div className="profile-image-wrapper">
-              <div className="profile-pattern"></div>
-              <div className="profile-photo">
-                {/* Placeholder for profile image - user can add actual image */}
-              </div>
-            </div>
-            <div className="customer-overlay">
-              <div className="customer-avatars">
-                <div className="customer-avatar"></div>
-                <div className="customer-avatar"></div>
-                <div className="customer-avatar"></div>
-              </div>
-              <div className="customer-stats">
-                <div className="customer-count">500+</div>
-                <div className="customer-label">costumer Matches</div>
-              </div>
+            <div className="customer-overlay" style={{ position: 'absolute', bottom: '24px', left: '24px', right: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '24px', textAlign: 'center', zIndex: 10 }}>
+              <h3 style={{ fontSize: '24px', fontWeight: '600', color: 'white', marginBottom: '8px', fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", system-ui, sans-serif', textShadow: '0 2px 8px rgba(0, 0, 0, 0.3)' }}>Detect PII Sinks</h3>
+              <div style={{ fontSize: '72px', fontWeight: '700', color: 'white', lineHeight: '1', marginBottom: '8px', fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", system-ui, sans-serif', textShadow: '0 2px 8px rgba(0, 0, 0, 0.3)' }}>100+</div>
+              <p style={{ fontSize: '18px', color: 'rgba(255, 255, 255, 0.95)', fontWeight: '500', fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", system-ui, sans-serif', textShadow: '0 2px 6px rgba(0, 0, 0, 0.3)', marginBottom: '12px' }}>Projects Checked</p>
+              <p style={{ fontSize: '14px', color: 'rgba(255, 255, 255, 0.9)', marginTop: '8px', lineHeight: '1.5', fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", system-ui, sans-serif', textShadow: '0 2px 6px rgba(0, 0, 0, 0.3)' }}>Identify where logs, analytics, and third-party APIs expose sensitive user data.</p>
             </div>
           </div>
 
           {/* Bar Chart Card */}
           <div className="customer-card chart-card">
-            <div className="chart-white-card">
-              <div className="chart-header-badge">
-                <div className="chart-badge-icon">
-                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+            <div className="chart-white-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', height: '100%', background: 'white', borderRadius: '16px' }}>
+              <h3 style={{ fontSize: '20px', fontWeight: '600', color: '#111827', marginBottom: '20px', fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", system-ui, sans-serif' }}>Risk Score</h3>
+              
+              {/* Score Circle */}
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px' }}>
+                <div style={{ position: 'relative', width: '120px', height: '120px' }}>
+                  <svg width="120" height="120" style={{ transform: 'rotate(-90deg)' }}>
+                    <circle cx="60" cy="60" r="50" stroke="#e5e7eb" strokeWidth="10" fill="none" />
+                    <circle cx="60" cy="60" r="50" stroke="#6009de" strokeWidth="10" fill="none" strokeDasharray={`${2 * Math.PI * 50 * 0.78} ${2 * Math.PI * 50}`} />
                   </svg>
+                  <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
+                    <div style={{ fontSize: '32px', fontWeight: '700', color: '#6009de', lineHeight: '1' }}>78</div>
+                    <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '4px' }}>Score</div>
+                  </div>
                 </div>
-                <span className="chart-badge-text">34%</span>
               </div>
-              <div className="bar-chart-container">
-                <div className="chart-y-axis">
-                  <span className="y-axis-label">20 h</span>
-                  <span className="y-axis-label">15 h</span>
-                  <span className="y-axis-label">10 h</span>
-                  <span className="y-axis-label">5 h</span>
+
+              {/* Risk Breakdown Bars */}
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <span style={{ fontSize: '12px', color: '#6b7280', fontWeight: '500' }}>Compliance</span>
+                    <span style={{ fontSize: '12px', color: '#6b7280', fontWeight: '600' }}>85%</span>
+                  </div>
+                  <div style={{ height: '8px', background: '#e5e7eb', borderRadius: '4px', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: '85%', background: '#10b981', borderRadius: '4px' }}></div>
+                  </div>
                 </div>
-                <div className="chart-bars">
-                  <div className="chart-bar bar-high" style={{ height: '85%' }}></div>
-                  <div className="chart-bar bar-low" style={{ height: '40%' }}></div>
-                  <div className="chart-bar bar-high" style={{ height: '100%' }}></div>
-                  <div className="chart-bar bar-low" style={{ height: '60%' }}></div>
-                  <div className="chart-bar bar-low" style={{ height: '30%' }}></div>
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <span style={{ fontSize: '12px', color: '#6b7280', fontWeight: '500' }}>Security</span>
+                    <span style={{ fontSize: '12px', color: '#6b7280', fontWeight: '600' }}>72%</span>
+                  </div>
+                  <div style={{ height: '8px', background: '#e5e7eb', borderRadius: '4px', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: '72%', background: '#f59e0b', borderRadius: '4px' }}></div>
+                  </div>
+                </div>
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <span style={{ fontSize: '12px', color: '#6b7280', fontWeight: '500' }}>Data Privacy</span>
+                    <span style={{ fontSize: '12px', color: '#6b7280', fontWeight: '600' }}>91%</span>
+                  </div>
+                  <div style={{ height: '8px', background: '#e5e7eb', borderRadius: '4px', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: '91%', background: '#10b981', borderRadius: '4px' }}></div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -155,57 +188,57 @@ export default function Home() {
 
           {/* Task List Card */}
           <div className="customer-card task-list-card">
-            <div className="task-item">
-              <div className="task-icon task-icon-purple">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                </svg>
+            <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', height: '100%', background: '#1e1e1e', borderRadius: '12px', fontFamily: 'Monaco, "Courier New", monospace', fontSize: '12px' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#fff', marginBottom: '16px', fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", system-ui, sans-serif' }}>Auto-Remediation</h3>
+              
+              {/* Code Editor UI */}
+              <div style={{ flex: 1, background: '#1e1e1e', borderRadius: '8px', overflow: 'hidden', border: '1px solid #333' }}>
+                {/* Editor Header */}
+                <div style={{ background: '#252526', padding: '8px 12px', display: 'flex', gap: '8px', borderBottom: '1px solid #333' }}>
+                  <div style={{ padding: '4px 8px', background: '#1e1e1e', borderRadius: '4px', color: '#fff', fontSize: '11px' }}>server.js</div>
+                  <div style={{ padding: '4px 8px', borderRadius: '4px', color: '#999', fontSize: '11px' }}>config.ts</div>
+                </div>
+                
+                {/* Code Content */}
+                <div style={{ padding: '12px', color: '#d4d4d4', lineHeight: '1.6' }}>
+                  <div style={{ marginBottom: '8px' }}>
+                    <span style={{ color: '#569cd6' }}>const</span>{' '}
+                    <span style={{ color: '#9cdcfe' }}>apiKey</span>{' '}
+                    <span style={{ color: '#ce9178' }}>=</span>{' '}
+                    <span style={{ color: '#ce9178' }}>&apos;sk_live_abc123xyz&apos;</span>
+                    <span style={{ color: '#f44747', marginLeft: '8px' }}>⚠</span>
+                    <span style={{ color: '#f44747', marginLeft: '4px', fontSize: '10px' }}>Hardcoded secret</span>
+                  </div>
+                  <div style={{ marginBottom: '8px' }}>
+                    <span style={{ color: '#569cd6' }}>console</span>
+                    <span style={{ color: '#d4d4d4' }}>.</span>
+                    <span style={{ color: '#dcdcaa' }}>log</span>
+                    <span style={{ color: '#ce9178' }}>(</span>
+                    <span style={{ color: '#ce9178' }}>&apos;User email: &apos;</span>
+                    <span style={{ color: '#d4d4d4' }}>, </span>
+                    <span style={{ color: '#9cdcfe' }}>user</span>
+                    <span style={{ color: '#d4d4d4' }}>.</span>
+                    <span style={{ color: '#9cdcfe' }}>email</span>
+                    <span style={{ color: '#ce9178' }}>)</span>
+                    <span style={{ color: '#f44747', marginLeft: '8px' }}>⚠</span>
+                    <span style={{ color: '#f44747', marginLeft: '4px', fontSize: '10px' }}>PII exposure</span>
+                  </div>
+                  <div style={{ marginBottom: '8px' }}>
+                    <span style={{ color: '#569cd6' }}>const</span>{' '}
+                    <span style={{ color: '#9cdcfe' }}>dbPassword</span>{' '}
+                    <span style={{ color: '#ce9178' }}>=</span>{' '}
+                    <span style={{ color: '#ce9178' }}>&apos;admin123&apos;</span>
+                    <span style={{ color: '#f44747', marginLeft: '8px' }}>⚠</span>
+                    <span style={{ color: '#f44747', marginLeft: '4px', fontSize: '10px' }}>Hardcoded credential</span>
+                  </div>
+                  <div style={{ marginTop: '12px', padding: '8px', background: '#2d2d30', borderRadius: '4px', border: '1px solid #f44747' }}>
+                    <div style={{ color: '#f44747', fontSize: '11px', fontWeight: '600', marginBottom: '4px' }}>✗ 3 violations detected</div>
+                    <div style={{ color: '#ce9178', fontSize: '10px' }}>Auto-remediation available</div>
+                  </div>
+                </div>
               </div>
-              <span className="task-text">Run SWOT Analysis</span>
-              <button className="task-add-btn">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-              </button>
-            </div>
-            <div className="task-item">
-              <div className="task-icon task-icon-orange">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-              </div>
-              <span className="task-text">Launch Cold Outreach</span>
-              <button className="task-add-btn">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-              </button>
-            </div>
-            <div className="task-item">
-              <div className="task-icon task-icon-pink">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-              </div>
-              <span className="task-text">Track Open Rates</span>
-              <button className="task-add-btn">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-              </button>
-            </div>
-            <div className="task-item">
-              <div className="task-icon task-icon-blue">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-                </svg>
-              </div>
-              <span className="task-text">Find Leads</span>
-              <button className="task-add-btn">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-              </button>
+              
+              <p style={{ fontSize: '13px', color: '#6b7280', marginTop: '12px', lineHeight: '1.5', fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", system-ui, sans-serif' }}>Generate fix scripts for hardcoded secrets and unmasked logging.</p>
             </div>
           </div>
         </div>
@@ -213,29 +246,119 @@ export default function Home() {
 
       {/* Engagement Section */}
       <section className="engagement-section">
-        <h2 className="engagement-title">Boost engagement and drive sales.</h2>
+        <h2 className="engagement-title">Integrate Compliance into your Workflow.</h2>
         
         <div className="engagement-cards">
           {/* Proactive Messaging Card */}
           <div className="engagement-card">
             <div className="engagement-card-content">
-              <h3 className="engagement-card-title">Proactive Messaging.</h3>
-              <p className="engagement-card-description">Sends reminders, updates, offers to boost engagement.</p>
+              <h3 className="engagement-card-title">CI/CD Blocking</h3>
+              <p className="engagement-card-description">Automatically block any Pull Request that contains a hardcoded API key or PII log.</p>
             </div>
-            <div className="engagement-visual-placeholder">
-              {/* Empty placeholder for visual content */}
+            <div className="engagement-visual-placeholder" style={{ padding: '16px', display: 'flex', flexDirection: 'column', height: '100%', background: '#1e1e1e', borderRadius: '12px', fontFamily: 'Monaco, "Courier New", monospace', fontSize: '12px' }}>
+              {/* Code Editor UI for CI/CD Blocking */}
+              <div style={{ flex: 1, background: '#1e1e1e', borderRadius: '8px', overflow: 'hidden', border: '1px solid #333' }}>
+                {/* Editor Header */}
+                <div style={{ background: '#252526', padding: '8px 12px', display: 'flex', gap: '8px', borderBottom: '1px solid #333' }}>
+                  <div style={{ padding: '4px 8px', background: '#1e1e1e', borderRadius: '4px', color: '#fff', fontSize: '11px' }}>api.js</div>
+                  <div style={{ padding: '4px 8px', borderRadius: '4px', color: '#999', fontSize: '11px' }}>PR #142</div>
+                </div>
+                
+                {/* Code Content */}
+                <div style={{ padding: '12px', color: '#d4d4d4', lineHeight: '1.6' }}>
+                  <div style={{ marginBottom: '8px' }}>
+                    <span style={{ color: '#569cd6' }}>const</span>{' '}
+                    <span style={{ color: '#9cdcfe' }}>apiKey</span>{' '}
+                    <span style={{ color: '#ce9178' }}>=</span>{' '}
+                    <span style={{ color: '#ce9178' }}>&apos;sk_live_abc123xyz&apos;</span>
+                    <span style={{ color: '#f44747', marginLeft: '8px' }}>✗</span>
+                  </div>
+                  <div style={{ marginBottom: '8px' }}>
+                    <span style={{ color: '#569cd6' }}>console</span>
+                    <span style={{ color: '#d4d4d4' }}>.</span>
+                    <span style={{ color: '#dcdcaa' }}>log</span>
+                    <span style={{ color: '#ce9178' }}>(</span>
+                    <span style={{ color: '#ce9178' }}>&apos;Processing: &apos;</span>
+                    <span style={{ color: '#d4d4d4' }}>, </span>
+                    <span style={{ color: '#9cdcfe' }}>user</span>
+                    <span style={{ color: '#d4d4d4' }}>.</span>
+                    <span style={{ color: '#9cdcfe' }}>ssn</span>
+                    <span style={{ color: '#ce9178' }}>)</span>
+                    <span style={{ color: '#f44747', marginLeft: '8px' }}>✗</span>
+                  </div>
+                  <div style={{ marginTop: '12px', padding: '10px', background: '#2d1b1b', borderRadius: '4px', border: '1px solid #f44747' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                      <span style={{ color: '#f44747', fontSize: '16px' }}>✗</span>
+                      <div style={{ color: '#f44747', fontSize: '12px', fontWeight: '600' }}>PR BLOCKED</div>
+                    </div>
+                    <div style={{ color: '#ce9178', fontSize: '11px', marginBottom: '4px' }}>2 compliance violations detected</div>
+                    <div style={{ color: '#6b7280', fontSize: '10px' }}>Fix required before merge</div>
+                  </div>
+                  <div style={{ marginTop: '8px', padding: '8px', background: '#1e3a1e', borderRadius: '4px', border: '1px solid #10b981' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ color: '#10b981', fontSize: '14px' }}>✓</span>
+                      <span style={{ color: '#10b981', fontSize: '11px' }}>CI/CD Check: Compliance Scanner</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
           {/* Live Voice Support Card */}
           <div className="engagement-card voice-card">
-            <div className="engagement-visual-placeholder voice-placeholder">
-              <div className="voice-placeholder-layer-1"></div>
-              <div className="voice-placeholder-layer-2"></div>
+            <div className="engagement-visual-placeholder voice-placeholder" style={{ padding: '16px', overflow: 'hidden', position: 'relative', height: '100%', background: 'white' }}>
+              {/* Animated Vendor List */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0', position: 'relative', flex: 1, overflow: 'hidden', height: '100%' }}>
+                <div className="vendor-list-animation" style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 16px', background: 'white', borderBottom: '1px solid #e5e7eb' }}>
+                    <div style={{ color: '#111827', fontSize: '16px', fontWeight: 'bold' }}>✓</div>
+                    <div style={{ flex: 1, fontSize: '14px', fontWeight: '600', color: '#111827' }}>Stripe</div>
+                    <div style={{ fontSize: '12px', color: '#6b7280' }}>Safe</div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 16px', background: 'white', borderBottom: '1px solid #e5e7eb' }}>
+                    <div style={{ color: '#111827', fontSize: '16px', fontWeight: 'bold' }}>✓</div>
+                    <div style={{ flex: 1, fontSize: '14px', fontWeight: '600', color: '#111827' }}>Plaid</div>
+                    <div style={{ fontSize: '12px', color: '#6b7280' }}>Safe</div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 16px', background: 'white', borderBottom: '1px solid #e5e7eb' }}>
+                    <div style={{ color: '#111827', fontSize: '16px', fontWeight: 'bold' }}>✓</div>
+                    <div style={{ flex: 1, fontSize: '14px', fontWeight: '600', color: '#111827' }}>Dwolla</div>
+                    <div style={{ fontSize: '12px', color: '#6b7280' }}>Safe</div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 16px', background: '#111827', borderBottom: '1px solid #374151' }}>
+                    <div style={{ color: 'white', fontSize: '16px', fontWeight: 'bold' }}>✗</div>
+                    <div style={{ flex: 1, fontSize: '14px', fontWeight: '600', color: 'white' }}>unknown-api.com</div>
+                    <div style={{ fontSize: '12px', color: '#9ca3af' }}>Flagged</div>
+                  </div>
+                  
+                  {/* Duplicate for seamless loop */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 16px', background: 'white', borderBottom: '1px solid #e5e7eb' }}>
+                    <div style={{ color: '#111827', fontSize: '16px', fontWeight: 'bold' }}>✓</div>
+                    <div style={{ flex: 1, fontSize: '14px', fontWeight: '600', color: '#111827' }}>Stripe</div>
+                    <div style={{ fontSize: '12px', color: '#6b7280' }}>Safe</div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 16px', background: 'white', borderBottom: '1px solid #e5e7eb' }}>
+                    <div style={{ color: '#111827', fontSize: '16px', fontWeight: 'bold' }}>✓</div>
+                    <div style={{ flex: 1, fontSize: '14px', fontWeight: '600', color: '#111827' }}>Plaid</div>
+                    <div style={{ fontSize: '12px', color: '#6b7280' }}>Safe</div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 16px', background: 'white', borderBottom: '1px solid #e5e7eb' }}>
+                    <div style={{ color: '#111827', fontSize: '16px', fontWeight: 'bold' }}>✓</div>
+                    <div style={{ flex: 1, fontSize: '14px', fontWeight: '600', color: '#111827' }}>Dwolla</div>
+                    <div style={{ fontSize: '12px', color: '#6b7280' }}>Safe</div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 16px', background: '#111827', borderBottom: '1px solid #374151' }}>
+                    <div style={{ color: 'white', fontSize: '16px', fontWeight: 'bold' }}>✗</div>
+                    <div style={{ flex: 1, fontSize: '14px', fontWeight: '600', color: 'white' }}>unknown-api.com</div>
+                    <div style={{ fontSize: '12px', color: '#9ca3af' }}>Flagged</div>
+                  </div>
+                </div>
+              </div>
             </div>
             <div className="engagement-card-content">
-              <h3 className="engagement-card-title">Live Voice Support.</h3>
-              <p className="engagement-card-description">This method is particularly valuable for complex issues.</p>
+              <h3 className="engagement-card-title">Vendor Whitelisting</h3>
+              <p className="engagement-card-description">Pre-approved integrations (Stripe, Plaid) are safe. Unknown endpoints are flagged instantly.</p>
             </div>
           </div>
         </div>
@@ -247,12 +370,12 @@ export default function Home() {
           <div className="secure-collaboration-container">
           {/* Left Content */}
           <div className="secure-collaboration-content">
-            <h2 className="secure-collaboration-title">Secure collaboration with role based access control.</h2>
+            <h2 className="secure-collaboration-title">Generate Bank-Ready Audit Artifacts.</h2>
             <p className="secure-collaboration-description">
-              Secure collaboration is essential in modern workflows, and role-based access control (RBAC) ensures that it is both efficient and protected.
+              Stop manually screenshotting code for auditors. Generate a signed, timestamped PDF report certifying that your src folder is free of PII leaks. Hand this directly to your compliance officer.
             </p>
             <button className="secure-collaboration-cta">
-              Get Started Now
+              Download Sample Report
               <span className="cta-arrow-circle">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -262,7 +385,88 @@ export default function Home() {
           </div>
 
           {/* Right Interior Card */}
-          <div className="secure-collaboration-card">
+          <div className="secure-collaboration-card" style={{ background: '#111827', borderRadius: '16px', padding: '32px', display: 'flex', flexDirection: 'column', gap: '20px', position: 'relative', overflow: 'hidden', boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)' }}>
+            {/* Report Header */}
+            <div style={{ background: 'white', borderRadius: '12px', padding: '20px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <div>
+                  <div style={{ fontSize: '24px', fontWeight: '700', color: '#111827', marginBottom: '4px' }}>Compliance Audit Report</div>
+                  <div style={{ fontSize: '12px', color: '#6b7280' }}>Generated: {new Date().toLocaleDateString()}</div>
+                </div>
+                <div style={{ width: '48px', height: '48px', background: '#111827', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+              </div>
+              
+              {/* Report Summary */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+                <div style={{ padding: '12px', background: '#f9fafb', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+                  <div style={{ fontSize: '11px', color: '#111827', marginBottom: '4px', fontWeight: '600' }}>REPOSITORY</div>
+                  <div style={{ fontSize: '16px', fontWeight: '700', color: '#111827' }}>finance-app</div>
+                </div>
+                <div style={{ padding: '12px', background: '#f9fafb', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+                  <div style={{ fontSize: '11px', color: '#111827', marginBottom: '4px', fontWeight: '600' }}>SCAN DATE</div>
+                  <div style={{ fontSize: '16px', fontWeight: '700', color: '#111827' }}>Today</div>
+                </div>
+              </div>
+
+              {/* Compliance Status */}
+              <div style={{ padding: '16px', background: '#111827', borderRadius: '8px', color: 'white' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                  <div style={{ fontSize: '32px', fontWeight: '700' }}>98%</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '14px', fontWeight: '600', marginBottom: '2px' }}>Audit Readiness</div>
+                    <div style={{ fontSize: '11px', opacity: 0.9 }}>Bank-Ready Status</div>
+                  </div>
+                </div>
+                <div style={{ height: '6px', background: 'rgba(255,255,255,0.2)', borderRadius: '3px', overflow: 'hidden', marginTop: '8px' }}>
+                  <div style={{ height: '100%', width: '98%', background: 'white', borderRadius: '3px' }}></div>
+                </div>
+              </div>
+            </div>
+
+            {/* Report Details */}
+            <div style={{ background: 'white', borderRadius: '12px', padding: '20px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+              <div style={{ fontSize: '14px', fontWeight: '600', color: '#111827', marginBottom: '12px' }}>Compliance Checks</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', background: '#f9fafb', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+                  <div style={{ color: '#111827', fontSize: '18px', fontWeight: 'bold' }}>✓</div>
+                  <div style={{ flex: 1, fontSize: '13px', color: '#111827', fontWeight: '500' }}>PII Detection</div>
+                  <div style={{ fontSize: '12px', color: '#111827', fontWeight: '600' }}>Passed</div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', background: '#f9fafb', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+                  <div style={{ color: '#111827', fontSize: '18px', fontWeight: 'bold' }}>✓</div>
+                  <div style={{ flex: 1, fontSize: '13px', color: '#111827', fontWeight: '500' }}>Secret Management</div>
+                  <div style={{ fontSize: '12px', color: '#111827', fontWeight: '600' }}>Passed</div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', background: '#f9fafb', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+                  <div style={{ color: '#111827', fontSize: '18px', fontWeight: 'bold' }}>✓</div>
+                  <div style={{ flex: 1, fontSize: '13px', color: '#111827', fontWeight: '500' }}>Data Encryption</div>
+                  <div style={{ fontSize: '12px', color: '#111827', fontWeight: '600' }}>Passed</div>
+                </div>
+              </div>
+
+              {/* Digital Signature Badge */}
+              <div style={{ marginTop: '16px', padding: '12px', background: '#f9fafb', borderRadius: '8px', border: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '32px', height: '32px', background: '#111827', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '11px', color: '#6b7280', marginBottom: '2px' }}>Digitally Signed & Timestamped</div>
+                  <div style={{ fontSize: '10px', color: '#9ca3af' }}>Valid for Sponsor Bank audit submission</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Floating Badge */}
+            <div style={{ position: 'absolute', top: '16px', right: '16px', background: 'rgba(255,255,255,0.95)', borderRadius: '8px', padding: '8px 12px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ width: '8px', height: '8px', background: '#111827', borderRadius: '50%', animation: 'pulse 2s infinite' }}></div>
+              <span style={{ fontSize: '11px', fontWeight: '600', color: '#111827' }}>LIVE REPORT</span>
+            </div>
           </div>
           </div>
         </div>
@@ -588,12 +792,12 @@ export default function Home() {
           <div className="analytics-main-content">
             {/* Left Column */}
             <div className="analytics-left-content">
-              <h2 className="analytics-title">Data-backed SWOT analysis, not just guesswork.</h2>
+              <h2 className="analytics-title">Context-Aware Scanning, not just Regex.</h2>
               <p className="analytics-description">
-                Don&apos;t launch in the dark. Our engine analyzes millions of market data points to generate a comprehensive SWOT matrix for your specific niche. Instantly validate your business logic, discover hidden risks, and pivot your strategy before you pitch to investors.
+                Generic security tools scream at everything. Our engine understands Fintech context. We distinguish between a variable named user_password (safe definition) and an actual hardcoded secret string (compliance failure), saving your team from alert fatigue.
               </p>
               <button className="analytics-cta">
-                Generate My Report
+                See the Difference
                 <svg fill="none" stroke="white" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
@@ -647,7 +851,7 @@ export default function Home() {
 
       {/* New Pricing Section */}
       <section className="new-pricing-section">
-        <h2 className="new-pricing-title">No hidden charges! choose your plan now.</h2>
+        <h2 className="new-pricing-title">Pay a fraction of a Compliance Consultant.</h2>
         
         <div className="new-pricing-toggle-container">
           <div className="new-pricing-toggle">
@@ -661,10 +865,9 @@ export default function Home() {
           {/* Starter Plan */}
           <div className="new-pricing-card">
             <h3 className="new-plan-name">Starter</h3>
-            <p className="new-plan-description">Perfect for small businesses just starting with CRM management.</p>
+            <p className="new-plan-description">Local Scan</p>
             <div className="new-plan-price">
               <span className="new-price-amount">Free</span>
-              <span className="new-price-period">/mo</span>
             </div>
             <button className="new-pricing-button new-pricing-button-white">
               Get Started Now
@@ -677,31 +880,19 @@ export default function Home() {
                 <svg className="new-check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                <span>Basic chatbot templates.</span>
+                <span>1 Repository scan</span>
               </div>
               <div className="new-feature-item">
                 <svg className="new-check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                <span>Up to 1,000 messages.</span>
+                <span>Basic CSV Report</span>
               </div>
               <div className="new-feature-item">
                 <svg className="new-check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                <span>Integration with 1 platform.</span>
-              </div>
-              <div className="new-feature-item">
-                <svg className="new-check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                <span>Basic analytics dashboard.</span>
-              </div>
-              <div className="new-feature-item">
-                <svg className="new-check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                <span>24/7 support.</span>
+                <span>50 leak detections</span>
               </div>
             </div>
           </div>
@@ -709,9 +900,9 @@ export default function Home() {
           {/* Growth Plan */}
           <div className="new-pricing-card">
             <h3 className="new-plan-name">Growth</h3>
-            <p className="new-plan-description">Ideal for growing teams that need advanced tools.</p>
+            <p className="new-plan-description">Audit Ready</p>
             <div className="new-plan-price">
-              <span className="new-price-amount">$29</span>
+              <span className="new-price-amount">$299</span>
               <span className="new-price-period">/mo</span>
             </div>
             <button className="new-pricing-button new-pricing-button-white">
@@ -725,31 +916,25 @@ export default function Home() {
                 <svg className="new-check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                <span>All starter features.</span>
+                <span>CI/CD Integration</span>
               </div>
               <div className="new-feature-item">
                 <svg className="new-check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                <span>Up to 10,000 messages.</span>
+                <span>PDF Audit Certificate</span>
               </div>
               <div className="new-feature-item">
                 <svg className="new-check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                <span>Integration 3 platforms.</span>
+                <span>Priority Support</span>
               </div>
               <div className="new-feature-item">
                 <svg className="new-check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                <span>Customizable chatbot flows.</span>
-              </div>
-              <div className="new-feature-item">
-                <svg className="new-check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                <span>Advanced analytics.</span>
+                <span>Re-scan on commit</span>
               </div>
             </div>
           </div>
@@ -757,9 +942,9 @@ export default function Home() {
           {/* Professional Plan (Highlighted) */}
           <div className="new-pricing-card new-pricing-card-highlighted">
             <h3 className="new-plan-name">Professional</h3>
-            <p className="new-plan-description">Designed for midsized business needing deeper customer.</p>
+            <p className="new-plan-description">Multi-Product</p>
             <div className="new-plan-price">
-              <span className="new-price-amount">$64</span>
+              <span className="new-price-amount">$499</span>
               <span className="new-price-period">/mo</span>
             </div>
             <button className="new-pricing-button new-pricing-button-black">
@@ -773,31 +958,19 @@ export default function Home() {
                 <svg className="new-check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                <span>All growth features.</span>
+                <span>Unlimited Repos</span>
               </div>
               <div className="new-feature-item">
                 <svg className="new-check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                <span>Up to 1,000 messages.</span>
+                <span>Custom Rule Engine</span>
               </div>
               <div className="new-feature-item">
                 <svg className="new-check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                <span>Integration with 1 platform.</span>
-              </div>
-              <div className="new-feature-item">
-                <svg className="new-check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                <span>AI powered understanding.</span>
-              </div>
-              <div className="new-feature-item">
-                <svg className="new-check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                <span>Multi language support.</span>
+                <span>Dedicated Slack channel</span>
               </div>
             </div>
           </div>
@@ -856,12 +1029,12 @@ export default function Home() {
       <section className="chatassist-section">
         <div className="chatassist-container">
           <div className="chatassist-content">
-            <h2 className="chatassist-title">Work faster with Chatassist AI.</h2>
+            <h2 className="chatassist-title">Unblock your launch today.</h2>
             <p className="chatassist-description">
-              ChatAssist AI is designed to revolutionize how businesses operate, helping teams work.
+              Don&apos;t let a single line of bad code delay your Series A or bank partnership. Prove your compliance now.
             </p>
             <button className="chatassist-cta">
-              Get 14 Days Free Trial
+              Start Free Audit
               <span className="chatassist-arrow-circle">
                 <svg fill="white" viewBox="0 0 24 24">
                   <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z" />
