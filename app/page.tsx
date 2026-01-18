@@ -5,15 +5,26 @@ import Link from 'next/link'
 
 export default function Home() {
   const [isScrolled, setIsScrolled] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 50)
+      setMobileMenuOpen(false)
     }
 
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
+
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => { document.body.style.overflow = '' }
+  }, [mobileMenuOpen])
 
   return (
     <div className="hero-landing-page">
@@ -41,16 +52,41 @@ export default function Home() {
           
           <div className="hero-header-actions">
             <Link href="/login" className="hero-header-cta">
-              Run Free Scan Now
+              <span className="hero-header-cta-text">Run Free Scan Now</span>
               <span className="header-cta-icon">
                 <svg className="header-cta-arrow" fill="none" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" stroke="#111827" />
                 </svg>
               </span>
             </Link>
+            <button
+              type="button"
+              className="hero-nav-mobile-toggle"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label="Toggle menu"
+              aria-expanded={mobileMenuOpen}
+            >
+              <span className={mobileMenuOpen ? 'hero-hamburger open' : 'hero-hamburger'}>
+                <span />
+                <span />
+                <span />
+              </span>
+            </button>
           </div>
         </div>
       </header>
+
+      {/* Mobile menu overlay */}
+      <div className={`hero-nav-mobile-overlay ${mobileMenuOpen ? 'open' : ''}`} onClick={() => setMobileMenuOpen(false)} aria-hidden="true" />
+      <nav className={`hero-nav-mobile ${mobileMenuOpen ? 'open' : ''}`}>
+        <Link href="#features" className="hero-nav-mobile-link" onClick={() => setMobileMenuOpen(false)}>Home</Link>
+        <Link href="#about" className="hero-nav-mobile-link" onClick={() => setMobileMenuOpen(false)}>About</Link>
+        <Link href="#features" className="hero-nav-mobile-link" onClick={() => setMobileMenuOpen(false)}>Features</Link>
+        <Link href="#pricing" className="hero-nav-mobile-link" onClick={() => setMobileMenuOpen(false)}>Pricing</Link>
+        <Link href="#career" className="hero-nav-mobile-link" onClick={() => setMobileMenuOpen(false)}>Career</Link>
+        <Link href="#blog" className="hero-nav-mobile-link" onClick={() => setMobileMenuOpen(false)}>Blog</Link>
+        <Link href="/login" className="hero-nav-mobile-cta" onClick={() => setMobileMenuOpen(false)}>Run Free Scan Now</Link>
+      </nav>
 
       {/* Hero Section */}
       <section className="hero-section">
@@ -401,7 +437,7 @@ export default function Home() {
               </div>
               
               {/* Report Summary */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+              <div className="audit-report-summary" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
                 <div style={{ padding: '12px', background: '#f9fafb', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
                   <div style={{ fontSize: '11px', color: '#111827', marginBottom: '4px', fontWeight: '600' }}>REPOSITORY</div>
                   <div style={{ fontSize: '16px', fontWeight: '700', color: '#111827' }}>finance-app</div>
