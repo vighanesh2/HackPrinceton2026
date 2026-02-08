@@ -89,7 +89,7 @@ export default function Home() {
       </nav>
 
       {/* Hero Section */}
-      <section className="hero-section">
+      <section id="about" className="hero-section">
         <div className="hero-background-pattern">
           <span className="plus-symbol" style={{ top: '10%', left: '15%' }}>+</span>
           <span className="plus-symbol" style={{ top: '20%', right: '10%' }}>+</span>
@@ -104,15 +104,15 @@ export default function Home() {
               <img src="/brand2.png" alt="Brand 2" className="review-avatar-image" />
               <img src="/brand3.png" alt="Brand 3" className="review-avatar-image" />
             </div>
-            <span className="review-text">500+ Critical Leaks Blocked</span>
+            <span className="review-text">5 Categories of Code Correctness</span>
           </div>
           
           <h1 className="hero-headline">
-            The &apos;Pre-Flight&apos; Check for Fintech Compliance
+            Code Correctness, Not Just Security
           </h1>
           
           <p className="hero-description">
-            Scan your codebase for PII leaks, hardcoded keys, and regulatory violations before your Sponsor Bank&apos;s audit. Pass technical due diligence in 24 hours.
+            Detect logical errors, input validation flaws, broken error handling, auth gaps, and compliance violations. Map findings to SOC2, GDPR, and HIPAA—before your audit.
           </p>
           
           <div className="hero-cta-buttons">
@@ -147,7 +147,7 @@ export default function Home() {
                   bottom: 0
                 }}
               >
-                <source src="/rontzen demo.mp4" type="video/mp4" />
+                <source src="/rontzen%20demo.mp4" type="video/mp4" />
                 Your browser does not support the video tag.
               </video>
             </div>
@@ -155,126 +155,86 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Customer Questions Section */}
-      <section className="customer-questions-section">
-        <h2 className="customer-questions-title">Automate your technical due diligence in 3 steps</h2>
+      {/* 5 Correctness Categories Section */}
+      <section id="features" className="customer-questions-section">
+        <h2 className="customer-questions-title">5 Categories of Code Correctness</h2>
         
-        <div className="customer-questions-cards">
-          {/* Profile and Review Card */}
-          <div className="customer-card profile-review-card">
-            <div className="customer-overlay" style={{ position: 'absolute', bottom: '24px', left: '24px', right: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '24px', textAlign: 'center', zIndex: 10 }}>
-              <h3 style={{ fontSize: '24px', fontWeight: '600', color: 'white', marginBottom: '8px', fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", system-ui, sans-serif', textShadow: '0 2px 8px rgba(0, 0, 0, 0.3)' }}>Detect PII Sinks</h3>
-              <div style={{ fontSize: '72px', fontWeight: '700', color: 'white', lineHeight: '1', marginBottom: '8px', fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", system-ui, sans-serif', textShadow: '0 2px 8px rgba(0, 0, 0, 0.3)' }}>100+</div>
-              <p style={{ fontSize: '18px', color: 'rgba(255, 255, 255, 0.95)', fontWeight: '500', fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", system-ui, sans-serif', textShadow: '0 2px 6px rgba(0, 0, 0, 0.3)', marginBottom: '12px' }}>Projects Checked</p>
-              <p style={{ fontSize: '14px', color: 'rgba(255, 255, 255, 0.9)', marginTop: '8px', lineHeight: '1.5', fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", system-ui, sans-serif', textShadow: '0 2px 6px rgba(0, 0, 0, 0.3)' }}>Identify where logs, analytics, and third-party APIs expose sensitive user data.</p>
+        <div className="customer-questions-cards correctness-cards">
+          {/* 1. Logical Correctness */}
+          <div className="customer-card correctness-card">
+            <div className="correctness-card-inner">
+              <div className="correctness-card-number">1</div>
+              <h3 className="correctness-card-title">Logical Correctness</h3>
+              <p className="correctness-card-subtitle">Does it do what it claims?</p>
+              <ul className="correctness-card-list">
+                <li>Dead code</li>
+                <li>Unreachable branches</li>
+                <li>Missing return paths</li>
+                <li>Conflicting conditionals</li>
+              </ul>
             </div>
           </div>
 
-          {/* Bar Chart Card */}
-          <div className="customer-card chart-card">
-            <div className="chart-white-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', height: '100%', background: 'white', borderRadius: '16px' }}>
-              <h3 style={{ fontSize: '20px', fontWeight: '600', color: '#111827', marginBottom: '20px', fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", system-ui, sans-serif' }}>Risk Score</h3>
-              
-              {/* Score Circle */}
-              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px' }}>
-                <div style={{ position: 'relative', width: '120px', height: '120px' }}>
-                  <svg width="120" height="120" style={{ transform: 'rotate(-90deg)' }}>
-                    <circle cx="60" cy="60" r="50" stroke="#e5e7eb" strokeWidth="10" fill="none" />
-                    <circle cx="60" cy="60" r="50" stroke="#6009de" strokeWidth="10" fill="none" strokeDasharray={`${2 * Math.PI * 50 * 0.78} ${2 * Math.PI * 50}`} />
-                  </svg>
-                  <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
-                    <div style={{ fontSize: '32px', fontWeight: '700', color: '#6009de', lineHeight: '1' }}>78</div>
-                    <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '4px' }}>Score</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Risk Breakdown Bars */}
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                    <span style={{ fontSize: '12px', color: '#6b7280', fontWeight: '500' }}>Compliance</span>
-                    <span style={{ fontSize: '12px', color: '#6b7280', fontWeight: '600' }}>85%</span>
-                  </div>
-                  <div style={{ height: '8px', background: '#e5e7eb', borderRadius: '4px', overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: '85%', background: '#10b981', borderRadius: '4px' }}></div>
-                  </div>
-                </div>
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                    <span style={{ fontSize: '12px', color: '#6b7280', fontWeight: '500' }}>Security</span>
-                    <span style={{ fontSize: '12px', color: '#6b7280', fontWeight: '600' }}>72%</span>
-                  </div>
-                  <div style={{ height: '8px', background: '#e5e7eb', borderRadius: '4px', overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: '72%', background: '#f59e0b', borderRadius: '4px' }}></div>
-                  </div>
-                </div>
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                    <span style={{ fontSize: '12px', color: '#6b7280', fontWeight: '500' }}>Data Privacy</span>
-                    <span style={{ fontSize: '12px', color: '#6b7280', fontWeight: '600' }}>91%</span>
-                  </div>
-                  <div style={{ height: '8px', background: '#e5e7eb', borderRadius: '4px', overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: '91%', background: '#10b981', borderRadius: '4px' }}></div>
-                  </div>
-                </div>
-              </div>
+          {/* 2. Input & Data Correctness */}
+          <div className="customer-card correctness-card">
+            <div className="correctness-card-inner">
+              <div className="correctness-card-number">2</div>
+              <h3 className="correctness-card-title">Input & Data Correctness</h3>
+              <p className="correctness-card-subtitle">Can users break it?</p>
+              <ul className="correctness-card-list">
+                <li>Unvalidated request parameters</li>
+                <li>Unsafe parsing</li>
+                <li>SQL injection, XSS vectors</li>
+                <li>Missing schema validation</li>
+              </ul>
+              <div className="correctness-card-badge">Security · GDPR · HIPAA</div>
             </div>
           </div>
 
-          {/* Task List Card */}
-          <div className="customer-card task-list-card">
-            <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', height: '100%', background: '#1e1e1e', borderRadius: '12px', fontFamily: 'Monaco, "Courier New", monospace', fontSize: '12px' }}>
-              <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#fff', marginBottom: '16px', fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", system-ui, sans-serif' }}>Auto-Remediation</h3>
-              
-              {/* Code Editor UI */}
-              <div style={{ flex: 1, background: '#1e1e1e', borderRadius: '8px', overflow: 'hidden', border: '1px solid #333' }}>
-                {/* Editor Header */}
-                <div style={{ background: '#252526', padding: '8px 12px', display: 'flex', gap: '8px', borderBottom: '1px solid #333' }}>
-                  <div style={{ padding: '4px 8px', background: '#1e1e1e', borderRadius: '4px', color: '#fff', fontSize: '11px' }}>server.js</div>
-                  <div style={{ padding: '4px 8px', borderRadius: '4px', color: '#999', fontSize: '11px' }}>config.ts</div>
-                </div>
-                
-                {/* Code Content */}
-                <div style={{ padding: '12px', color: '#d4d4d4', lineHeight: '1.6' }}>
-                  <div style={{ marginBottom: '8px' }}>
-                    <span style={{ color: '#569cd6' }}>const</span>{' '}
-                    <span style={{ color: '#9cdcfe' }}>apiKey</span>{' '}
-                    <span style={{ color: '#ce9178' }}>=</span>{' '}
-                    <span style={{ color: '#ce9178' }}>&apos;sk_live_abc123xyz&apos;</span>
-                    <span style={{ color: '#f44747', marginLeft: '8px' }}>⚠</span>
-                    <span style={{ color: '#f44747', marginLeft: '4px', fontSize: '10px' }}>Hardcoded secret</span>
-                  </div>
-                  <div style={{ marginBottom: '8px' }}>
-                    <span style={{ color: '#569cd6' }}>console</span>
-                    <span style={{ color: '#d4d4d4' }}>.</span>
-                    <span style={{ color: '#dcdcaa' }}>log</span>
-                    <span style={{ color: '#ce9178' }}>(</span>
-                    <span style={{ color: '#ce9178' }}>&apos;User email: &apos;</span>
-                    <span style={{ color: '#d4d4d4' }}>, </span>
-                    <span style={{ color: '#9cdcfe' }}>user</span>
-                    <span style={{ color: '#d4d4d4' }}>.</span>
-                    <span style={{ color: '#9cdcfe' }}>email</span>
-                    <span style={{ color: '#ce9178' }}>)</span>
-                    <span style={{ color: '#f44747', marginLeft: '8px' }}>⚠</span>
-                    <span style={{ color: '#f44747', marginLeft: '4px', fontSize: '10px' }}>PII exposure</span>
-                  </div>
-                  <div style={{ marginBottom: '8px' }}>
-                    <span style={{ color: '#569cd6' }}>const</span>{' '}
-                    <span style={{ color: '#9cdcfe' }}>dbPassword</span>{' '}
-                    <span style={{ color: '#ce9178' }}>=</span>{' '}
-                    <span style={{ color: '#ce9178' }}>&apos;admin123&apos;</span>
-                    <span style={{ color: '#f44747', marginLeft: '8px' }}>⚠</span>
-                    <span style={{ color: '#f44747', marginLeft: '4px', fontSize: '10px' }}>Hardcoded credential</span>
-                  </div>
-                  <div style={{ marginTop: '12px', padding: '8px', background: '#2d2d30', borderRadius: '4px', border: '1px solid #f44747' }}>
-                    <div style={{ color: '#f44747', fontSize: '11px', fontWeight: '600', marginBottom: '4px' }}>✗ 3 violations detected</div>
-                    <div style={{ color: '#ce9178', fontSize: '10px' }}>Auto-remediation available</div>
-                  </div>
-                </div>
-              </div>
-              
-              <p style={{ fontSize: '13px', color: '#6b7280', marginTop: '12px', lineHeight: '1.5', fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", system-ui, sans-serif' }}>Generate fix scripts for hardcoded secrets and unmasked logging.</p>
+          {/* 3. Error-Handling Correctness */}
+          <div className="customer-card correctness-card">
+            <div className="correctness-card-inner">
+              <div className="correctness-card-number">3</div>
+              <h3 className="correctness-card-title">Error-Handling Correctness</h3>
+              <p className="correctness-card-subtitle">Does it fail safely?</p>
+              <ul className="correctness-card-list">
+                <li>try/catch without logging</li>
+                <li>No fallback behavior</li>
+                <li>Promises without .catch</li>
+                <li>Ignored return values</li>
+              </ul>
+              <div className="correctness-card-badge">SOC2 CC7.2 · Reliability</div>
+            </div>
+          </div>
+
+          {/* 4. Authorization & State Correctness */}
+          <div className="customer-card correctness-card">
+            <div className="correctness-card-inner">
+              <div className="correctness-card-number">4</div>
+              <h3 className="correctness-card-title">Authorization & State</h3>
+              <p className="correctness-card-subtitle">Can users access what they shouldn&apos;t?</p>
+              <ul className="correctness-card-list">
+                <li>Endpoints without guards</li>
+                <li>Missing RBAC</li>
+                <li>Privilege escalation paths</li>
+              </ul>
+              <div className="correctness-card-badge">SOC2 CC6.x · HIPAA</div>
+            </div>
+          </div>
+
+          {/* 5. Data Integrity & Compliance */}
+          <div className="customer-card correctness-card">
+            <div className="correctness-card-inner">
+              <div className="correctness-card-number">5</div>
+              <h3 className="correctness-card-title">Data Integrity & Compliance</h3>
+              <p className="correctness-card-subtitle">Audit trails & storage</p>
+              <ul className="correctness-card-list">
+                <li>Sensitive fields unencrypted</li>
+                <li>PII in logs</li>
+                <li>Missing audit trails</li>
+                <li>Insecure storage</li>
+              </ul>
+              <div className="correctness-card-badge">SOC2 · GDPR · HIPAA</div>
             </div>
           </div>
         </div>
@@ -282,14 +242,14 @@ export default function Home() {
 
       {/* Engagement Section */}
       <section className="engagement-section">
-        <h2 className="engagement-title">Integrate Compliance into your Workflow.</h2>
+        <h2 className="engagement-title">Integrate Correctness Checks into your Workflow.</h2>
         
         <div className="engagement-cards">
           {/* Proactive Messaging Card */}
           <div className="engagement-card">
             <div className="engagement-card-content">
               <h3 className="engagement-card-title">CI/CD Blocking</h3>
-              <p className="engagement-card-description">Automatically block any Pull Request that contains a hardcoded API key or PII log.</p>
+              <p className="engagement-card-description">Block Pull Requests with correctness violations: unvalidated inputs, missing auth guards, empty catch blocks, or unsafe data handling.</p>
             </div>
             <div className="engagement-visual-placeholder" style={{ padding: '16px', display: 'flex', flexDirection: 'column', height: '100%', background: '#1e1e1e', borderRadius: '12px', fontFamily: 'Monaco, "Courier New", monospace', fontSize: '12px' }}>
               {/* Code Editor UI for CI/CD Blocking */}
@@ -327,13 +287,13 @@ export default function Home() {
                       <span style={{ color: '#f44747', fontSize: '16px' }}>✗</span>
                       <div style={{ color: '#f44747', fontSize: '12px', fontWeight: '600' }}>PR BLOCKED</div>
                     </div>
-                    <div style={{ color: '#ce9178', fontSize: '11px', marginBottom: '4px' }}>2 compliance violations detected</div>
+                    <div style={{ color: '#ce9178', fontSize: '11px', marginBottom: '4px' }}>2 correctness violations detected</div>
                     <div style={{ color: '#6b7280', fontSize: '10px' }}>Fix required before merge</div>
                   </div>
                   <div style={{ marginTop: '8px', padding: '8px', background: '#1e3a1e', borderRadius: '4px', border: '1px solid #10b981' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <span style={{ color: '#10b981', fontSize: '14px' }}>✓</span>
-                      <span style={{ color: '#10b981', fontSize: '11px' }}>CI/CD Check: Compliance Scanner</span>
+                      <span style={{ color: '#10b981', fontSize: '11px' }}>CI/CD Check: Code Correctness Scanner</span>
                     </div>
                   </div>
                 </div>
@@ -341,60 +301,60 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Live Voice Support Card */}
+          {/* Compliance Mapping Card */}
           <div className="engagement-card voice-card">
             <div className="engagement-visual-placeholder voice-placeholder" style={{ padding: '16px', overflow: 'hidden', position: 'relative', height: '100%', background: 'white' }}>
-              {/* Animated Vendor List */}
+              {/* Compliance mapping list */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0', position: 'relative', flex: 1, overflow: 'hidden', height: '100%' }}>
                 <div className="vendor-list-animation" style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 16px', background: 'white', borderBottom: '1px solid #e5e7eb' }}>
                     <div style={{ color: '#111827', fontSize: '16px', fontWeight: 'bold' }}>✓</div>
-                    <div style={{ flex: 1, fontSize: '14px', fontWeight: '600', color: '#111827' }}>Stripe</div>
-                    <div style={{ fontSize: '12px', color: '#6b7280' }}>Safe</div>
+                    <div style={{ flex: 1, fontSize: '14px', fontWeight: '600', color: '#111827' }}>SOC2 CC6.x</div>
+                    <div style={{ fontSize: '12px', color: '#6b7280' }}>Pass</div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 16px', background: 'white', borderBottom: '1px solid #e5e7eb' }}>
                     <div style={{ color: '#111827', fontSize: '16px', fontWeight: 'bold' }}>✓</div>
-                    <div style={{ flex: 1, fontSize: '14px', fontWeight: '600', color: '#111827' }}>Plaid</div>
-                    <div style={{ fontSize: '12px', color: '#6b7280' }}>Safe</div>
+                    <div style={{ flex: 1, fontSize: '14px', fontWeight: '600', color: '#111827' }}>SOC2 CC7.2</div>
+                    <div style={{ fontSize: '12px', color: '#6b7280' }}>Pass</div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 16px', background: 'white', borderBottom: '1px solid #e5e7eb' }}>
                     <div style={{ color: '#111827', fontSize: '16px', fontWeight: 'bold' }}>✓</div>
-                    <div style={{ flex: 1, fontSize: '14px', fontWeight: '600', color: '#111827' }}>Dwolla</div>
-                    <div style={{ fontSize: '12px', color: '#6b7280' }}>Safe</div>
+                    <div style={{ flex: 1, fontSize: '14px', fontWeight: '600', color: '#111827' }}>GDPR</div>
+                    <div style={{ fontSize: '12px', color: '#6b7280' }}>Pass</div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 16px', background: '#111827', borderBottom: '1px solid #374151' }}>
                     <div style={{ color: 'white', fontSize: '16px', fontWeight: 'bold' }}>✗</div>
-                    <div style={{ flex: 1, fontSize: '14px', fontWeight: '600', color: 'white' }}>unknown-api.com</div>
-                    <div style={{ fontSize: '12px', color: '#9ca3af' }}>Flagged</div>
+                    <div style={{ flex: 1, fontSize: '14px', fontWeight: '600', color: 'white' }}>HIPAA Access</div>
+                    <div style={{ fontSize: '12px', color: '#9ca3af' }}>Fix required</div>
                   </div>
                   
                   {/* Duplicate for seamless loop */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 16px', background: 'white', borderBottom: '1px solid #e5e7eb' }}>
                     <div style={{ color: '#111827', fontSize: '16px', fontWeight: 'bold' }}>✓</div>
-                    <div style={{ flex: 1, fontSize: '14px', fontWeight: '600', color: '#111827' }}>Stripe</div>
-                    <div style={{ fontSize: '12px', color: '#6b7280' }}>Safe</div>
+                    <div style={{ flex: 1, fontSize: '14px', fontWeight: '600', color: '#111827' }}>SOC2 CC6.x</div>
+                    <div style={{ fontSize: '12px', color: '#6b7280' }}>Pass</div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 16px', background: 'white', borderBottom: '1px solid #e5e7eb' }}>
                     <div style={{ color: '#111827', fontSize: '16px', fontWeight: 'bold' }}>✓</div>
-                    <div style={{ flex: 1, fontSize: '14px', fontWeight: '600', color: '#111827' }}>Plaid</div>
-                    <div style={{ fontSize: '12px', color: '#6b7280' }}>Safe</div>
+                    <div style={{ flex: 1, fontSize: '14px', fontWeight: '600', color: '#111827' }}>SOC2 CC7.2</div>
+                    <div style={{ fontSize: '12px', color: '#6b7280' }}>Pass</div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 16px', background: 'white', borderBottom: '1px solid #e5e7eb' }}>
                     <div style={{ color: '#111827', fontSize: '16px', fontWeight: 'bold' }}>✓</div>
-                    <div style={{ flex: 1, fontSize: '14px', fontWeight: '600', color: '#111827' }}>Dwolla</div>
-                    <div style={{ fontSize: '12px', color: '#6b7280' }}>Safe</div>
+                    <div style={{ flex: 1, fontSize: '14px', fontWeight: '600', color: '#111827' }}>GDPR</div>
+                    <div style={{ fontSize: '12px', color: '#6b7280' }}>Pass</div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 16px', background: '#111827', borderBottom: '1px solid #374151' }}>
                     <div style={{ color: 'white', fontSize: '16px', fontWeight: 'bold' }}>✗</div>
-                    <div style={{ flex: 1, fontSize: '14px', fontWeight: '600', color: 'white' }}>unknown-api.com</div>
-                    <div style={{ fontSize: '12px', color: '#9ca3af' }}>Flagged</div>
+                    <div style={{ flex: 1, fontSize: '14px', fontWeight: '600', color: 'white' }}>HIPAA Access</div>
+                    <div style={{ fontSize: '12px', color: '#9ca3af' }}>Fix required</div>
                   </div>
                 </div>
               </div>
             </div>
             <div className="engagement-card-content">
-              <h3 className="engagement-card-title">Vendor Whitelisting</h3>
-              <p className="engagement-card-description">Pre-approved integrations (Stripe, Plaid) are safe. Unknown endpoints are flagged instantly.</p>
+              <h3 className="engagement-card-title">Compliance Mapping</h3>
+              <p className="engagement-card-description">Every finding maps to a control: SOC2 CC6.x, CC7.2, GDPR, or HIPAA. Know exactly what to fix for your audit.</p>
             </div>
           </div>
         </div>
@@ -406,9 +366,9 @@ export default function Home() {
           <div className="secure-collaboration-container">
           {/* Left Content */}
           <div className="secure-collaboration-content">
-            <h2 className="secure-collaboration-title">Generate Bank-Ready Audit Artifacts.</h2>
+            <h2 className="secure-collaboration-title">Generate SOC2, GDPR & HIPAA-Ready Audit Artifacts.</h2>
             <p className="secure-collaboration-description">
-              Stop manually screenshotting code for auditors. Generate a signed, timestamped PDF report certifying that your src folder is free of PII leaks. Hand this directly to your compliance officer.
+              Stop manually screenshotting code for auditors. Generate a signed, timestamped PDF report certifying correctness across all 5 categories—from logical flaws to data integrity. Hand this directly to your compliance officer.
             </p>
             <button className="secure-collaboration-cta">
               Download Sample Report
@@ -426,7 +386,7 @@ export default function Home() {
             <div style={{ background: 'white', borderRadius: '12px', padding: '20px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                 <div>
-                  <div style={{ fontSize: '24px', fontWeight: '700', color: '#111827', marginBottom: '4px' }}>Compliance Audit Report</div>
+                  <div style={{ fontSize: '24px', fontWeight: '700', color: '#111827', marginBottom: '4px' }}>Code Correctness Audit Report</div>
                   <div style={{ fontSize: '12px', color: '#6b7280' }}>Generated: {new Date().toLocaleDateString()}</div>
                 </div>
                 <div style={{ width: '48px', height: '48px', background: '#111827', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -453,8 +413,8 @@ export default function Home() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
                   <div style={{ fontSize: '32px', fontWeight: '700' }}>98%</div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '14px', fontWeight: '600', marginBottom: '2px' }}>Audit Readiness</div>
-                    <div style={{ fontSize: '11px', opacity: 0.9 }}>Bank-Ready Status</div>
+                <div style={{ fontSize: '14px', fontWeight: '600', marginBottom: '2px' }}>Audit Readiness</div>
+                <div style={{ fontSize: '11px', opacity: 0.9 }}>SOC2 / GDPR / HIPAA Ready</div>
                   </div>
                 </div>
                 <div style={{ height: '6px', background: 'rgba(255,255,255,0.2)', borderRadius: '3px', overflow: 'hidden', marginTop: '8px' }}>
@@ -465,21 +425,21 @@ export default function Home() {
 
             {/* Report Details */}
             <div style={{ background: 'white', borderRadius: '12px', padding: '20px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-              <div style={{ fontSize: '14px', fontWeight: '600', color: '#111827', marginBottom: '12px' }}>Compliance Checks</div>
+              <div style={{ fontSize: '14px', fontWeight: '600', color: '#111827', marginBottom: '12px' }}>Correctness Checks</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', background: '#f9fafb', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
                   <div style={{ color: '#111827', fontSize: '18px', fontWeight: 'bold' }}>✓</div>
-                  <div style={{ flex: 1, fontSize: '13px', color: '#111827', fontWeight: '500' }}>PII Detection</div>
+                  <div style={{ flex: 1, fontSize: '13px', color: '#111827', fontWeight: '500' }}>Input & Data Correctness</div>
                   <div style={{ fontSize: '12px', color: '#111827', fontWeight: '600' }}>Passed</div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', background: '#f9fafb', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
                   <div style={{ color: '#111827', fontSize: '18px', fontWeight: 'bold' }}>✓</div>
-                  <div style={{ flex: 1, fontSize: '13px', color: '#111827', fontWeight: '500' }}>Secret Management</div>
+                  <div style={{ flex: 1, fontSize: '13px', color: '#111827', fontWeight: '500' }}>Authorization & State</div>
                   <div style={{ fontSize: '12px', color: '#111827', fontWeight: '600' }}>Passed</div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', background: '#f9fafb', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
                   <div style={{ color: '#111827', fontSize: '18px', fontWeight: 'bold' }}>✓</div>
-                  <div style={{ flex: 1, fontSize: '13px', color: '#111827', fontWeight: '500' }}>Data Encryption</div>
+                  <div style={{ flex: 1, fontSize: '13px', color: '#111827', fontWeight: '500' }}>Data Integrity & Compliance</div>
                   <div style={{ fontSize: '12px', color: '#111827', fontWeight: '600' }}>Passed</div>
                 </div>
               </div>
@@ -493,7 +453,7 @@ export default function Home() {
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: '11px', color: '#6b7280', marginBottom: '2px' }}>Digitally Signed & Timestamped</div>
-                  <div style={{ fontSize: '10px', color: '#9ca3af' }}>Valid for Sponsor Bank audit submission</div>
+                  <div style={{ fontSize: '10px', color: '#9ca3af' }}>Valid for SOC2, GDPR, HIPAA audit submission</div>
                 </div>
               </div>
             </div>
@@ -510,7 +470,7 @@ export default function Home() {
 
       {/* Integrations Section */}
       <section className="integrations-section">
-        <h2 className="integrations-title">Boost engagement and drive sales.</h2>
+        <h2 className="integrations-title">Enforce correctness across your stack.</h2>
         
         <div className="integrations-container">
           {/* Top Row - Scrolling Left */}
@@ -795,24 +755,23 @@ export default function Home() {
                   <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" />
                 </svg>
               </div>
-              <span>Risk Assessment</span>
+              <span>Logical & State Analysis</span>
             </div>
             <div className="analytics-feature-item">
               <div className="analytics-feature-icon">
                 <svg viewBox="0 0 24 24" fill="white">
-                  <circle cx="12" cy="12" r="10" />
-                  <circle cx="12" cy="12" r="3" />
+                  <path d="M3 5h18v2H3V5zm0 6h18v2H3v-2zm0 6h18v2H3v-2z" />
                 </svg>
               </div>
-              <span>Market Opportunities</span>
+              <span>Input Validation</span>
             </div>
             <div className="analytics-feature-item">
               <div className="analytics-feature-icon">
                 <svg viewBox="0 0 24 24" fill="white">
-                  <path d="M13 2L3 14h9v8l10-12h-9V2z" />
+                  <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z" />
                 </svg>
               </div>
-              <span>Competitor Gaps</span>
+              <span>Auth & State</span>
             </div>
             <div className="analytics-feature-item">
               <div className="analytics-feature-icon">
@@ -820,7 +779,7 @@ export default function Home() {
                   <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" />
                 </svg>
               </div>
-              <span>Strategic Roadmap</span>
+              <span>Compliance Mapping</span>
             </div>
           </div>
 
@@ -828,9 +787,9 @@ export default function Home() {
           <div className="analytics-main-content">
             {/* Left Column */}
             <div className="analytics-left-content">
-              <h2 className="analytics-title">Context-Aware Scanning, not just Regex.</h2>
+              <h2 className="analytics-title">AST-Based Analysis, not just Regex.</h2>
               <p className="analytics-description">
-                Generic security tools scream at everything. Our engine understands Fintech context. We distinguish between a variable named user_password (safe definition) and an actual hardcoded secret string (compliance failure), saving your team from alert fatigue.
+                Generic scanners miss logical flaws, unreachable code, and broken state machines. Our engine understands control flow, data flow, and auth boundaries—detecting dead code, missing return paths, and privilege escalation vectors that pattern matching can&apos;t catch.
               </p>
               <button className="analytics-cta">
                 See the Difference
@@ -844,7 +803,7 @@ export default function Home() {
             <div className="analytics-card">
               {/* Card Header */}
               <div className="analytics-card-header">
-                <div className="analytics-card-title">Projected Market Share</div>
+                <div className="analytics-card-title">Correctness Score by Category</div>
                 <div className="analytics-card-icons">
                   <svg className="analytics-icon-small" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -857,27 +816,27 @@ export default function Home() {
               </div>
 
               {/* Key Metric */}
-              <div className="analytics-metric">+350%</div>
+              <div className="analytics-metric">92%</div>
 
               {/* Bar Chart */}
               <div className="analytics-chart-container">
                 <div className="analytics-bars">
-                  <div className="analytics-bar" style={{ height: '40%' }}></div>
-                  <div className="analytics-bar" style={{ height: '50%' }}></div>
-                  <div className="analytics-bar" style={{ height: '35%' }}></div>
-                  <div className="analytics-bar" style={{ height: '45%' }}></div>
-                  <div className="analytics-bar" style={{ height: '55%' }}></div>
-                  <div className="analytics-bar" style={{ height: '50%' }}></div>
-                  <div className="analytics-bar" style={{ height: '60%' }}></div>
-                  <div className="analytics-bar" style={{ height: '55%' }}></div>
+                  <div className="analytics-bar" style={{ height: '85%' }}></div>
+                  <div className="analytics-bar" style={{ height: '72%' }}></div>
+                  <div className="analytics-bar" style={{ height: '90%' }}></div>
+                  <div className="analytics-bar" style={{ height: '78%' }}></div>
+                  <div className="analytics-bar" style={{ height: '95%' }}></div>
+                  <div className="analytics-bar" style={{ height: '88%' }}></div>
+                  <div className="analytics-bar" style={{ height: '82%' }}></div>
+                  <div className="analytics-bar" style={{ height: '90%' }}></div>
                   <div className="analytics-bar analytics-bar-highlighted" style={{ height: '100%' }}>
-                    <div className="analytics-bar-value">$5.6 m</div>
+                    <div className="analytics-bar-value">Pass</div>
                   </div>
                 </div>
                 <div className="analytics-chart-labels">
-                  <span>Q1 Growth</span>
-                  <span>Q2 Scale</span>
-                  <span>Q3 Dominate</span>
+                  <span>Logic</span>
+                  <span>Input</span>
+                  <span>Errors</span>
                 </div>
               </div>
             </div>
@@ -886,8 +845,8 @@ export default function Home() {
       </section>
 
       {/* New Pricing Section */}
-      <section className="new-pricing-section">
-        <h2 className="new-pricing-title">Pay a fraction of a Compliance Consultant.</h2>
+      <section id="pricing" className="new-pricing-section">
+        <h2 className="new-pricing-title">Pay a fraction of a Code Audit Consultant.</h2>
         
         <div className="new-pricing-toggle-container">
           <div className="new-pricing-toggle">
@@ -928,7 +887,7 @@ export default function Home() {
                 <svg className="new-check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                <span>50 leak detections</span>
+                <span>50 correctness checks</span>
               </div>
             </div>
           </div>
@@ -958,7 +917,7 @@ export default function Home() {
                 <svg className="new-check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                <span>PDF Audit Certificate</span>
+                <span>PDF Correctness Report</span>
               </div>
               <div className="new-feature-item">
                 <svg className="new-check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -978,7 +937,7 @@ export default function Home() {
           {/* Professional Plan (Highlighted) */}
           <div className="new-pricing-card new-pricing-card-highlighted">
             <h3 className="new-plan-name">Professional</h3>
-            <p className="new-plan-description">Multi-Product</p>
+            <p className="new-plan-description">Full Correctness Suite</p>
             <div className="new-plan-price">
               <span className="new-price-amount">$499</span>
               <span className="new-price-period">/mo</span>
@@ -1054,7 +1013,7 @@ export default function Home() {
                 <svg className="new-check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                <span>Advanced security.</span>
+                <span>All 5 correctness categories.</span>
               </div>
             </div>
           </div>
@@ -1065,12 +1024,12 @@ export default function Home() {
       <section className="chatassist-section">
         <div className="chatassist-container">
           <div className="chatassist-content">
-            <h2 className="chatassist-title">Unblock your launch today.</h2>
+            <h2 className="chatassist-title">Ship with confidence.</h2>
             <p className="chatassist-description">
-              Don&apos;t let a single line of bad code delay your Series A or bank partnership. Prove your compliance now.
+              Don&apos;t let logical flaws, auth gaps, or compliance violations block your launch. Prove correctness across all 5 categories—before your audit.
             </p>
             <button className="chatassist-cta">
-              Start Free Audit
+              Start Free Scan
               <span className="chatassist-arrow-circle">
                 <svg fill="white" viewBox="0 0 24 24">
                   <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z" />
@@ -1098,7 +1057,7 @@ export default function Home() {
                 </div>
                 <span className="footer-logo-text">Rontzen</span>
               </div>
-              <p className="footer-tagline">Rontzen AI is designed to revolutionize how businesses operate.</p>
+              <p className="footer-tagline">Code correctness detection across logic, input, errors, auth, and compliance—mapped to SOC2, GDPR, and HIPAA.</p>
               <div className="social-icons">
                 <a href="#" className="social-icon" aria-label="Facebook">
                   <svg fill="white" viewBox="0 0 24 24">
@@ -1124,37 +1083,25 @@ export default function Home() {
             </div>
             <div className="footer-nav-columns">
               <div className="footer-column">
-                <h4 className="footer-heading">Home</h4>
+                <h4 className="footer-heading">Product</h4>
                 <ul className="footer-links">
-                  <li><a href="#">Home 1</a></li>
-                  <li><a href="#">Home 2</a></li>
-                  <li><a href="#">Home 3</a></li>
-                </ul>
-              </div>
-              <div className="footer-column">
-                <h4 className="footer-heading">About</h4>
-                <ul className="footer-links">
-                  <li><a href="#">About Us</a></li>
-                  <li><a href="#">Features</a></li>
-                  <li><a href="#">Career</a></li>
-                  <li><a href="#">Pricing</a></li>
-                </ul>
-              </div>
-              <div className="footer-column">
-                <h4 className="footer-heading">Resources</h4>
-                <ul className="footer-links">
-                  <li><a href="#">Blog & Article</a></li>
-                  <li><a href="#">Blog single</a></li>
-                  <li><a href="#">Contact Us</a></li>
-                  <li><a href="#">Integrations</a></li>
+                  <li><Link href="#features">Features</Link></li>
+                  <li><Link href="#pricing">Pricing</Link></li>
                 </ul>
               </div>
               <div className="footer-column">
                 <h4 className="footer-heading">Company</h4>
                 <ul className="footer-links">
-                  <li><a href="#">Privacy policy</a></li>
-                  <li><a href="#">Terms conditions</a></li>
-                  <li><a href="#">Career single</a></li>
+                  <li><Link href="#about">About</Link></li>
+                  <li><Link href="#career">Career</Link></li>
+                  <li><Link href="#blog">Blog</Link></li>
+                </ul>
+              </div>
+              <div className="footer-column">
+                <h4 className="footer-heading">Legal</h4>
+                <ul className="footer-links">
+                  <li><a href="#">Privacy Policy</a></li>
+                  <li><a href="#">Terms</a></li>
                 </ul>
               </div>
             </div>
