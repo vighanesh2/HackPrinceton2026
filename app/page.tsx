@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 
+const APP_URL = 'https://rontzen-victory.vercel.app/app'
+
 export default function Home() {
   const [isScrolled, setIsScrolled] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -51,14 +53,14 @@ export default function Home() {
           </nav>
           
           <div className="hero-header-actions">
-            <Link href="/login" className="hero-header-cta">
-              <span className="hero-header-cta-text">Run Free Scan Now</span>
+            <a href={APP_URL} target="_blank" rel="noopener noreferrer" className="hero-header-cta">
+              <span className="hero-header-cta-text">Try Rontzen</span>
               <span className="header-cta-icon">
-                <svg className="header-cta-arrow" fill="none" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" stroke="#111827" />
+                <svg className="header-cta-arrow" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
                 </svg>
               </span>
-            </Link>
+            </a>
             <button
               type="button"
               className="hero-nav-mobile-toggle"
@@ -85,7 +87,7 @@ export default function Home() {
         <Link href="#pricing" className="hero-nav-mobile-link" onClick={() => setMobileMenuOpen(false)}>Pricing</Link>
         <Link href="#career" className="hero-nav-mobile-link" onClick={() => setMobileMenuOpen(false)}>Career</Link>
         <Link href="#blog" className="hero-nav-mobile-link" onClick={() => setMobileMenuOpen(false)}>Blog</Link>
-        <Link href="/login" className="hero-nav-mobile-cta" onClick={() => setMobileMenuOpen(false)}>Run Free Scan Now</Link>
+        <a href={APP_URL} target="_blank" rel="noopener noreferrer" className="hero-nav-mobile-cta" onClick={() => setMobileMenuOpen(false)}>Try Rontzen</a>
       </nav>
 
       {/* Hero Section */}
@@ -104,29 +106,29 @@ export default function Home() {
               <img src="/brand2.png" alt="Brand 2" className="review-avatar-image" />
               <img src="/brand3.png" alt="Brand 3" className="review-avatar-image" />
             </div>
-            <span className="review-text">5 Categories of Code Correctness</span>
+            <span className="review-text">Monorepo insights in plain language</span>
           </div>
           
           <h1 className="hero-headline">
-            Code Correctness, Not Just Security
+            Understand your code without the jargon.
           </h1>
           
           <p className="hero-description">
-            Detect logical errors, input validation flaws, broken error handling, auth gaps, and compliance violations. Map findings to SOC2, GDPR, and HIPAA—before your audit.
+            Connect to GitHub, analyze your monorepo, and get issues surfaced in simple language instead of raw diagnostics. Clear visibility and faster fixes for teams.
           </p>
           
           <div className="hero-cta-buttons">
-            <Link href="/login" className="hero-cta-primary">
-              Run Free Scan Now
+            <a href={APP_URL} target="_blank" rel="noopener noreferrer" className="hero-cta-primary">
+              Connect GitHub
               <span className="cta-icon-circle">
                 <svg className="cta-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
                 </svg>
               </span>
-            </Link>
+            </a>
           </div>
 
-          {/* Image Generation Window */}
+          {/* Hero Video Window */}
           <div className="hero-glass-window">
             <div className="hero-image-window">
               <video
@@ -147,7 +149,7 @@ export default function Home() {
                   bottom: 0
                 }}
               >
-                <source src="/rontzen%20demo.mp4" type="video/mp4" />
+                <source src="/rontzen-demo.mp4" type="video/mp4" />
                 Your browser does not support the video tag.
               </video>
             </div>
@@ -155,86 +157,92 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 5 Correctness Categories Section */}
+      {/* Features Section */}
       <section id="features" className="customer-questions-section">
-        <h2 className="customer-questions-title">5 Categories of Code Correctness</h2>
+        <h2 className="customer-questions-title">Everything you need to understand your monorepo</h2>
         
-        <div className="customer-questions-cards correctness-cards">
-          {/* 1. Logical Correctness */}
+        <div className="customer-questions-cards correctness-cards features-cards">
+          {/* 1. Monorepo Health Score */}
           <div className="customer-card correctness-card">
             <div className="correctness-card-inner">
               <div className="correctness-card-number">1</div>
-              <h3 className="correctness-card-title">Logical Correctness</h3>
-              <p className="correctness-card-subtitle">Does it do what it claims?</p>
+              <h3 className="correctness-card-title">Monorepo Health Score</h3>
+              <p className="correctness-card-subtitle">1–5 rating at a glance</p>
               <ul className="correctness-card-list">
-                <li>Dead code</li>
-                <li>Unreachable branches</li>
-                <li>Missing return paths</li>
-                <li>Conflicting conditionals</li>
+                <li>Structure evaluation</li>
+                <li>Workspace config</li>
+                <li>apps/ & packages/ layout</li>
+                <li>Turborepo usage</li>
               </ul>
             </div>
           </div>
 
-          {/* 2. Input & Data Correctness */}
+          {/* 2. Dependency Graph */}
           <div className="customer-card correctness-card">
             <div className="correctness-card-inner">
               <div className="correctness-card-number">2</div>
-              <h3 className="correctness-card-title">Input & Data Correctness</h3>
-              <p className="correctness-card-subtitle">Can users break it?</p>
+              <h3 className="correctness-card-title">Dependency Graph</h3>
+              <p className="correctness-card-subtitle">See how everything connects</p>
               <ul className="correctness-card-list">
-                <li>Unvalidated request parameters</li>
-                <li>Unsafe parsing</li>
-                <li>SQL injection, XSS vectors</li>
-                <li>Missing schema validation</li>
+                <li>App-to-package dependencies</li>
+                <li>Impact & relationships</li>
+                <li>Visual at a glance</li>
               </ul>
-              <div className="correctness-card-badge">Security · GDPR · HIPAA</div>
             </div>
           </div>
 
-          {/* 3. Error-Handling Correctness */}
+          {/* 3. Blast Radius */}
           <div className="customer-card correctness-card">
             <div className="correctness-card-inner">
               <div className="correctness-card-number">3</div>
-              <h3 className="correctness-card-title">Error-Handling Correctness</h3>
-              <p className="correctness-card-subtitle">Does it fail safely?</p>
+              <h3 className="correctness-card-title">Blast Radius</h3>
+              <p className="correctness-card-subtitle">Know what breaks when you change</p>
               <ul className="correctness-card-list">
-                <li>try/catch without logging</li>
-                <li>No fallback behavior</li>
-                <li>Promises without .catch</li>
-                <li>Ignored return values</li>
+                <li>Change packages/ui</li>
+                <li>See what needs rebuild</li>
+                <li>What else to check</li>
               </ul>
-              <div className="correctness-card-badge">SOC2 CC7.2 · Reliability</div>
             </div>
           </div>
 
-          {/* 4. Authorization & State Correctness */}
+          {/* 4. Payload & API Checks */}
           <div className="customer-card correctness-card">
             <div className="correctness-card-inner">
               <div className="correctness-card-number">4</div>
-              <h3 className="correctness-card-title">Authorization & State</h3>
-              <p className="correctness-card-subtitle">Can users access what they shouldn&apos;t?</p>
+              <h3 className="correctness-card-title">Payload & API Checks</h3>
+              <p className="correctness-card-subtitle">Catch misuse early</p>
               <ul className="correctness-card-list">
-                <li>Endpoints without guards</li>
-                <li>Missing RBAC</li>
-                <li>Privilege escalation paths</li>
+                <li>Anti-pattern detection</li>
+                <li>API misuse across codebase</li>
               </ul>
-              <div className="correctness-card-badge">SOC2 CC6.x · HIPAA</div>
             </div>
           </div>
 
-          {/* 5. Data Integrity & Compliance */}
+          {/* 5. AI Reports */}
           <div className="customer-card correctness-card">
             <div className="correctness-card-inner">
               <div className="correctness-card-number">5</div>
-              <h3 className="correctness-card-title">Data Integrity & Compliance</h3>
-              <p className="correctness-card-subtitle">Audit trails & storage</p>
+              <h3 className="correctness-card-title">AI Reports</h3>
+              <p className="correctness-card-subtitle">Summaries & recommendations</p>
               <ul className="correctness-card-list">
-                <li>Sensitive fields unencrypted</li>
-                <li>PII in logs</li>
-                <li>Missing audit trails</li>
-                <li>Insecure storage</li>
+                <li>Structure summaries</li>
+                <li>Charts & visualizations</li>
+                <li>Dependency & correctness tips</li>
               </ul>
-              <div className="correctness-card-badge">SOC2 · GDPR · HIPAA</div>
+            </div>
+          </div>
+
+          {/* 6. One-Click Fixes */}
+          <div className="customer-card correctness-card">
+            <div className="correctness-card-inner">
+              <div className="correctness-card-number">6</div>
+              <h3 className="correctness-card-title">One-Click Fixes</h3>
+              <p className="correctness-card-subtitle">Apply and commit to GitHub</p>
+              <ul className="correctness-card-list">
+                <li>Rule-based fixes</li>
+                <li>AI-generated fixes</li>
+                <li>Commit directly</li>
+              </ul>
             </div>
           </div>
         </div>
@@ -242,62 +250,21 @@ export default function Home() {
 
       {/* Engagement Section */}
       <section className="engagement-section">
-        <h2 className="engagement-title">Integrate Correctness Checks into your Workflow.</h2>
+        <h2 className="engagement-title">Connect GitHub. Run a check. Get plain-language insights.</h2>
         
         <div className="engagement-cards">
-          {/* Proactive Messaging Card */}
+          {/* GitHub Connect Card */}
           <div className="engagement-card">
             <div className="engagement-card-content">
-              <h3 className="engagement-card-title">CI/CD Blocking</h3>
-              <p className="engagement-card-description">Block Pull Requests with correctness violations: unvalidated inputs, missing auth guards, empty catch blocks, or unsafe data handling.</p>
+              <h3 className="engagement-card-title">Connect GitHub</h3>
+              <p className="engagement-card-description">Link your monorepo and run a scan. Rontzen analyzes structure, dependencies, and surfaces issues in simple language—no raw diagnostics to decipher.</p>
             </div>
-            <div className="engagement-visual-placeholder" style={{ padding: '16px', display: 'flex', flexDirection: 'column', height: '100%', background: '#1e1e1e', borderRadius: '12px', fontFamily: 'Monaco, "Courier New", monospace', fontSize: '12px' }}>
-              {/* Code Editor UI for CI/CD Blocking */}
-              <div style={{ flex: 1, background: '#1e1e1e', borderRadius: '8px', overflow: 'hidden', border: '1px solid #333' }}>
-                {/* Editor Header */}
-                <div style={{ background: '#252526', padding: '8px 12px', display: 'flex', gap: '8px', borderBottom: '1px solid #333' }}>
-                  <div style={{ padding: '4px 8px', background: '#1e1e1e', borderRadius: '4px', color: '#fff', fontSize: '11px' }}>api.js</div>
-                  <div style={{ padding: '4px 8px', borderRadius: '4px', color: '#999', fontSize: '11px' }}>PR #142</div>
-                </div>
-                
-                {/* Code Content */}
-                <div style={{ padding: '12px', color: '#d4d4d4', lineHeight: '1.6' }}>
-                  <div style={{ marginBottom: '8px' }}>
-                    <span style={{ color: '#569cd6' }}>const</span>{' '}
-                    <span style={{ color: '#9cdcfe' }}>apiKey</span>{' '}
-                    <span style={{ color: '#ce9178' }}>=</span>{' '}
-                    <span style={{ color: '#ce9178' }}>&apos;sk_live_abc123xyz&apos;</span>
-                    <span style={{ color: '#f44747', marginLeft: '8px' }}>✗</span>
-                  </div>
-                  <div style={{ marginBottom: '8px' }}>
-                    <span style={{ color: '#569cd6' }}>console</span>
-                    <span style={{ color: '#d4d4d4' }}>.</span>
-                    <span style={{ color: '#dcdcaa' }}>log</span>
-                    <span style={{ color: '#ce9178' }}>(</span>
-                    <span style={{ color: '#ce9178' }}>&apos;Processing: &apos;</span>
-                    <span style={{ color: '#d4d4d4' }}>, </span>
-                    <span style={{ color: '#9cdcfe' }}>user</span>
-                    <span style={{ color: '#d4d4d4' }}>.</span>
-                    <span style={{ color: '#9cdcfe' }}>ssn</span>
-                    <span style={{ color: '#ce9178' }}>)</span>
-                    <span style={{ color: '#f44747', marginLeft: '8px' }}>✗</span>
-                  </div>
-                  <div style={{ marginTop: '12px', padding: '10px', background: '#2d1b1b', borderRadius: '4px', border: '1px solid #f44747' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                      <span style={{ color: '#f44747', fontSize: '16px' }}>✗</span>
-                      <div style={{ color: '#f44747', fontSize: '12px', fontWeight: '600' }}>PR BLOCKED</div>
-                    </div>
-                    <div style={{ color: '#ce9178', fontSize: '11px', marginBottom: '4px' }}>2 correctness violations detected</div>
-                    <div style={{ color: '#6b7280', fontSize: '10px' }}>Fix required before merge</div>
-                  </div>
-                  <div style={{ marginTop: '8px', padding: '8px', background: '#1e3a1e', borderRadius: '4px', border: '1px solid #10b981' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ color: '#10b981', fontSize: '14px' }}>✓</span>
-                      <span style={{ color: '#10b981', fontSize: '11px' }}>CI/CD Check: Code Correctness Scanner</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+            <div className="engagement-visual-placeholder" style={{ padding: '16px', display: 'flex', flexDirection: 'column', height: '100%', background: '#0a0a0a', borderRadius: '12px', overflow: 'hidden' }}>
+              <img 
+                src="/dependency-graph.png" 
+                alt="Rontzen dependency graph - monorepo health, dependency graph, and blast radius" 
+                style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }}
+              />
             </div>
           </div>
 
@@ -309,52 +276,52 @@ export default function Home() {
                 <div className="vendor-list-animation" style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 16px', background: 'white', borderBottom: '1px solid #e5e7eb' }}>
                     <div style={{ color: '#111827', fontSize: '16px', fontWeight: 'bold' }}>✓</div>
-                    <div style={{ flex: 1, fontSize: '14px', fontWeight: '600', color: '#111827' }}>SOC2 CC6.x</div>
-                    <div style={{ fontSize: '12px', color: '#6b7280' }}>Pass</div>
+                    <div style={{ flex: 1, fontSize: '14px', fontWeight: '600', color: '#111827' }}>Structure</div>
+                    <div style={{ fontSize: '12px', color: '#6b7280' }}>Healthy</div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 16px', background: 'white', borderBottom: '1px solid #e5e7eb' }}>
                     <div style={{ color: '#111827', fontSize: '16px', fontWeight: 'bold' }}>✓</div>
-                    <div style={{ flex: 1, fontSize: '14px', fontWeight: '600', color: '#111827' }}>SOC2 CC7.2</div>
-                    <div style={{ fontSize: '12px', color: '#6b7280' }}>Pass</div>
+                    <div style={{ flex: 1, fontSize: '14px', fontWeight: '600', color: '#111827' }}>Dependencies</div>
+                    <div style={{ fontSize: '12px', color: '#6b7280' }}>Healthy</div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 16px', background: 'white', borderBottom: '1px solid #e5e7eb' }}>
                     <div style={{ color: '#111827', fontSize: '16px', fontWeight: 'bold' }}>✓</div>
-                    <div style={{ flex: 1, fontSize: '14px', fontWeight: '600', color: '#111827' }}>GDPR</div>
-                    <div style={{ fontSize: '12px', color: '#6b7280' }}>Pass</div>
+                    <div style={{ flex: 1, fontSize: '14px', fontWeight: '600', color: '#111827' }}>API Usage</div>
+                    <div style={{ fontSize: '12px', color: '#6b7280' }}>Healthy</div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 16px', background: '#111827', borderBottom: '1px solid #374151' }}>
-                    <div style={{ color: 'white', fontSize: '16px', fontWeight: 'bold' }}>✗</div>
-                    <div style={{ flex: 1, fontSize: '14px', fontWeight: '600', color: 'white' }}>HIPAA Access</div>
-                    <div style={{ fontSize: '12px', color: '#9ca3af' }}>Fix required</div>
+                    <div style={{ color: 'white', fontSize: '16px', fontWeight: 'bold' }}>!</div>
+                    <div style={{ flex: 1, fontSize: '14px', fontWeight: '600', color: 'white' }}>Blast radius</div>
+                    <div style={{ fontSize: '12px', color: '#9ca3af' }}>Review</div>
                   </div>
                   
                   {/* Duplicate for seamless loop */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 16px', background: 'white', borderBottom: '1px solid #e5e7eb' }}>
                     <div style={{ color: '#111827', fontSize: '16px', fontWeight: 'bold' }}>✓</div>
-                    <div style={{ flex: 1, fontSize: '14px', fontWeight: '600', color: '#111827' }}>SOC2 CC6.x</div>
-                    <div style={{ fontSize: '12px', color: '#6b7280' }}>Pass</div>
+                    <div style={{ flex: 1, fontSize: '14px', fontWeight: '600', color: '#111827' }}>Structure</div>
+                    <div style={{ fontSize: '12px', color: '#6b7280' }}>Healthy</div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 16px', background: 'white', borderBottom: '1px solid #e5e7eb' }}>
                     <div style={{ color: '#111827', fontSize: '16px', fontWeight: 'bold' }}>✓</div>
-                    <div style={{ flex: 1, fontSize: '14px', fontWeight: '600', color: '#111827' }}>SOC2 CC7.2</div>
-                    <div style={{ fontSize: '12px', color: '#6b7280' }}>Pass</div>
+                    <div style={{ flex: 1, fontSize: '14px', fontWeight: '600', color: '#111827' }}>Dependencies</div>
+                    <div style={{ fontSize: '12px', color: '#6b7280' }}>Healthy</div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 16px', background: 'white', borderBottom: '1px solid #e5e7eb' }}>
                     <div style={{ color: '#111827', fontSize: '16px', fontWeight: 'bold' }}>✓</div>
-                    <div style={{ flex: 1, fontSize: '14px', fontWeight: '600', color: '#111827' }}>GDPR</div>
-                    <div style={{ fontSize: '12px', color: '#6b7280' }}>Pass</div>
+                    <div style={{ flex: 1, fontSize: '14px', fontWeight: '600', color: '#111827' }}>API Usage</div>
+                    <div style={{ fontSize: '12px', color: '#6b7280' }}>Healthy</div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 16px', background: '#111827', borderBottom: '1px solid #374151' }}>
-                    <div style={{ color: 'white', fontSize: '16px', fontWeight: 'bold' }}>✗</div>
-                    <div style={{ flex: 1, fontSize: '14px', fontWeight: '600', color: 'white' }}>HIPAA Access</div>
-                    <div style={{ fontSize: '12px', color: '#9ca3af' }}>Fix required</div>
+                    <div style={{ color: 'white', fontSize: '16px', fontWeight: 'bold' }}>!</div>
+                    <div style={{ flex: 1, fontSize: '14px', fontWeight: '600', color: 'white' }}>Blast radius</div>
+                    <div style={{ fontSize: '12px', color: '#9ca3af' }}>Review</div>
                   </div>
                 </div>
               </div>
             </div>
             <div className="engagement-card-content">
-              <h3 className="engagement-card-title">Compliance Mapping</h3>
-              <p className="engagement-card-description">Every finding maps to a control: SOC2 CC6.x, CC7.2, GDPR, or HIPAA. Know exactly what to fix for your audit.</p>
+              <h3 className="engagement-card-title">Actionable Next Steps</h3>
+              <p className="engagement-card-description">Every insight comes with clear next steps. Fix structure, trim dependencies, or apply one-click fixes—then commit straight to GitHub.</p>
             </div>
           </div>
         </div>
@@ -366,18 +333,18 @@ export default function Home() {
           <div className="secure-collaboration-container">
           {/* Left Content */}
           <div className="secure-collaboration-content">
-            <h2 className="secure-collaboration-title">Generate SOC2, GDPR & HIPAA-Ready Audit Artifacts.</h2>
+            <h2 className="secure-collaboration-title">AI reports that speak your language.</h2>
             <p className="secure-collaboration-description">
-              Stop manually screenshotting code for auditors. Generate a signed, timestamped PDF report certifying correctness across all 5 categories—from logical flaws to data integrity. Hand this directly to your compliance officer.
+              Get summaries, charts, and recommendations for structure, dependencies, and correctness—written in plain language, not raw diagnostics. Share with your team or stakeholders without translation.
             </p>
-            <button className="secure-collaboration-cta">
-              Download Sample Report
+            <a href={APP_URL} target="_blank" rel="noopener noreferrer" className="secure-collaboration-cta" style={{ textDecoration: 'none', color: 'white', display: 'inline-flex', alignItems: 'center' }}>
+              Try Rontzen
               <span className="cta-arrow-circle">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
               </span>
-            </button>
+            </a>
           </div>
 
           {/* Right Interior Card */}
@@ -386,7 +353,7 @@ export default function Home() {
             <div style={{ background: 'white', borderRadius: '12px', padding: '20px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                 <div>
-                  <div style={{ fontSize: '24px', fontWeight: '700', color: '#111827', marginBottom: '4px' }}>Code Correctness Audit Report</div>
+                  <div style={{ fontSize: '24px', fontWeight: '700', color: '#111827', marginBottom: '4px' }}>Monorepo Health Report</div>
                   <div style={{ fontSize: '12px', color: '#6b7280' }}>Generated: {new Date().toLocaleDateString()}</div>
                 </div>
                 <div style={{ width: '48px', height: '48px', background: '#111827', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -400,7 +367,7 @@ export default function Home() {
               <div className="audit-report-summary" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
                 <div style={{ padding: '12px', background: '#f9fafb', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
                   <div style={{ fontSize: '11px', color: '#111827', marginBottom: '4px', fontWeight: '600' }}>REPOSITORY</div>
-                  <div style={{ fontSize: '16px', fontWeight: '700', color: '#111827' }}>finance-app</div>
+                  <div style={{ fontSize: '16px', fontWeight: '700', color: '#111827' }}>my-monorepo</div>
                 </div>
                 <div style={{ padding: '12px', background: '#f9fafb', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
                   <div style={{ fontSize: '11px', color: '#111827', marginBottom: '4px', fontWeight: '600' }}>SCAN DATE</div>
@@ -411,36 +378,36 @@ export default function Home() {
               {/* Compliance Status */}
               <div style={{ padding: '16px', background: '#111827', borderRadius: '8px', color: 'white' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-                  <div style={{ fontSize: '32px', fontWeight: '700' }}>98%</div>
+                  <div style={{ fontSize: '32px', fontWeight: '700' }}>4.2</div>
                   <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '14px', fontWeight: '600', marginBottom: '2px' }}>Audit Readiness</div>
-                <div style={{ fontSize: '11px', opacity: 0.9 }}>SOC2 / GDPR / HIPAA Ready</div>
+                <div style={{ fontSize: '14px', fontWeight: '600', marginBottom: '2px' }}>Health Score</div>
+                <div style={{ fontSize: '11px', opacity: 0.9 }}>out of 5 — Good</div>
                   </div>
                 </div>
                 <div style={{ height: '6px', background: 'rgba(255,255,255,0.2)', borderRadius: '3px', overflow: 'hidden', marginTop: '8px' }}>
-                  <div style={{ height: '100%', width: '98%', background: 'white', borderRadius: '3px' }}></div>
+                  <div style={{ height: '100%', width: '84%', background: 'white', borderRadius: '3px' }}></div>
                 </div>
               </div>
             </div>
 
             {/* Report Details */}
             <div style={{ background: 'white', borderRadius: '12px', padding: '20px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-              <div style={{ fontSize: '14px', fontWeight: '600', color: '#111827', marginBottom: '12px' }}>Correctness Checks</div>
+              <div style={{ fontSize: '14px', fontWeight: '600', color: '#111827', marginBottom: '12px' }}>Checks</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', background: '#f9fafb', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
                   <div style={{ color: '#111827', fontSize: '18px', fontWeight: 'bold' }}>✓</div>
-                  <div style={{ flex: 1, fontSize: '13px', color: '#111827', fontWeight: '500' }}>Input & Data Correctness</div>
-                  <div style={{ fontSize: '12px', color: '#111827', fontWeight: '600' }}>Passed</div>
+                  <div style={{ flex: 1, fontSize: '13px', color: '#111827', fontWeight: '500' }}>Structure</div>
+                  <div style={{ fontSize: '12px', color: '#111827', fontWeight: '600' }}>Healthy</div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', background: '#f9fafb', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
                   <div style={{ color: '#111827', fontSize: '18px', fontWeight: 'bold' }}>✓</div>
-                  <div style={{ flex: 1, fontSize: '13px', color: '#111827', fontWeight: '500' }}>Authorization & State</div>
-                  <div style={{ fontSize: '12px', color: '#111827', fontWeight: '600' }}>Passed</div>
+                  <div style={{ flex: 1, fontSize: '13px', color: '#111827', fontWeight: '500' }}>Dependencies</div>
+                  <div style={{ fontSize: '12px', color: '#111827', fontWeight: '600' }}>Healthy</div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', background: '#f9fafb', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
                   <div style={{ color: '#111827', fontSize: '18px', fontWeight: 'bold' }}>✓</div>
-                  <div style={{ flex: 1, fontSize: '13px', color: '#111827', fontWeight: '500' }}>Data Integrity & Compliance</div>
-                  <div style={{ fontSize: '12px', color: '#111827', fontWeight: '600' }}>Passed</div>
+                  <div style={{ flex: 1, fontSize: '13px', color: '#111827', fontWeight: '500' }}>Payload & API</div>
+                  <div style={{ fontSize: '12px', color: '#111827', fontWeight: '600' }}>Healthy</div>
                 </div>
               </div>
 
@@ -453,7 +420,7 @@ export default function Home() {
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: '11px', color: '#6b7280', marginBottom: '2px' }}>Digitally Signed & Timestamped</div>
-                  <div style={{ fontSize: '10px', color: '#9ca3af' }}>Valid for SOC2, GDPR, HIPAA audit submission</div>
+                  <div style={{ fontSize: '10px', color: '#9ca3af' }}>Plain-language insights, ready to share</div>
                 </div>
               </div>
             </div>
@@ -470,7 +437,7 @@ export default function Home() {
 
       {/* Integrations Section */}
       <section className="integrations-section">
-        <h2 className="integrations-title">Enforce correctness across your stack.</h2>
+        <h2 className="integrations-title">Connect GitHub. Understand your monorepo.</h2>
         
         <div className="integrations-container">
           {/* Top Row - Scrolling Left */}
@@ -734,14 +701,14 @@ export default function Home() {
           </div>
         </div>
 
-        <button className="integrations-cta">
-          Explore All Integrations
+        <a href={APP_URL} target="_blank" rel="noopener noreferrer" className="integrations-cta" style={{ textDecoration: 'none', color: '#111827' }}>
+          Try Rontzen
           <span className="cta-icon-circle">
             <svg fill="none" stroke="white" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </span>
-        </button>
+        </a>
       </section>
 
       {/* New Grey Card Section */}
@@ -755,7 +722,7 @@ export default function Home() {
                   <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" />
                 </svg>
               </div>
-              <span>Logical & State Analysis</span>
+              <span>Health Score</span>
             </div>
             <div className="analytics-feature-item">
               <div className="analytics-feature-icon">
@@ -763,15 +730,15 @@ export default function Home() {
                   <path d="M3 5h18v2H3V5zm0 6h18v2H3v-2zm0 6h18v2H3v-2z" />
                 </svg>
               </div>
-              <span>Input Validation</span>
+              <span>Dependency Graph</span>
             </div>
             <div className="analytics-feature-item">
               <div className="analytics-feature-icon">
                 <svg viewBox="0 0 24 24" fill="white">
-                  <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z" />
+                  <path d="M13 2L3 14h9v8l10-12h-9V2z" />
                 </svg>
               </div>
-              <span>Auth & State</span>
+              <span>Blast Radius</span>
             </div>
             <div className="analytics-feature-item">
               <div className="analytics-feature-icon">
@@ -779,7 +746,7 @@ export default function Home() {
                   <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" />
                 </svg>
               </div>
-              <span>Compliance Mapping</span>
+              <span>AI Reports</span>
             </div>
           </div>
 
@@ -787,23 +754,23 @@ export default function Home() {
           <div className="analytics-main-content">
             {/* Left Column */}
             <div className="analytics-left-content">
-              <h2 className="analytics-title">AST-Based Analysis, not just Regex.</h2>
+              <h2 className="analytics-title">Plain language, not raw diagnostics.</h2>
               <p className="analytics-description">
-                Generic scanners miss logical flaws, unreachable code, and broken state machines. Our engine understands control flow, data flow, and auth boundaries—detecting dead code, missing return paths, and privilege escalation vectors that pattern matching can&apos;t catch.
+                Raw linter output and build errors are hard to parse. Rontzen turns technical data into insights you can act on—structure summaries, dependency recommendations, and next steps in simple language your whole team understands.
               </p>
-              <button className="analytics-cta">
-                See the Difference
+              <a href={APP_URL} target="_blank" rel="noopener noreferrer" className="analytics-cta" style={{ textDecoration: 'none', color: 'white', display: 'inline-flex', alignItems: 'center' }}>
+                Try Rontzen
                 <svg fill="none" stroke="white" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
-              </button>
+              </a>
             </div>
 
             {/* Right Column - Data Visualization Card */}
             <div className="analytics-card">
               {/* Card Header */}
               <div className="analytics-card-header">
-                <div className="analytics-card-title">Correctness Score by Category</div>
+                <div className="analytics-card-title">Monorepo Health by Area</div>
                 <div className="analytics-card-icons">
                   <svg className="analytics-icon-small" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -816,27 +783,27 @@ export default function Home() {
               </div>
 
               {/* Key Metric */}
-              <div className="analytics-metric">92%</div>
+              <div className="analytics-metric">4.2</div>
 
               {/* Bar Chart */}
               <div className="analytics-chart-container">
                 <div className="analytics-bars">
                   <div className="analytics-bar" style={{ height: '85%' }}></div>
-                  <div className="analytics-bar" style={{ height: '72%' }}></div>
                   <div className="analytics-bar" style={{ height: '90%' }}></div>
-                  <div className="analytics-bar" style={{ height: '78%' }}></div>
+                  <div className="analytics-bar" style={{ height: '80%' }}></div>
                   <div className="analytics-bar" style={{ height: '95%' }}></div>
                   <div className="analytics-bar" style={{ height: '88%' }}></div>
                   <div className="analytics-bar" style={{ height: '82%' }}></div>
                   <div className="analytics-bar" style={{ height: '90%' }}></div>
+                  <div className="analytics-bar" style={{ height: '92%' }}></div>
                   <div className="analytics-bar analytics-bar-highlighted" style={{ height: '100%' }}>
-                    <div className="analytics-bar-value">Pass</div>
+                    <div className="analytics-bar-value">Good</div>
                   </div>
                 </div>
                 <div className="analytics-chart-labels">
-                  <span>Logic</span>
-                  <span>Input</span>
-                  <span>Errors</span>
+                  <span>Structure</span>
+                  <span>Deps</span>
+                  <span>API</span>
                 </div>
               </div>
             </div>
@@ -846,7 +813,7 @@ export default function Home() {
 
       {/* New Pricing Section */}
       <section id="pricing" className="new-pricing-section">
-        <h2 className="new-pricing-title">Pay a fraction of a Code Audit Consultant.</h2>
+        <h2 className="new-pricing-title">Clear monorepo visibility for every team.</h2>
         
         <div className="new-pricing-toggle-container">
           <div className="new-pricing-toggle">
@@ -860,22 +827,22 @@ export default function Home() {
           {/* Starter Plan */}
           <div className="new-pricing-card">
             <h3 className="new-plan-name">Starter</h3>
-            <p className="new-plan-description">Local Scan</p>
+            <p className="new-plan-description">Get started</p>
             <div className="new-plan-price">
               <span className="new-price-amount">Free</span>
             </div>
-            <button className="new-pricing-button new-pricing-button-white">
-              Get Started Now
+            <a href={APP_URL} target="_blank" rel="noopener noreferrer" className="new-pricing-button new-pricing-button-white" style={{ textDecoration: 'none', color: '#111827', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              Try Rontzen
               <svg fill="black" viewBox="0 0 24 24">
                 <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z" />
               </svg>
-            </button>
+            </a>
             <div className="new-features-section">
               <div className="new-feature-item">
                 <svg className="new-check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                <span>1 Repository scan</span>
+                <span>1 monorepo scan</span>
               </div>
               <div className="new-feature-item">
                 <svg className="new-check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -887,7 +854,7 @@ export default function Home() {
                 <svg className="new-check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                <span>50 correctness checks</span>
+                <span>Health score & insights</span>
               </div>
             </div>
           </div>
@@ -895,29 +862,29 @@ export default function Home() {
           {/* Growth Plan */}
           <div className="new-pricing-card">
             <h3 className="new-plan-name">Growth</h3>
-            <p className="new-plan-description">Audit Ready</p>
+            <p className="new-plan-description">For growing teams</p>
             <div className="new-plan-price">
               <span className="new-price-amount">$299</span>
               <span className="new-price-period">/mo</span>
             </div>
-            <button className="new-pricing-button new-pricing-button-white">
-              Get Started Now
+            <a href={APP_URL} target="_blank" rel="noopener noreferrer" className="new-pricing-button new-pricing-button-white" style={{ textDecoration: 'none', color: '#111827', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              Try Rontzen
               <svg fill="black" viewBox="0 0 24 24">
                 <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z" />
               </svg>
-            </button>
+            </a>
             <div className="new-features-section">
               <div className="new-feature-item">
                 <svg className="new-check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                <span>CI/CD Integration</span>
+                <span>GitHub integration</span>
               </div>
               <div className="new-feature-item">
                 <svg className="new-check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                <span>PDF Correctness Report</span>
+                <span>AI reports</span>
               </div>
               <div className="new-feature-item">
                 <svg className="new-check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -929,7 +896,7 @@ export default function Home() {
                 <svg className="new-check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                <span>Re-scan on commit</span>
+                <span>Dependency graph</span>
               </div>
             </div>
           </div>
@@ -937,35 +904,35 @@ export default function Home() {
           {/* Professional Plan (Highlighted) */}
           <div className="new-pricing-card new-pricing-card-highlighted">
             <h3 className="new-plan-name">Professional</h3>
-            <p className="new-plan-description">Full Correctness Suite</p>
+            <p className="new-plan-description">Full feature set</p>
             <div className="new-plan-price">
               <span className="new-price-amount">$499</span>
               <span className="new-price-period">/mo</span>
             </div>
-            <button className="new-pricing-button new-pricing-button-black">
-              Get Started Now
+            <a href={APP_URL} target="_blank" rel="noopener noreferrer" className="new-pricing-button new-pricing-button-black" style={{ textDecoration: 'none', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              Try Rontzen
               <svg fill="white" viewBox="0 0 24 24">
                 <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z" />
               </svg>
-            </button>
+            </a>
             <div className="new-features-section">
               <div className="new-feature-item">
                 <svg className="new-check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                <span>Unlimited Repos</span>
+                <span>Unlimited monorepos</span>
               </div>
               <div className="new-feature-item">
                 <svg className="new-check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                <span>Custom Rule Engine</span>
+                <span>Blast radius analysis</span>
               </div>
               <div className="new-feature-item">
                 <svg className="new-check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                <span>Dedicated Slack channel</span>
+                <span>One-click fixes</span>
               </div>
             </div>
           </div>
@@ -973,17 +940,16 @@ export default function Home() {
           {/* Enterprise Plan */}
           <div className="new-pricing-card">
             <h3 className="new-plan-name">Enterprise</h3>
-            <p className="new-plan-description">Comprehensive solution for large organizations.</p>
+            <p className="new-plan-description">For large organizations</p>
             <div className="new-plan-price">
-              <span className="new-price-amount">$99</span>
-              <span className="new-price-period">/mo</span>
+              <span className="new-price-amount">Custom</span>
             </div>
-            <button className="new-pricing-button new-pricing-button-white">
-              Get Started Now
+            <a href={APP_URL} target="_blank" rel="noopener noreferrer" className="new-pricing-button new-pricing-button-white" style={{ textDecoration: 'none', color: '#111827', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              Contact Us
               <svg fill="black" viewBox="0 0 24 24">
                 <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z" />
               </svg>
-            </button>
+            </a>
             <div className="new-features-section">
               <div className="new-feature-item">
                 <svg className="new-check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1013,7 +979,7 @@ export default function Home() {
                 <svg className="new-check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                <span>All 5 correctness categories.</span>
+                <span>All features included</span>
               </div>
             </div>
           </div>
@@ -1024,18 +990,18 @@ export default function Home() {
       <section className="chatassist-section">
         <div className="chatassist-container">
           <div className="chatassist-content">
-            <h2 className="chatassist-title">Ship with confidence.</h2>
+            <h2 className="chatassist-title">Understand your monorepo in minutes.</h2>
             <p className="chatassist-description">
-              Don&apos;t let logical flaws, auth gaps, or compliance violations block your launch. Prove correctness across all 5 categories—before your audit.
+              Connect GitHub, run a check, and get plain-language insights and actionable next steps. Clear visibility and faster fixes for teams working with monorepos.
             </p>
-            <button className="chatassist-cta">
-              Start Free Scan
+            <a href={APP_URL} target="_blank" rel="noopener noreferrer" className="chatassist-cta" style={{ textDecoration: 'none', color: '#111827', display: 'inline-flex', alignItems: 'center' }}>
+              Try Rontzen
               <span className="chatassist-arrow-circle">
                 <svg fill="white" viewBox="0 0 24 24">
                   <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z" />
                 </svg>
               </span>
-            </button>
+            </a>
           </div>
         </div>
       </section>
@@ -1057,7 +1023,7 @@ export default function Home() {
                 </div>
                 <span className="footer-logo-text">Rontzen</span>
               </div>
-              <p className="footer-tagline">Code correctness detection across logic, input, errors, auth, and compliance—mapped to SOC2, GDPR, and HIPAA.</p>
+              <p className="footer-tagline">Understand your monorepo without the jargon. Plain-language insights for structure, dependencies, and correctness.</p>
               <div className="social-icons">
                 <a href="#" className="social-icon" aria-label="Facebook">
                   <svg fill="white" viewBox="0 0 24 24">

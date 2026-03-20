@@ -1420,6 +1420,7 @@ a {
   width: 24px;
   height: 24px;
   background-color: white;
+  color: #111827;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -1430,6 +1431,7 @@ a {
 
 .hero-header.scrolled .header-cta-icon {
   background-color: #111827;
+  color: white;
 }
 
 .header-cta-arrow {
@@ -2515,6 +2517,10 @@ a {
 .correctness-cards {
   grid-template-columns: repeat(5, 1fr);
   max-width: 1400px;
+}
+
+.features-cards {
+  grid-template-columns: repeat(3, 1fr);
 }
 
 .correctness-card {
