@@ -16,7 +16,7 @@ export default function MainContent() {
       number: '02/12',
       emoji: '🎤',
       title: 'Craft a winning pitch that attracts investors.',
-      bgColor: 'card-icon-purple',
+      bgColor: 'card-icon-charcoal',
     },
     {
       number: '03/12',

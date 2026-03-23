@@ -331,7 +331,7 @@ export default function Networking() {
             width: '48px',
             height: '48px',
             borderRadius: '50%',
-            backgroundColor: '#6009de',
+            backgroundColor: '#c4673a',
             border: 'none',
             display: 'flex',
             alignItems: 'center',

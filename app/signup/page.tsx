@@ -224,7 +224,7 @@ export default function Signup() {
           }}>
             Already have an account?{' '}
             <Link href="/login" style={{
-              color: '#6009de',
+              color: '#c4673a',
               textDecoration: 'none',
               fontWeight: '500'
             }}>

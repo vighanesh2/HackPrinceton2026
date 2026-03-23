@@ -206,7 +206,7 @@ export default function Login() {
           }}>
             New Customer?{' '}
             <Link href="/signup" style={{
-              color: '#6009de',
+              color: '#c4673a',
               textDecoration: 'none',
               fontWeight: '500'
             }}>

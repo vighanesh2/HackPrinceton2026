@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { ThemeToggle } from '@/components/ThemeToggle'
 
 const APP_URL = 'https://rontzen-victory.vercel.app/app'
 
@@ -48,10 +49,10 @@ export default function Home() {
             <Link href="#about" className="hero-nav-link">About</Link>
             <Link href="#features" className="hero-nav-link">Features</Link>
             <Link href="#pricing" className="hero-nav-link">Pricing</Link>
-            <Link href="#career" className="hero-nav-link">Career</Link>
           </nav>
           
           <div className="hero-header-actions">
+            <ThemeToggle />
             <a href={APP_URL} target="_blank" rel="noopener noreferrer" className="hero-header-cta">
               <span className="hero-header-cta-text">Try Rontzen</span>
               <span className="header-cta-icon">
@@ -84,7 +85,6 @@ export default function Home() {
         <Link href="#about" className="hero-nav-mobile-link" onClick={() => setMobileMenuOpen(false)}>About</Link>
         <Link href="#features" className="hero-nav-mobile-link" onClick={() => setMobileMenuOpen(false)}>Features</Link>
         <Link href="#pricing" className="hero-nav-mobile-link" onClick={() => setMobileMenuOpen(false)}>Pricing</Link>
-        <Link href="#career" className="hero-nav-mobile-link" onClick={() => setMobileMenuOpen(false)}>Career</Link>
         <a href={APP_URL} target="_blank" rel="noopener noreferrer" className="hero-nav-mobile-cta" onClick={() => setMobileMenuOpen(false)}>Try Rontzen</a>
       </nav>
 
@@ -160,86 +160,98 @@ export default function Home() {
         <h2 className="customer-questions-title">Everything you need to understand your monorepo</h2>
         
         <div className="customer-questions-cards correctness-cards features-cards">
-          {/* 1. Monorepo Health Score */}
+          {/* 1. Repo Health Score */}
           <div className="customer-card correctness-card">
             <div className="correctness-card-inner">
               <div className="correctness-card-number">1</div>
-              <h3 className="correctness-card-title">Monorepo Health Score</h3>
-              <p className="correctness-card-subtitle">1–5 rating at a glance</p>
+              <h3 className="correctness-card-title">Repo Health Score</h3>
+              <p className="correctness-card-subtitle">How safe to ship to production</p>
               <ul className="correctness-card-list">
-                <li>Structure evaluation</li>
-                <li>Workspace config</li>
-                <li>apps/ & packages/ layout</li>
-                <li>Turborepo usage</li>
+                <li>0–100 score per repo</li>
+                <li>Simple explanations</li>
+                <li>Improvement suggestions</li>
               </ul>
             </div>
           </div>
 
-          {/* 2. Dependency Graph */}
+          {/* 2. Issues Checker */}
           <div className="customer-card correctness-card">
             <div className="correctness-card-inner">
               <div className="correctness-card-number">2</div>
-              <h3 className="correctness-card-title">Dependency Graph</h3>
-              <p className="correctness-card-subtitle">See how everything connects</p>
+              <h3 className="correctness-card-title">Issues Checker</h3>
+              <p className="correctness-card-subtitle">Real problems in your code</p>
               <ul className="correctness-card-list">
-                <li>App-to-package dependencies</li>
-                <li>Impact & relationships</li>
-                <li>Visual at a glance</li>
+                <li>Missing validation</li>
+                <li>Unbounded loops</li>
+                <li>N+1 queries</li>
+                <li>And similar issues</li>
               </ul>
             </div>
           </div>
 
-          {/* 3. Blast Radius */}
+          {/* 3. Codebase Report */}
           <div className="customer-card correctness-card">
             <div className="correctness-card-inner">
               <div className="correctness-card-number">3</div>
-              <h3 className="correctness-card-title">Blast Radius</h3>
-              <p className="correctness-card-subtitle">Know what breaks when you change</p>
+              <h3 className="correctness-card-title">Codebase Report</h3>
+              <p className="correctness-card-subtitle">Monorepo-focused view</p>
               <ul className="correctness-card-list">
-                <li>Change packages/ui</li>
-                <li>See what needs rebuild</li>
-                <li>What else to check</li>
+                <li>High-risk files (change impact)</li>
+                <li>Dead code (safe to remove)</li>
+                <li>Repo structure (apps/, packages/)</li>
               </ul>
             </div>
           </div>
 
-          {/* 4. Payload & API Checks */}
+          {/* 4. AI Full Report */}
           <div className="customer-card correctness-card">
             <div className="correctness-card-inner">
               <div className="correctness-card-number">4</div>
-              <h3 className="correctness-card-title">Payload & API Checks</h3>
-              <p className="correctness-card-subtitle">Catch misuse early</p>
+              <h3 className="correctness-card-title">AI Full Report</h3>
+              <p className="correctness-card-subtitle">Overview & actionable insights</p>
               <ul className="correctness-card-list">
-                <li>Anti-pattern detection</li>
-                <li>API misuse across codebase</li>
+                <li>Strengths & priority actions</li>
+                <li>Quick wins & next steps</li>
+                <li>Downloadable as PDF</li>
               </ul>
             </div>
           </div>
 
-          {/* 5. AI Reports */}
+          {/* 5. AI & Rule-Based Fixes */}
           <div className="customer-card correctness-card">
             <div className="correctness-card-inner">
               <div className="correctness-card-number">5</div>
-              <h3 className="correctness-card-title">AI Reports</h3>
-              <p className="correctness-card-subtitle">Summaries & recommendations</p>
+              <h3 className="correctness-card-title">AI & Rule-Based Fixes</h3>
+              <p className="correctness-card-subtitle">Automatic fix suggestions</p>
               <ul className="correctness-card-list">
-                <li>Structure summaries</li>
-                <li>Charts & visualizations</li>
-                <li>Dependency & correctness tips</li>
+                <li>Rule-based when possible</li>
+                <li>AI when needed</li>
               </ul>
             </div>
           </div>
 
-          {/* 6. One-Click Fixes */}
+          {/* 6. Push Fixes to GitHub */}
           <div className="customer-card correctness-card">
             <div className="correctness-card-inner">
               <div className="correctness-card-number">6</div>
-              <h3 className="correctness-card-title">One-Click Fixes</h3>
-              <p className="correctness-card-subtitle">Apply and commit to GitHub</p>
+              <h3 className="correctness-card-title">Push Fixes to GitHub</h3>
+              <p className="correctness-card-subtitle">Apply fixes from the app</p>
               <ul className="correctness-card-list">
-                <li>Rule-based fixes</li>
-                <li>AI-generated fixes</li>
-                <li>Commit directly</li>
+                <li>Create branch and PR</li>
+                <li>Direct from Rontzen</li>
+              </ul>
+            </div>
+          </div>
+
+          {/* 7. GitHub Integration */}
+          <div className="customer-card correctness-card">
+            <div className="correctness-card-inner">
+              <div className="correctness-card-number">7</div>
+              <h3 className="correctness-card-title">GitHub Integration</h3>
+              <p className="correctness-card-subtitle">Sign in and work across repos</p>
+              <ul className="correctness-card-list">
+                <li>Sign in with GitHub</li>
+                <li>Connected repositories</li>
               </ul>
             </div>
           </div>
@@ -335,7 +347,7 @@ export default function Home() {
             <p className="secure-collaboration-description">
               Get summaries, charts, and recommendations for structure, dependencies, and correctness—written in plain language, not raw diagnostics. Share with your team or stakeholders without translation.
             </p>
-            <a href={APP_URL} target="_blank" rel="noopener noreferrer" className="secure-collaboration-cta" style={{ textDecoration: 'none', color: 'white', display: 'inline-flex', alignItems: 'center' }}>
+            <a href={APP_URL} target="_blank" rel="noopener noreferrer" className="secure-collaboration-cta">
               Try Rontzen
               <span className="cta-arrow-circle">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -699,10 +711,10 @@ export default function Home() {
           </div>
         </div>
 
-        <a href={APP_URL} target="_blank" rel="noopener noreferrer" className="integrations-cta" style={{ textDecoration: 'none', color: '#111827' }}>
+        <a href={APP_URL} target="_blank" rel="noopener noreferrer" className="integrations-cta">
           Try Rontzen
           <span className="cta-icon-circle">
-            <svg fill="none" stroke="white" viewBox="0 0 24 24">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </span>
@@ -756,11 +768,13 @@ export default function Home() {
               <p className="analytics-description">
                 Raw linter output and build errors are hard to parse. Rontzen turns technical data into insights you can act on—structure summaries, dependency recommendations, and next steps in simple language your whole team understands.
               </p>
-              <a href={APP_URL} target="_blank" rel="noopener noreferrer" className="analytics-cta" style={{ textDecoration: 'none', color: 'white', display: 'inline-flex', alignItems: 'center' }}>
+              <a href={APP_URL} target="_blank" rel="noopener noreferrer" className="analytics-cta">
                 Try Rontzen
-                <svg fill="none" stroke="white" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
+                <span className="cta-icon-circle">
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </span>
               </a>
             </div>
 
@@ -809,29 +823,20 @@ export default function Home() {
         </div>
       </section>
 
-      {/* New Pricing Section */}
+      {/* Pricing Section */}
       <section id="pricing" className="new-pricing-section">
         <h2 className="new-pricing-title">Clear monorepo visibility for every team.</h2>
-        
-        <div className="new-pricing-toggle-container">
-          <div className="new-pricing-toggle">
-            <button className="new-toggle-option active">Monthly</button>
-            <button className="new-toggle-option">Annual</button>
-            <span className="new-save-badge">SAVE 20%</span>
-          </div>
-        </div>
 
-        <div className="new-pricing-cards">
-          {/* Starter Plan */}
+        <div className="new-pricing-cards new-pricing-cards-single">
           <div className="new-pricing-card">
             <h3 className="new-plan-name">Starter</h3>
             <p className="new-plan-description">Get started</p>
             <div className="new-plan-price">
               <span className="new-price-amount">Free</span>
             </div>
-            <a href={APP_URL} target="_blank" rel="noopener noreferrer" className="new-pricing-button new-pricing-button-white" style={{ textDecoration: 'none', color: '#111827', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <a href={APP_URL} target="_blank" rel="noopener noreferrer" className="new-pricing-button">
               Try Rontzen
-              <svg fill="black" viewBox="0 0 24 24">
+              <svg viewBox="0 0 24 24" fill="currentColor">
                 <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z" />
               </svg>
             </a>
@@ -856,131 +861,6 @@ export default function Home() {
               </div>
             </div>
           </div>
-
-          {/* Growth Plan */}
-          <div className="new-pricing-card">
-            <h3 className="new-plan-name">Growth</h3>
-            <p className="new-plan-description">For growing teams</p>
-            <div className="new-plan-price">
-              <span className="new-price-amount">$299</span>
-              <span className="new-price-period">/mo</span>
-            </div>
-            <a href={APP_URL} target="_blank" rel="noopener noreferrer" className="new-pricing-button new-pricing-button-white" style={{ textDecoration: 'none', color: '#111827', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              Try Rontzen
-              <svg fill="black" viewBox="0 0 24 24">
-                <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z" />
-              </svg>
-            </a>
-            <div className="new-features-section">
-              <div className="new-feature-item">
-                <svg className="new-check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                <span>GitHub integration</span>
-              </div>
-              <div className="new-feature-item">
-                <svg className="new-check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                <span>AI reports</span>
-              </div>
-              <div className="new-feature-item">
-                <svg className="new-check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                <span>Priority Support</span>
-              </div>
-              <div className="new-feature-item">
-                <svg className="new-check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                <span>Dependency graph</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Professional Plan (Highlighted) */}
-          <div className="new-pricing-card new-pricing-card-highlighted">
-            <h3 className="new-plan-name">Professional</h3>
-            <p className="new-plan-description">Full feature set</p>
-            <div className="new-plan-price">
-              <span className="new-price-amount">$499</span>
-              <span className="new-price-period">/mo</span>
-            </div>
-            <a href={APP_URL} target="_blank" rel="noopener noreferrer" className="new-pricing-button new-pricing-button-black" style={{ textDecoration: 'none', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              Try Rontzen
-              <svg fill="white" viewBox="0 0 24 24">
-                <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z" />
-              </svg>
-            </a>
-            <div className="new-features-section">
-              <div className="new-feature-item">
-                <svg className="new-check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                <span>Unlimited monorepos</span>
-              </div>
-              <div className="new-feature-item">
-                <svg className="new-check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                <span>Blast radius analysis</span>
-              </div>
-              <div className="new-feature-item">
-                <svg className="new-check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                <span>One-click fixes</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Enterprise Plan */}
-          <div className="new-pricing-card">
-            <h3 className="new-plan-name">Enterprise</h3>
-            <p className="new-plan-description">For large organizations</p>
-            <div className="new-plan-price">
-              <span className="new-price-amount">Custom</span>
-            </div>
-            <a href={APP_URL} target="_blank" rel="noopener noreferrer" className="new-pricing-button new-pricing-button-white" style={{ textDecoration: 'none', color: '#111827', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              Contact Us
-              <svg fill="black" viewBox="0 0 24 24">
-                <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z" />
-              </svg>
-            </a>
-            <div className="new-features-section">
-              <div className="new-feature-item">
-                <svg className="new-check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                <span>All professional features.</span>
-              </div>
-              <div className="new-feature-item">
-                <svg className="new-check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                <span>Dedicated account manager.</span>
-              </div>
-              <div className="new-feature-item">
-                <svg className="new-check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                <span>White label solution.</span>
-              </div>
-              <div className="new-feature-item">
-                <svg className="new-check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                <span>API access integrations.</span>
-              </div>
-              <div className="new-feature-item">
-                <svg className="new-check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                <span>All features included</span>
-              </div>
-            </div>
-          </div>
         </div>
       </section>
 
@@ -992,10 +872,10 @@ export default function Home() {
             <p className="chatassist-description">
               Connect GitHub, run a check, and get plain-language insights and actionable next steps. Clear visibility and faster fixes for teams working with monorepos.
             </p>
-            <a href={APP_URL} target="_blank" rel="noopener noreferrer" className="chatassist-cta" style={{ textDecoration: 'none', color: '#111827', display: 'inline-flex', alignItems: 'center' }}>
+            <a href={APP_URL} target="_blank" rel="noopener noreferrer" className="chatassist-cta">
               Try Rontzen
               <span className="chatassist-arrow-circle">
-                <svg fill="white" viewBox="0 0 24 24">
+                <svg viewBox="0 0 24 24" fill="currentColor">
                   <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z" />
                 </svg>
               </span>
@@ -1057,7 +937,6 @@ export default function Home() {
                 <h4 className="footer-heading">Company</h4>
                 <ul className="footer-links">
                   <li><Link href="#about">About</Link></li>
-                  <li><Link href="#career">Career</Link></li>
                   <li><Link href="#blog">Blog</Link></li>
                 </ul>
               </div>
@@ -1072,9 +951,6 @@ export default function Home() {
           </div>
           <div className="footer-divider"></div>
           <div className="footer-bottom">
-            <div className="footer-bottom-left">
-              <p className="footer-product-credit">A product by Gr8r Studio</p>
-            </div>
             <div className="footer-bottom-right">
               <p className="footer-copyright">© 2025 Rontzen, Inc. All rights reserved</p>
             </div>
