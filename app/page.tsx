@@ -49,7 +49,6 @@ export default function Home() {
             <Link href="#features" className="hero-nav-link">Features</Link>
             <Link href="#pricing" className="hero-nav-link">Pricing</Link>
             <Link href="#career" className="hero-nav-link">Career</Link>
-            <Link href="#blog" className="hero-nav-link">Blog</Link>
           </nav>
           
           <div className="hero-header-actions">
@@ -86,7 +85,6 @@ export default function Home() {
         <Link href="#features" className="hero-nav-mobile-link" onClick={() => setMobileMenuOpen(false)}>Features</Link>
         <Link href="#pricing" className="hero-nav-mobile-link" onClick={() => setMobileMenuOpen(false)}>Pricing</Link>
         <Link href="#career" className="hero-nav-mobile-link" onClick={() => setMobileMenuOpen(false)}>Career</Link>
-        <Link href="#blog" className="hero-nav-mobile-link" onClick={() => setMobileMenuOpen(false)}>Blog</Link>
         <a href={APP_URL} target="_blank" rel="noopener noreferrer" className="hero-nav-mobile-cta" onClick={() => setMobileMenuOpen(false)}>Try Rontzen</a>
       </nav>
 
