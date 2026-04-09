@@ -13,7 +13,6 @@ export default function Home() {
             muted
             playsInline
             preload="auto"
-            poster="/hero-bg.jpg"
             aria-hidden
           >
             <source src="/herobgvideo.mp4" type="video/mp4" />
