@@ -1,4 +1,5 @@
 import SiteHeader from '@/components/SiteHeader'
+import Link from 'next/link'
 
 export default function Home() {
   return (
@@ -25,13 +26,8 @@ export default function Home() {
           <p className="hero-subtitle">
             Context aware codebase evaluator
           </p>
-          <a
-            href="https://rontzen-victory.vercel.app/"
-            className="hero-cta"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Try beta
+          <Link href="/platform" className="hero-cta">
+            Open app
             <span className="hero-cta-arrow" aria-hidden>
               <svg
                 width="16"
@@ -49,7 +45,7 @@ export default function Home() {
                 />
               </svg>
             </span>
-          </a>
+          </Link>
         </div>
       </section>
     </main>
