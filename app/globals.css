@@ -1441,7 +1441,7 @@ body {
   border: 1px solid rgba(132, 198, 255, 0.35);
   background: rgba(20, 28, 36, 0.6);
   position: relative;
-  width: min(100%, 9.5rem);
+  width: min(100%, 10.75rem);
 }
 
 .preview-card-pricing-badge {
@@ -1470,8 +1470,31 @@ body {
   color: #fafafa;
 }
 
+.preview-card-pricing-features {
+  margin-top: 0.3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.preview-card-pricing-feature {
+  display: block;
+  position: relative;
+  padding-left: 0.45rem;
+  font-size: 0.58rem;
+  line-height: 1.25;
+  color: #9a9a9a;
+}
+
+.preview-card-pricing-feature::before {
+  content: '•';
+  position: absolute;
+  left: 0;
+  color: rgba(142, 208, 255, 0.75);
+}
+
 .preview-card-pricing-cta {
-  margin-top: 0.15rem;
+  margin-top: 0.35rem;
   font-size: 0.65rem;
   font-weight: 600;
   color: #111;

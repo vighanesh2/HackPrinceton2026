@@ -22,6 +22,11 @@ export function CardPreview({ item }: { item: CardPromptItem }) {
           <span className="preview-card-pricing-badge">Popular</span>
           <span className="preview-card-pricing-name">Pro</span>
           <span className="preview-card-pricing-price">$29/mo</span>
+          <span className="preview-card-pricing-features" aria-hidden>
+            <span className="preview-card-pricing-feature">Unlimited projects</span>
+            <span className="preview-card-pricing-feature">Priority support</span>
+            <span className="preview-card-pricing-feature">SSO</span>
+          </span>
           <span className="preview-card-pricing-cta">Choose plan</span>
         </span>
       </div>

@@ -33,7 +33,7 @@ export const cardPrompts: CardPromptItem[] = [
     useCase: 'Plans and tiers',
     previewStyle: 'pricing',
     prompt:
-      'Create a pricing card with plan name, price line, bullet list, highlighted “Popular” ribbon, and primary CTA. Match grid with 3 columns desktop, 1 column mobile. Include annual toggle hook if needed.',
+      'Build a single pricing tier card: plan name, monthly price line, 3 short feature bullets, optional “Popular” pill badge (top-right), and a solid primary CTA. Subtle border, radius, comfortable padding. For a full pricing page, repeat this card in a responsive CSS grid (e.g. three columns on desktop, one on mobile) and place a monthly/annual billing toggle above the grid as a separate control.',
   },
   {
     slug: 'stat-metric-card',
