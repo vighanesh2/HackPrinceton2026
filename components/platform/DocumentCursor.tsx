@@ -269,7 +269,8 @@ export function DocumentCursor() {
         throw new Error(payload?.error || 'Failed to fetch assistant response.')
       }
 
-      setMessages((prev) => [...prev, { role: 'assistant', content: payload.answer }])
+      const assistantAnswer = payload.answer
+      setMessages((prev) => [...prev, { role: 'assistant', content: assistantAnswer }])
     } catch (submitError) {
       const message =
         submitError instanceof Error
