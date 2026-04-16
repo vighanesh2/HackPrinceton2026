@@ -2165,3 +2165,342 @@ body {
     height: 40vh;
   }
 }
+
+.notion-page {
+  min-height: 100vh;
+  background: #ffffff;
+  color: #111827;
+  padding: 0;
+}
+
+.notion-shell {
+  min-height: 100vh;
+  display: flex;
+  align-items: stretch;
+}
+
+.notion-sidebar {
+  width: 15rem;
+  flex-shrink: 0;
+  border-right: 1px solid #e5e7eb;
+  background: #fafafa;
+  padding: 1rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.notion-sidebar-brand {
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #6b7280;
+  padding: 0 0.35rem;
+}
+
+.notion-sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.notion-sidebar-item {
+  width: 100%;
+  text-align: left;
+  border: none;
+  border-radius: 0.4rem;
+  background: transparent;
+  color: #374151;
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding: 0.45rem 0.55rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.notion-sidebar-item:hover {
+  background: #f3f4f6;
+}
+
+.notion-sidebar-item.is-active {
+  background: #ffffff;
+  box-shadow: 0 0 0 1px #e5e7eb;
+  color: #111827;
+}
+
+.notion-main {
+  flex: 1;
+  min-width: 0;
+  padding: 3.5rem 1.5rem 4rem;
+}
+
+@media (min-width: 1100px) {
+  .notion-main {
+    padding-left: 2.25rem;
+    padding-right: 2.25rem;
+  }
+}
+
+.notion-doc {
+  max-width: min(70rem, 100%);
+  margin: 0 auto;
+}
+
+.notion-title {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: #111827;
+  font-size: clamp(2rem, 5vw, 2.9rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  margin-bottom: 1rem;
+}
+
+.notion-title::placeholder {
+  color: #9ca3af;
+}
+
+.notion-editor {
+  width: 100%;
+  min-height: 70vh;
+  border: none;
+  outline: none;
+  resize: none;
+  background: transparent;
+  color: #1f2937;
+  font-family: var(--font-inter), system-ui, sans-serif;
+  font-size: 1.08rem;
+  line-height: 1.85;
+}
+
+.notion-editor::placeholder {
+  color: #9ca3af;
+}
+
+.notion-doc-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.notion-doc-tools .notion-upload {
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+
+.notion-doc-tools-actions {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.notion-doc-tools-actions button {
+  border-radius: 0.45rem;
+  border: 1px solid #111827;
+  background: #111827;
+  color: #ffffff;
+  padding: 0.45rem 0.85rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.notion-doc-tools-actions button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.notion-doc-error {
+  margin: -0.35rem 0 0.75rem;
+  color: #b91c1c;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.notion-upload {
+  display: grid;
+  gap: 0.35rem;
+  border: 1px dashed #d1d5db;
+  border-radius: 0.65rem;
+  padding: 0.75rem;
+  background: #fafafa;
+}
+
+.notion-upload-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.notion-upload-meta {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.notion-rte {
+  width: 100%;
+}
+
+.notion-rte-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem;
+  margin-bottom: 0.5rem;
+  padding: 0.35rem 0.45rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  background: #fafafa;
+}
+
+.notion-rte-toolbar button {
+  min-width: 2rem;
+  height: 2rem;
+  padding: 0 0.4rem;
+  border: 1px solid transparent;
+  border-radius: 0.35rem;
+  background: transparent;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #374151;
+  cursor: pointer;
+}
+
+.notion-rte-toolbar button:hover:not(:disabled) {
+  background: #f3f4f6;
+}
+
+.notion-rte-toolbar button.is-active {
+  background: #e5e7eb;
+  border-color: #d1d5db;
+}
+
+.notion-rte-toolbar button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.notion-rte-toolbar-sep {
+  width: 1px;
+  height: 1.25rem;
+  margin: 0 0.2rem;
+  background: #e5e7eb;
+}
+
+.notion-rte-content .tiptap,
+.notion-prosemirror {
+  outline: none;
+  min-height: 70vh;
+  padding-bottom: 2rem;
+  font-family: var(--font-inter), system-ui, sans-serif;
+  font-size: 1.08rem;
+  line-height: 1.85;
+  color: #1f2937;
+}
+
+.notion-rte-content .tiptap p,
+.notion-prosemirror p {
+  margin: 0.45rem 0;
+}
+
+.notion-rte-content .tiptap h2,
+.notion-prosemirror h2 {
+  color: #111827;
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  margin: 1.25rem 0 0.4rem;
+}
+
+.notion-rte-content .tiptap h2:first-child,
+.notion-prosemirror h2:first-child {
+  margin-top: 0;
+}
+
+.notion-rte-content .tiptap h3,
+.notion-prosemirror h3 {
+  color: #111827;
+  font-size: 1.12rem;
+  font-weight: 600;
+  margin: 1rem 0 0.35rem;
+}
+
+.notion-rte-content .tiptap ul,
+.notion-rte-content .tiptap ol,
+.notion-prosemirror ul,
+.notion-prosemirror ol {
+  margin: 0.45rem 0 0.55rem;
+  padding-left: 1.35rem;
+}
+
+.notion-rte-content .tiptap li,
+.notion-prosemirror li {
+  margin: 0.2rem 0;
+}
+
+.notion-rte-content .tiptap li::marker,
+.notion-prosemirror li::marker {
+  color: #6b7280;
+}
+
+.notion-rte-content .tiptap blockquote,
+.notion-prosemirror blockquote {
+  margin: 0.65rem 0;
+  padding: 0.25rem 0 0.25rem 1rem;
+  border-left: 3px solid #e5e7eb;
+  color: #4b5563;
+}
+
+.notion-rte-content .tiptap strong,
+.notion-prosemirror strong {
+  font-weight: 600;
+  color: #111827;
+}
+
+.notion-rte-content .tiptap p.is-editor-empty:first-child::before,
+.notion-prosemirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: #9ca3af;
+  pointer-events: none;
+  float: left;
+  height: 0;
+}
+
+@media (max-width: 900px) {
+  .notion-shell {
+    flex-direction: column;
+  }
+
+  .notion-sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid #e5e7eb;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .notion-sidebar-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .notion-sidebar-item {
+    width: auto;
+  }
+
+  .notion-main {
+    padding: 1.5rem 1rem 2.5rem;
+  }
+}
