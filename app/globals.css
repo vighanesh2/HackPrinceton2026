@@ -1741,14 +1741,36 @@ body {
 
 .doc-cursor-page {
   min-height: 100vh;
-  background: #000;
-  color: #fafafa;
+  background: #f4f6fb;
+  color: #0f172a;
   padding: 1.25rem;
 }
 
 .doc-cursor-shell {
+  --doc-bg: #f4f6fb;
+  --doc-text: #0f172a;
+  --doc-subtext: #475569;
+  --doc-border: rgba(15, 23, 42, 0.14);
+  --doc-panel: #ffffff;
+  --doc-panel-soft: #f8fafc;
+  --doc-accent: #2563eb;
+  --doc-accent-soft: rgba(37, 99, 235, 0.1);
+  --doc-danger: #b91c1c;
   max-width: 78rem;
   margin: 0 auto;
+  color: var(--doc-text);
+}
+
+.doc-cursor-shell.theme-dark {
+  --doc-bg: #000000;
+  --doc-text: #fafafa;
+  --doc-subtext: #9e9e9e;
+  --doc-border: rgba(255, 255, 255, 0.12);
+  --doc-panel: rgba(255, 255, 255, 0.02);
+  --doc-panel-soft: rgba(255, 255, 255, 0.04);
+  --doc-accent: #84c6ff;
+  --doc-accent-soft: rgba(132, 198, 255, 0.12);
+  --doc-danger: #ffb4b4;
 }
 
 .doc-cursor-header h1 {
@@ -1758,15 +1780,32 @@ body {
 
 .doc-cursor-header p {
   margin-top: 0.35rem;
-  color: #b9b9b9;
+  color: var(--doc-subtext);
 }
 
 .doc-cursor-home-link {
-  color: #cde2ff;
+  color: var(--doc-accent);
   text-decoration: none;
   display: inline-block;
   margin-bottom: 0.75rem;
   font-size: 0.9rem;
+}
+
+.doc-cursor-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.doc-theme-toggle {
+  border-radius: 999px;
+  border: 1px solid var(--doc-border);
+  background: var(--doc-panel);
+  color: var(--doc-text);
+  padding: 0.45rem 0.85rem;
+  cursor: pointer;
+  font-size: 0.8rem;
 }
 
 .doc-cursor-grid {
@@ -1787,9 +1826,9 @@ body {
 
 .doc-cursor-panel,
 .doc-cursor-chat {
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--doc-border);
   border-radius: 0.8rem;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--doc-panel);
 }
 
 .doc-cursor-panel {
@@ -1815,22 +1854,23 @@ body {
 }
 
 .muted {
-  color: #9e9e9e;
+  color: var(--doc-subtext);
   font-size: 0.85rem;
 }
 
 .doc-upload {
   margin-top: 0.2rem;
-  border: 1px dashed rgba(255, 255, 255, 0.3);
+  border: 1px dashed var(--doc-border);
   border-radius: 0.6rem;
   padding: 0.7rem;
   display: grid;
   gap: 0.45rem;
   overflow: hidden;
+  background: var(--doc-panel-soft);
 }
 
 .doc-upload input {
-  color: #cfcfcf;
+  color: var(--doc-subtext);
   width: 100%;
   max-width: 100%;
   font-size: 0.78rem;
@@ -1891,10 +1931,10 @@ body {
   width: 100%;
   max-width: 100%;
   text-align: left;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--doc-border);
   border-radius: 0.55rem;
   background: transparent;
-  color: #e8e8e8;
+  color: var(--doc-text);
   padding: 0.52rem 0.58rem;
   display: grid;
   gap: 0.1rem;
@@ -1902,13 +1942,13 @@ body {
 }
 
 .doc-file-item:hover {
-  border-color: rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.04);
+  border-color: var(--doc-accent);
+  background: var(--doc-accent-soft);
 }
 
 .doc-file-item.is-active {
-  border-color: rgba(132, 198, 255, 0.55);
-  background: rgba(132, 198, 255, 0.08);
+  border-color: var(--doc-accent);
+  background: var(--doc-accent-soft);
 }
 
 .doc-file-name {
@@ -1921,22 +1961,22 @@ body {
 
 .doc-file-meta {
   font-size: 0.72rem;
-  color: #9f9f9f;
+  color: var(--doc-subtext);
 }
 
 .doc-preview {
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--doc-border);
   border-radius: 0.65rem;
   padding: 0.65rem;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--doc-panel-soft);
   display: grid;
   gap: 0.45rem;
 }
 
 .doc-preview .panel-head button {
   background: transparent;
-  color: #cfcfcf;
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: var(--doc-text);
+  border: 1px solid var(--doc-border);
   border-radius: 0.45rem;
   padding: 0.22rem 0.45rem;
   font-size: 0.74rem;
@@ -1948,10 +1988,10 @@ body {
   white-space: pre-wrap;
   font-size: 0.78rem;
   line-height: 1.45;
-  color: #cfcfcf;
+  color: var(--doc-text);
   max-height: 14rem;
   overflow-y: auto;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid var(--doc-border);
   padding-top: 0.5rem;
 }
 
@@ -1963,14 +2003,14 @@ body {
 .doc-preview-pdf {
   width: 100%;
   height: calc(70vh - 5rem);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--doc-border);
   border-radius: 0.55rem;
   background: #111;
 }
 
 .chat-topbar {
   padding: 0.8rem 0.9rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--doc-border);
 }
 
 .chat-topbar h2 {
@@ -1994,28 +2034,29 @@ body {
 .chat-bubble {
   padding: 0.65rem 0.75rem;
   border-radius: 0.65rem;
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: 1px solid var(--doc-border);
+  color: var(--doc-text);
 }
 
 .chat-bubble.user {
-  background: rgba(132, 198, 255, 0.15);
-  border-color: rgba(132, 198, 255, 0.45);
+  background: var(--doc-accent-soft);
+  border-color: var(--doc-accent);
 }
 
 .chat-bubble.assistant {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--doc-panel-soft);
 }
 
 .chat-role {
   margin-bottom: 0.2rem;
   font-size: 0.74rem;
-  color: #a5a5a5;
+  color: var(--doc-subtext);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
 .chat-form {
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid var(--doc-border);
   padding: 0.75rem;
   display: grid;
   gap: 0.55rem;
@@ -2026,7 +2067,7 @@ body {
   align-items: center;
   gap: 0.45rem;
   font-size: 0.8rem;
-  color: #c8c8c8;
+  color: var(--doc-subtext);
 }
 
 .chat-mode-toggle input {
@@ -2035,10 +2076,10 @@ body {
 
 .chat-form textarea {
   width: 100%;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid var(--doc-border);
   border-radius: 0.55rem;
-  background: rgba(0, 0, 0, 0.3);
-  color: #f0f0f0;
+  background: var(--doc-panel-soft);
+  color: var(--doc-text);
   padding: 0.65rem;
   resize: none;
   min-height: 3.25rem;
@@ -2049,9 +2090,9 @@ body {
 .chat-form button {
   width: fit-content;
   border-radius: 999px;
-  border: 1px solid rgba(132, 198, 255, 0.45);
-  background: rgba(132, 198, 255, 0.18);
-  color: #f3f8ff;
+  border: 1px solid var(--doc-accent);
+  background: var(--doc-accent-soft);
+  color: var(--doc-text);
   padding: 0.45rem 0.85rem;
   cursor: pointer;
 }
@@ -2062,15 +2103,15 @@ body {
 }
 
 .chat-error {
-  color: #ffb4b4;
+  color: var(--doc-danger);
   padding: 0 0.75rem 0.75rem;
   font-size: 0.85rem;
 }
 
 .draft-banner {
-  border: 1px solid rgba(132, 198, 255, 0.4);
+  border: 1px solid var(--doc-accent);
   border-radius: 0.6rem;
-  background: rgba(132, 198, 255, 0.08);
+  background: var(--doc-accent-soft);
   padding: 0.55rem;
   display: grid;
   gap: 0.45rem;
@@ -2083,18 +2124,18 @@ body {
 
 .draft-actions button {
   border-radius: 999px;
-  border: 1px solid rgba(132, 198, 255, 0.45);
-  background: rgba(132, 198, 255, 0.2);
-  color: #f0f7ff;
+  border: 1px solid var(--doc-accent);
+  background: var(--doc-accent-soft);
+  color: var(--doc-text);
   padding: 0.3rem 0.7rem;
   cursor: pointer;
   font-size: 0.75rem;
 }
 
 .draft-actions button.secondary {
-  border-color: rgba(255, 255, 255, 0.22);
+  border-color: var(--doc-border);
   background: transparent;
-  color: #dbdbdb;
+  color: var(--doc-text);
 }
 
 @media (max-width: 960px) {
@@ -2104,6 +2145,11 @@ body {
 
   .doc-cursor-grid-3 {
     grid-template-columns: 1fr;
+  }
+
+  .doc-cursor-header-row {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .doc-cursor-chat {

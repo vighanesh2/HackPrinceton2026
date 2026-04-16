@@ -51,6 +51,7 @@ function summarizeDocumentContent(doc: UploadedDoc) {
 }
 
 export function DocumentCursor() {
+  const [theme, setTheme] = useState<'light' | 'dark'>('light')
   const [docs, setDocs] = useState<UploadedDoc[]>([])
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -283,17 +284,26 @@ export function DocumentCursor() {
   }
 
   return (
-    <section className="doc-cursor-shell">
+    <section className={`doc-cursor-shell ${theme === 'dark' ? 'theme-dark' : 'theme-light'}`}>
       <header className="doc-cursor-header">
-        <div>
-          <Link href="/" className="doc-cursor-home-link">
-            Back to Home
-          </Link>
-          <h1>Business Document Cursor</h1>
-          <p>
-            LLaMA-powered workspace for founders and finance teams. Ask questions using your
-            uploaded context.
-          </p>
+        <div className="doc-cursor-header-row">
+          <div>
+            <Link href="/" className="doc-cursor-home-link">
+              Back to Home
+            </Link>
+            <h1>Business Document Cursor</h1>
+            <p>
+              LLaMA-powered workspace for founders and finance teams. Ask questions using your
+              uploaded context.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="doc-theme-toggle"
+            onClick={() => setTheme((prev) => (prev === 'light' ? 'dark' : 'light'))}
+          >
+            {theme === 'light' ? 'Dark mode' : 'Light mode'}
+          </button>
         </div>
       </header>
 
