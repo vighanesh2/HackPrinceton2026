@@ -62,9 +62,9 @@ export default function SiteHeader() {
               </li>
             ))}
             <li>
-              <a href="#" className="site-header-cta">
+              <Link href="/login" className="site-header-cta">
                 Get Started
-              </a>
+              </Link>
             </li>
           </ul>
         </nav>

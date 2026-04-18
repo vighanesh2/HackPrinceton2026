@@ -34,6 +34,15 @@ function isDocxFile(file: File) {
   )
 }
 
+function nextBlankDocumentName(existing: UploadedDoc[]) {
+  const base = 'Untitled document'
+  const names = new Set(existing.map((d) => d.name))
+  if (!names.has(base)) return base
+  let n = 2
+  while (names.has(`${base} (${n})`)) n += 1
+  return `${base} (${n})`
+}
+
 function summarizeDocumentContent(doc: UploadedDoc) {
   const content = doc.content.trim()
   const preview =
@@ -143,6 +152,25 @@ export function DocumentCursor() {
       }
       return merged
     })
+    setError(null)
+  }
+
+  function addBlankDocument() {
+    const id = crypto.randomUUID()
+    setDocs((prev) => {
+      const name = nextBlankDocumentName(prev)
+      const blank: UploadedDoc = {
+        id,
+        name,
+        type: 'text/plain',
+        size: 0,
+        uploadedAt: new Date().toISOString(),
+        content: '',
+        previewUrl: null,
+      }
+      return [blank, ...prev]
+    })
+    setSelectedDocId(id)
     setError(null)
   }
 
@@ -316,15 +344,26 @@ export function DocumentCursor() {
             </span>
           </div>
 
-          <label className="doc-upload">
-            <span>+ Add documents</span>
-            <input
-              type="file"
-              multiple
-              onChange={(event) => void onUpload(event.target.files)}
-              accept=".txt,.md,.csv,.json,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx"
-            />
-          </label>
+          <div className="doc-upload-row">
+            <label className="doc-upload">
+              <span>+ Add documents</span>
+              <input
+                type="file"
+                multiple
+                onChange={(event) => void onUpload(event.target.files)}
+                accept=".txt,.md,.csv,.json,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx"
+              />
+            </label>
+            <button
+              type="button"
+              className="doc-new-blank"
+              onClick={addBlankDocument}
+              title="New blank document"
+              aria-label="New blank document"
+            >
+              +
+            </button>
+          </div>
 
           <ul className="doc-file-list">
             {docs.map((doc) => (
@@ -378,15 +417,18 @@ export function DocumentCursor() {
                 />
               ) : (
                 <pre className="doc-preview-content doc-preview-content-main">
-                  {(pendingDraft?.docId === selectedDoc.id
-                    ? pendingDraft.content
-                    : selectedDoc.content
-                  ).trim()
-                    ? (pendingDraft?.docId === selectedDoc.id
+                  {(() => {
+                    const raw =
+                      pendingDraft?.docId === selectedDoc.id
                         ? pendingDraft.content
                         : selectedDoc.content
-                      ).slice(0, PREVIEW_LENGTH)
-                    : 'No preview available for this file type yet.'}
+                    const trimmed = raw.trim()
+                    if (trimmed) return raw.slice(0, PREVIEW_LENGTH)
+                    if (selectedDoc.size === 0 && selectedDoc.type === 'text/plain') {
+                      return 'Empty document — use “Edit selected doc” in chat to draft text.'
+                    }
+                    return 'No preview available for this file type yet.'
+                  })()}
                 </pre>
               )}
             </>
