@@ -49,7 +49,7 @@ export default function SiteHeader() {
       <div className="site-header-inner">
         <Link href="/" className="site-header-logo">
           <SparkleIcon />
-          <span className="site-header-brand">Rontzen</span>
+          <span className="site-header-brand">MakeItMakeSense</span>
         </Link>
 
         <nav className="site-header-nav" aria-label="Main">

@@ -24,9 +24,6 @@ export default function Home() {
         <div className="hero-noise" aria-hidden="true" />
         <div className="hero-inner">
           <h1 className="hero-title">Clarity is Simplicity</h1>
-          <p className="hero-subtitle">
-            Context aware codebase evaluator
-          </p>
           <Link href="/platform" className="hero-cta">
             Open app
             <span className="hero-cta-arrow" aria-hidden>
