@@ -3,7 +3,7 @@
 import { createClient } from '@/lib/supabase/client'
 import { isSupabaseConfigured } from '@/lib/supabase/config'
 import { useRouter } from 'next/navigation'
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { RichDocEditor } from '@/components/platform/RichDocEditor'
 import { aiMarkdownToEditorHtml, coerceStoredEditorHtml } from '@/components/platform/editorHtml'
 import {
@@ -66,6 +66,26 @@ import {
   strategicPageTitleFromPayload,
   type OnePagerLayoutId,
 } from '@/lib/platform/onePagerTemplates'
+import {
+  appendDataLineageEvent,
+  loadDataLineageEvents,
+  type LineageAppendInput,
+  type LineageEvent,
+} from '@/lib/platform/dataLineage'
+import {
+  describeBlankDocsDiff,
+  describeDeckBlobChange,
+  describeFinancialDiff,
+  describeHtmlPlainShift,
+  describeMarketSizingDiff,
+  describeTeamRosterDiff,
+  describeTractionDiff,
+  type BlankDocLineageSnap,
+  type FinancialLineageSnapshot,
+  type MarketSizingLineageSnapshot,
+  type TractionLineageSnapshot,
+} from '@/lib/platform/lineageDescribe'
+import { DataLineagePanel } from '@/components/platform/DataLineagePanel'
 
 const STORAGE_ACTIVE_TAB_KEY = 'platform_notion_active_tab'
 const STORAGE_ONE_PAGER_SUMMARY_KEY = 'platform_one_pager_summary'
@@ -86,7 +106,15 @@ const STORAGE_ACTIVE_WORKSPACE_FILE_KEY = 'platform_active_workspace_file_v1'
 
 const MAX_PDF_TEXT_CHARS = 24000
 
-type TabId = 'onepager' | 'pitchdeck' | 'market' | 'product' | 'traction' | 'team' | 'financials'
+type TabId =
+  | 'onepager'
+  | 'pitchdeck'
+  | 'market'
+  | 'product'
+  | 'traction'
+  | 'team'
+  | 'financials'
+  | 'lineage'
 
 const TAB_IDS: TabId[] = [
   'onepager',
@@ -96,7 +124,19 @@ const TAB_IDS: TabId[] = [
   'traction',
   'team',
   'financials',
+  'lineage',
 ]
+
+const TAB_LINEAGE_LABEL: Record<TabId, string> = {
+  onepager: 'One pager',
+  pitchdeck: 'Pitch deck',
+  market: 'Market',
+  product: 'Product',
+  traction: 'Traction',
+  team: 'Team',
+  financials: 'Financials',
+  lineage: 'Data lineage',
+}
 
 function tabFromUrlSearch(search: string): TabId | null {
   try {
@@ -238,6 +278,7 @@ const SHADOW_SECTION_LABEL: Record<TabId, string> = {
   traction: 'Traction',
   team: 'Team',
   financials: 'Financials',
+  lineage: 'Data lineage',
 }
 
 function buildPlatformShadowContext(params: {
@@ -592,6 +633,38 @@ export default function PlatformPage() {
   const productShotsRef = useRef<ProductShotItem[]>([])
   const tractionLogosRef = useRef<ProductShotItem[]>([])
 
+  const [lineageEvents, setLineageEvents] = useState<LineageEvent[]>([])
+  const [lineageHydrated, setLineageHydrated] = useState(false)
+  const finFpRef = useRef<string | null>(null)
+  const tracFpRef = useRef<string | null>(null)
+  const marketSizingFpRef = useRef<string | null>(null)
+  const marketCompFpRef = useRef<string | null>(null)
+  const productRoadFpRef = useRef<string | null>(null)
+  const teamFpRef = useRef<string | null>(null)
+  const onePagerSummaryFpRef = useRef<string | null>(null)
+  const onePagerTitleFpRef = useRef<string | null>(null)
+  const onePagerLayoutFpRef = useRef<string | null>(null)
+  const deckFpRef = useRef<string | null>(null)
+  const blankDocsFpRef = useRef<string | null>(null)
+  const workspaceFileEditTimerRef = useRef<number | null>(null)
+  const finPrevSnapshotRef = useRef<FinancialLineageSnapshot | null>(null)
+  const tracPrevSnapshotRef = useRef<TractionLineageSnapshot | null>(null)
+  const marketSizingPrevRef = useRef<MarketSizingLineageSnapshot | null>(null)
+  const marketCompPrevHtmlRef = useRef('')
+  const productRoadPrevHtmlRef = useRef('')
+  const onePagerSummaryPrevHtmlRef = useRef('')
+  const teamPrevMembersRef = useRef<TeamMember[] | null>(null)
+  const deckPrevNameRef = useRef<string | null>(null)
+  const deckPrevLenRef = useRef(0)
+  const blankDocsPrevSnapRef = useRef<BlankDocLineageSnap[]>([])
+  const workspacePlainLastLoggedRef = useRef(0)
+  const latestWorkspacePlainLenRef = useRef(0)
+
+  const recordLineage = useCallback((input: LineageAppendInput) => {
+    appendDataLineageEvent(input)
+    setLineageEvents(loadDataLineageEvents())
+  }, [])
+
   const activeBlankDoc = useMemo(() => {
     if (!activeBlankDocId) return null
     return blankWorkspaceDocs.find((d) => d.id === activeBlankDocId) ?? null
@@ -606,9 +679,29 @@ export default function PlatformPage() {
     return { folder, file }
   }, [activeWorkspaceFile, workspaceFolders])
 
+  useEffect(() => {
+    if (!activeWorkspaceView) {
+      workspacePlainLastLoggedRef.current = 0
+      latestWorkspacePlainLenRef.current = 0
+      return
+    }
+    const len = workspacePlainLen(activeWorkspaceView.file.bodyHtml)
+    workspacePlainLastLoggedRef.current = len
+    latestWorkspacePlainLenRef.current = len
+  }, [activeWorkspaceView?.folder.id, activeWorkspaceView?.file.id])
+
   function goToTab(tab: TabId) {
+    const fromTab = activeTab
     setActiveBlankDocId(null)
     setActiveWorkspaceFile(null)
+    if (fromTab !== tab) {
+      recordLineage({
+        kind: 'tab_nav',
+        summary: `Opened ${TAB_LINEAGE_LABEL[tab]}`,
+        detail: SHADOW_SECTION_LABEL[tab],
+        changes: [`Section: ${TAB_LINEAGE_LABEL[fromTab]} → ${TAB_LINEAGE_LABEL[tab]}`],
+      })
+    }
     setActiveTab(tab)
   }
 
@@ -628,9 +721,26 @@ export default function PlatformPage() {
       return [{ id, title, bodyHtml: '' }, ...prev]
     })
     setActiveBlankDocId(id)
+    recordLineage({
+      kind: 'blank_doc_created',
+      summary: 'Created blank workspace document',
+      detail: 'Untitled or next available name — edit title in the header.',
+      changes: ['New blank page added to the sidebar Documents list.'],
+    })
   }
 
   function removeWorkspaceFolder(folderId: string) {
+    const removed = workspaceFolders.find((f) => f.id === folderId)
+    if (removed) {
+      const names = removed.files.map((f) => f.displayName).slice(0, 8)
+      const more = removed.files.length > names.length ? ` (+${removed.files.length - names.length} more)` : ''
+      recordLineage({
+        kind: 'workspace_folder_removed',
+        summary: `Removed workspace folder: ${removed.label}`,
+        detail: `${removed.files.length} file(s)`,
+        changes: [`Dropped files: ${names.join(', ')}${more}`],
+      })
+    }
     setWorkspaceFolders((prev) => prev.filter((f) => f.id !== folderId))
     setActiveWorkspaceFile((cur) => (cur?.folderId === folderId ? null : cur))
   }
@@ -638,6 +748,16 @@ export default function PlatformPage() {
   function openWorkspaceFolderFile(folderId: string, fileId: string) {
     setActiveBlankDocId(null)
     setActiveWorkspaceFile({ folderId, fileId })
+    const folder = workspaceFolders.find((f) => f.id === folderId)
+    const file = folder?.files.find((x) => x.id === fileId)
+    if (folder && file) {
+      recordLineage({
+        kind: 'document_opened',
+        summary: `Opened file: ${file.displayName}`,
+        detail: `${folder.label} · ${file.relPath}`,
+        changes: ['Editor switched to this file (main workspace view).'],
+      })
+    }
   }
 
   async function extractWorkspaceFolderFileOne(
@@ -742,6 +862,16 @@ export default function PlatformPage() {
     setWorkspaceFolders((prev) => [...prev, newFolder])
     setActiveBlankDocId(null)
     setActiveWorkspaceFile({ folderId, fileId: files[0]!.id })
+    recordLineage({
+      kind: 'workspace_folder_imported',
+      summary: `Imported workspace folder: ${sectionLabel}`,
+      detail: `${files.length} supported file(s)`,
+      changes: [
+        `Folder label: ${sectionLabel}`,
+        ...files.slice(0, 10).map((f) => `· ${f.displayName}`),
+        ...(files.length > 10 ? [`(+${files.length - 10} more files)`] : []),
+      ],
+    })
     const entries = files.map((row, i) => ({
       fileId: row.id,
       file: picked[i]!.file,
@@ -834,7 +964,8 @@ export default function PlatformPage() {
       savedTab === 'product' ||
       savedTab === 'traction' ||
       savedTab === 'team' ||
-      savedTab === 'financials'
+      savedTab === 'financials' ||
+      savedTab === 'lineage'
     ) {
       setActiveTab(savedTab)
     }
@@ -1033,6 +1164,27 @@ export default function PlatformPage() {
     return () => {
       cancelled = true
     }
+  }, [])
+
+  useEffect(() => {
+    setLineageEvents(loadDataLineageEvents())
+    try {
+      if (typeof sessionStorage === 'undefined') return
+      if (sessionStorage.getItem('rontzen_lineage_session_v1') === '1') return
+      sessionStorage.setItem('rontzen_lineage_session_v1', '1')
+      appendDataLineageEvent({
+        kind: 'session_start',
+        summary: 'Workspace session started',
+        detail: `Local: ${new Date().toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}`,
+      })
+      setLineageEvents(loadDataLineageEvents())
+    } catch {
+      /* ignore */
+    }
+  }, [])
+
+  useEffect(() => {
+    setLineageHydrated(true)
   }, [])
 
   /** If the extracted deck spells out TAM/SAM/SOM but Market is still the stock placeholder row, pull numbers from the deck. */
@@ -1302,6 +1454,285 @@ export default function PlatformPage() {
     window.localStorage.setItem(STORAGE_TEAM_WORKSPACE_KEY, JSON.stringify(teamWorkspace))
   }, [teamWorkspace])
 
+  useEffect(() => {
+    if (!lineageHydrated) return
+    const fp = JSON.stringify(financials)
+    if (finFpRef.current === null) {
+      finFpRef.current = fp
+      finPrevSnapshotRef.current = { ...financials }
+      return
+    }
+    if (finFpRef.current === fp) return
+    finFpRef.current = fp
+    const t = window.setTimeout(() => {
+      const prev = finPrevSnapshotRef.current
+      if (!prev) return
+      const changes = describeFinancialDiff(prev, financials as FinancialLineageSnapshot, formatMoney)
+      finPrevSnapshotRef.current = { ...financials }
+      if (!changes.length) return
+      recordLineage({
+        kind: 'financials_saved',
+        summary: 'Financial inputs saved (this browser)',
+        detail: `MRR ${formatMoney(financials.mrr)} · cash ${formatMoney(financials.cashOnHand)}`,
+        changes,
+      })
+    }, 800)
+    return () => window.clearTimeout(t)
+  }, [financials, lineageHydrated, recordLineage])
+
+  useEffect(() => {
+    if (!lineageHydrated) return
+    const fp = JSON.stringify(traction)
+    if (tracFpRef.current === null) {
+      tracFpRef.current = fp
+      tracPrevSnapshotRef.current = { ...traction }
+      return
+    }
+    if (tracFpRef.current === fp) return
+    tracFpRef.current = fp
+    const t = window.setTimeout(() => {
+      const prev = tracPrevSnapshotRef.current
+      if (!prev) return
+      const changes = describeTractionDiff(prev, traction as TractionLineageSnapshot, formatMoney)
+      tracPrevSnapshotRef.current = { ...traction }
+      if (!changes.length) return
+      recordLineage({
+        kind: 'traction_saved',
+        summary: 'Traction inputs saved (this browser)',
+        detail: `MRR ${formatMoney(traction.mrr)} · ${traction.customers} customers`,
+        changes,
+      })
+    }, 800)
+    return () => window.clearTimeout(t)
+  }, [traction, lineageHydrated, recordLineage])
+
+  useEffect(() => {
+    if (!lineageHydrated) return
+    const fp = JSON.stringify(marketSizing)
+    if (marketSizingFpRef.current === null) {
+      marketSizingFpRef.current = fp
+      marketSizingPrevRef.current = { ...marketSizing }
+      return
+    }
+    if (marketSizingFpRef.current === fp) return
+    marketSizingFpRef.current = fp
+    const t = window.setTimeout(() => {
+      const prev = marketSizingPrevRef.current
+      if (!prev) return
+      const changes = describeMarketSizingDiff(prev, marketSizing as MarketSizingLineageSnapshot, formatMarketMoney)
+      marketSizingPrevRef.current = { ...marketSizing }
+      if (!changes.length) return
+      recordLineage({
+        kind: 'market_sizing_saved',
+        summary: 'Market sizing (TAM / SAM / SOM) saved',
+        detail: `TAM ${formatMarketMoney(marketSizing.tam)} · SAM ${formatMarketMoney(marketSizing.sam)} · SOM ${formatMarketMoney(marketSizing.som)}`,
+        changes,
+      })
+    }, 800)
+    return () => window.clearTimeout(t)
+  }, [marketSizing, lineageHydrated, recordLineage])
+
+  useEffect(() => {
+    if (!lineageHydrated) return
+    const fp = `${workspacePlainLen(marketCompetitive)}:${marketCompetitive.slice(0, 240)}`
+    if (marketCompFpRef.current === null) {
+      marketCompFpRef.current = fp
+      marketCompPrevHtmlRef.current = marketCompetitive
+      return
+    }
+    if (marketCompFpRef.current === fp) return
+    marketCompFpRef.current = fp
+    const t = window.setTimeout(() => {
+      const prevHtml = marketCompPrevHtmlRef.current
+      const changes = describeHtmlPlainShift(prevHtml, marketCompetitive, workspacePlainLen)
+      marketCompPrevHtmlRef.current = marketCompetitive
+      if (!changes.length) return
+      recordLineage({
+        kind: 'market_competitive_saved',
+        summary: 'Competitive landscape content saved',
+        detail: `${workspacePlainLen(marketCompetitive)} characters`,
+        changes,
+      })
+    }, 900)
+    return () => window.clearTimeout(t)
+  }, [marketCompetitive, lineageHydrated, recordLineage])
+
+  useEffect(() => {
+    if (!lineageHydrated) return
+    const fp = `${workspacePlainLen(productRoadmap)}:${productRoadmap.slice(0, 240)}`
+    if (productRoadFpRef.current === null) {
+      productRoadFpRef.current = fp
+      productRoadPrevHtmlRef.current = productRoadmap
+      return
+    }
+    if (productRoadFpRef.current === fp) return
+    productRoadFpRef.current = fp
+    const t = window.setTimeout(() => {
+      const prevHtml = productRoadPrevHtmlRef.current
+      const changes = describeHtmlPlainShift(prevHtml, productRoadmap, workspacePlainLen)
+      productRoadPrevHtmlRef.current = productRoadmap
+      if (!changes.length) return
+      recordLineage({
+        kind: 'product_roadmap_saved',
+        summary: 'Product roadmap saved',
+        detail: `${workspacePlainLen(productRoadmap)} characters`,
+        changes,
+      })
+    }, 900)
+    return () => window.clearTimeout(t)
+  }, [productRoadmap, lineageHydrated, recordLineage])
+
+  useEffect(() => {
+    if (!lineageHydrated) return
+    const fp = JSON.stringify(teamWorkspace)
+    if (teamFpRef.current === null) {
+      teamFpRef.current = fp
+      teamPrevMembersRef.current = teamWorkspace.map((m) => ({ ...m, experience: [...m.experience] }))
+      return
+    }
+    if (teamFpRef.current === fp) return
+    teamFpRef.current = fp
+    const t = window.setTimeout(() => {
+      const prev = teamPrevMembersRef.current ?? []
+      const changes = describeTeamRosterDiff(prev, teamWorkspace)
+      teamPrevMembersRef.current = teamWorkspace.map((m) => ({ ...m, experience: [...m.experience] }))
+      if (!changes.length) return
+      recordLineage({
+        kind: 'team_workspace_saved',
+        summary: 'Team workspace roster saved',
+        detail: `${teamWorkspace.length} member(s)`,
+        changes,
+      })
+    }, 800)
+    return () => window.clearTimeout(t)
+  }, [teamWorkspace, lineageHydrated, recordLineage])
+
+  useEffect(() => {
+    if (!lineageHydrated) return
+    const fp = `${workspacePlainLen(onePagerSummary)}:${onePagerSummary.slice(0, 320)}`
+    if (onePagerSummaryFpRef.current === null) {
+      onePagerSummaryFpRef.current = fp
+      onePagerSummaryPrevHtmlRef.current = onePagerSummary
+      return
+    }
+    if (onePagerSummaryFpRef.current === fp) return
+    onePagerSummaryFpRef.current = fp
+    const t = window.setTimeout(() => {
+      const prevHtml = onePagerSummaryPrevHtmlRef.current
+      const changes = describeHtmlPlainShift(prevHtml, onePagerSummary, workspacePlainLen)
+      onePagerSummaryPrevHtmlRef.current = onePagerSummary
+      if (!changes.length) return
+      recordLineage({
+        kind: 'one_pager_saved',
+        summary: 'One pager document saved (this browser)',
+        detail: `${workspacePlainLen(onePagerSummary)} characters`,
+        changes,
+      })
+    }, 1000)
+    return () => window.clearTimeout(t)
+  }, [onePagerSummary, lineageHydrated, recordLineage])
+
+  useEffect(() => {
+    if (!lineageHydrated) return
+    const fp = onePagerViewTitle.trim()
+    if (onePagerTitleFpRef.current === null) {
+      onePagerTitleFpRef.current = fp
+      return
+    }
+    if (onePagerTitleFpRef.current === fp) return
+    const previousTitle = onePagerTitleFpRef.current
+    onePagerTitleFpRef.current = fp
+    const t = window.setTimeout(() => {
+      recordLineage({
+        kind: 'one_pager_title',
+        summary: 'One pager title updated',
+        detail: fp || '(empty)',
+        changes: [`Title: “${previousTitle || '(empty)'}” → “${fp || '(empty)'}”`],
+      })
+    }, 700)
+    return () => window.clearTimeout(t)
+  }, [onePagerViewTitle, lineageHydrated, recordLineage])
+
+  useEffect(() => {
+    if (!lineageHydrated) return
+    const layout = ONE_PAGER_LAYOUTS.find((l) => l.id === onePagerLayoutId)
+    const label = layout?.label ?? onePagerLayoutId
+    if (onePagerLayoutFpRef.current === null) {
+      onePagerLayoutFpRef.current = onePagerLayoutId
+      return
+    }
+    if (onePagerLayoutFpRef.current === onePagerLayoutId) return
+    const prevId = onePagerLayoutFpRef.current
+    const prevLayout = ONE_PAGER_LAYOUTS.find((l) => l.id === prevId)
+    onePagerLayoutFpRef.current = onePagerLayoutId
+    recordLineage({
+      kind: 'one_pager_layout',
+      summary: `One pager layout: ${label}`,
+      changes: [`Layout: ${prevLayout?.label ?? prevId} → ${label}`],
+    })
+  }, [onePagerLayoutId, lineageHydrated, recordLineage])
+
+  useEffect(() => {
+    if (!lineageHydrated) return
+    const fp = `${deckFileName ?? ''}|${deckText.length}|${deckText.slice(0, 160)}`
+    if (deckFpRef.current === null) {
+      deckFpRef.current = fp
+      deckPrevNameRef.current = deckFileName
+      deckPrevLenRef.current = deckText.length
+      return
+    }
+    if (deckFpRef.current === fp) return
+    deckFpRef.current = fp
+    const t = window.setTimeout(() => {
+      const changes = describeDeckBlobChange(
+        deckPrevNameRef.current,
+        deckFileName,
+        deckPrevLenRef.current,
+        deckText.length
+      )
+      deckPrevNameRef.current = deckFileName
+      deckPrevLenRef.current = deckText.length
+      if (!changes.length) return
+      recordLineage({
+        kind: 'deck_text_saved',
+        summary: deckFileName ? `Deck text saved: ${deckFileName}` : 'Deck text cleared',
+        detail: deckText.trim() ? `${Math.round(deckText.length / 1024)} KB` : 'No extracted text',
+        changes,
+      })
+    }, 900)
+    return () => window.clearTimeout(t)
+  }, [deckText, deckFileName, lineageHydrated, recordLineage])
+
+  useEffect(() => {
+    if (!lineageHydrated) return
+    const nextSnaps: BlankDocLineageSnap[] = blankWorkspaceDocs.map((d) => ({
+      id: d.id,
+      title: d.title,
+      plainLen: workspacePlainLen(d.bodyHtml),
+    }))
+    const fp = nextSnaps.map((d) => `${d.id}:${d.title}:${d.plainLen}`).join('|')
+    if (blankDocsFpRef.current === null) {
+      blankDocsFpRef.current = fp
+      blankDocsPrevSnapRef.current = nextSnaps.map((s) => ({ ...s }))
+      return
+    }
+    if (blankDocsFpRef.current === fp) return
+    blankDocsFpRef.current = fp
+    const t = window.setTimeout(() => {
+      const prev = blankDocsPrevSnapRef.current
+      const changes = describeBlankDocsDiff(prev, nextSnaps)
+      blankDocsPrevSnapRef.current = nextSnaps.map((s) => ({ ...s }))
+      if (!changes.length) return
+      recordLineage({
+        kind: 'blank_docs_saved',
+        summary: 'Workspace documents updated',
+        detail: `${blankWorkspaceDocs.length} document(s)`,
+        changes,
+      })
+    }, 1100)
+    return () => window.clearTimeout(t)
+  }, [blankWorkspaceDocs, lineageHydrated, recordLineage])
+
   async function onDeckSelected(files: FileList | null) {
     const file = files?.[0]
     if (!file) return
@@ -1331,6 +1762,17 @@ export default function PlatformPage() {
       const text = await extractPdfTextOnServer(file)
       const clipped = text.slice(0, MAX_PDF_TEXT_CHARS)
       setDeckText(clipped)
+      recordLineage({
+        kind: 'pitch_pdf_uploaded',
+        summary: `Pitch deck PDF loaded for one-pager: ${file.name}`,
+        detail: clipped.trim() ? `${Math.round(clipped.length / 1024)} KB extracted text` : 'No extractable text',
+        changes: [
+          `File: ${file.name}`,
+          clipped.trim()
+            ? `Extracted ${clipped.length.toLocaleString()} characters for the one-pager pipeline.`
+            : 'No text extracted — check PDF is text-based.',
+        ],
+      })
       if (!clipped.trim()) {
         setOnePagerError(
           'This PDF has no extractable text (common for image-only or “designer” templates). Add real copy in the slides, export again, or use Print → Save as PDF from the app that has the text.'
@@ -1371,6 +1813,15 @@ export default function PlatformPage() {
         return URL.createObjectURL(file)
       })
       setEmbeddedDeckName(file.name)
+      recordLineage({
+        kind: 'embedded_deck_saved',
+        summary: `Embedded pitch deck saved: ${file.name}`,
+        detail: 'Stored in this browser for the Pitch deck tab.',
+        changes: [
+          `PDF stored locally (${(file.size / (1024 * 1024)).toFixed(2)} MB)`,
+          isSupabaseConfigured() ? 'Also syncing to your account when signed in.' : 'Sign in to sync this deck to the cloud.',
+        ],
+      })
 
       if (isSupabaseConfigured()) {
         const supabase = createClient()
@@ -1808,6 +2259,17 @@ export default function PlatformPage() {
         setOnePagerViewTitle(nextViewTitle)
         setOnePagerSummary(aiMarkdownToEditorHtml(bodyMarkdown))
       }
+      recordLineage({
+        kind: 'one_pager_generated',
+        summary: 'One pager generated from deck',
+        detail: structured ? `Layout: ${onePagerLayoutId}` : 'Classic Markdown layout',
+        changes: [
+          structured
+            ? `Structured layout: ${ONE_PAGER_LAYOUTS.find((l) => l.id === onePagerLayoutId)?.label ?? onePagerLayoutId}`
+            : 'Classic flow: Markdown → rich HTML in the one-pager editor.',
+          `Deck context: ${deckFileName ?? 'unknown file'} (${deckText.length.toLocaleString()} chars in workspace).`,
+        ],
+      })
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to generate one pager.'
       setOnePagerError(message)
@@ -1882,6 +2344,31 @@ export default function PlatformPage() {
       if (data.teamMembers.length > 0) {
         setTeamWorkspace(data.teamMembers)
       }
+      const smartChanges: string[] = []
+      if (data.tamUsd != null || data.samUsd != null || data.somUsd != null) {
+        smartChanges.push('Market sizing (TAM / SAM / SOM) updated from deck signals.')
+      }
+      if (data.competitiveLandscapeMd?.trim()) {
+        smartChanges.push('Competitive landscape section merged or appended.')
+      }
+      if (data.teamMembers.length > 0) {
+        smartChanges.push(`Team roster set (${data.teamMembers.length} people from deck).`)
+      }
+      if (narrativeMd?.trim()) {
+        smartChanges.push('One-pager narrative block added or replaced (short deck story).')
+      }
+      if (data.suggestedPageTitle?.trim()) {
+        smartChanges.push(`Suggested title available: “${data.suggestedPageTitle.trim()}”.`)
+      }
+      if (!smartChanges.length) {
+        smartChanges.push('Ran Smart fill; no high-confidence field updates returned for this deck.')
+      }
+      recordLineage({
+        kind: 'smart_fill_applied',
+        summary: 'Smart fill applied from deck',
+        detail: 'Updated fields where the model found confident matches.',
+        changes: smartChanges,
+      })
     } catch (error) {
       setSmartFillError(error instanceof Error ? error.message : 'Smart fill failed.')
     } finally {
@@ -2100,6 +2587,15 @@ export default function PlatformPage() {
             >
               Financials
             </button>
+            <button
+              type="button"
+              className={`notion-sidebar-item ${
+                !activeBlankDocId && !activeWorkspaceFile && activeTab === 'lineage' ? 'is-active' : ''
+              }`}
+              onClick={() => goToTab('lineage')}
+            >
+              Data lineage
+            </button>
           </nav>
 
           <div className="notion-sidebar-docs">
@@ -2159,6 +2655,12 @@ export default function PlatformPage() {
                 onClick={() => {
                   setActiveWorkspaceFile(null)
                   setActiveBlankDocId(doc.id)
+                  recordLineage({
+                    kind: 'document_opened',
+                    summary: `Opened document: ${doc.title}`,
+                    detail: 'Workspace document (sidebar)',
+                    changes: ['Editor switched to this document (sidebar).'],
+                  })
                 }}
               >
                 {doc.title}
@@ -2241,6 +2743,9 @@ export default function PlatformPage() {
                   onChange={(html) => {
                     const fid = activeWorkspaceView.file.id
                     const foid = activeWorkspaceView.folder.id
+                    const displayName = activeWorkspaceView.file.displayName
+                    const relPath = activeWorkspaceView.file.relPath
+                    latestWorkspacePlainLenRef.current = workspacePlainLen(html)
                     setWorkspaceFolders((prev) =>
                       prev.map((folder) => {
                         if (folder.id !== foid) return folder
@@ -2252,6 +2757,22 @@ export default function PlatformPage() {
                         }
                       })
                     )
+                    if (workspaceFileEditTimerRef.current != null) window.clearTimeout(workspaceFileEditTimerRef.current)
+                    workspaceFileEditTimerRef.current = window.setTimeout(() => {
+                      const latest = latestWorkspacePlainLenRef.current
+                      const prevLen = workspacePlainLastLoggedRef.current
+                      if (latest === prevLen) return
+                      const delta = latest - prevLen
+                      workspacePlainLastLoggedRef.current = latest
+                      recordLineage({
+                        kind: 'workspace_file_edited',
+                        summary: `Edited workspace file: ${displayName}`,
+                        detail: relPath,
+                        changes: [
+                          `Approx. readable text in file: ${prevLen} → ${latest} characters (${delta >= 0 ? '+' : ''}${delta})`,
+                        ],
+                      })
+                    }, 1400) as unknown as number
                   }}
                   placeholder="Extracted text appears here — edit freely."
                   shadowContext={shadowContextBundle}
@@ -2884,6 +3405,11 @@ What only you can claim (with proof).`}
                 )}
               </section>
             </article>
+          ) : activeTab === 'lineage' ? (
+            <DataLineagePanel
+              events={lineageEvents}
+              onEventsCleared={() => setLineageEvents(loadDataLineageEvents())}
+            />
           ) : activeTab === 'team' ? (
             <article className="notion-doc notion-team-tab" aria-label="Team">
               <header className="notion-team-head">
