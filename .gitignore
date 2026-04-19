@@ -34,3 +34,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# OpenClaw — versioned skills in-repo; never commit local secrets
+openclaw/**/.env*
+openclaw/**/.env.*
+openclaw/**/*.pem
