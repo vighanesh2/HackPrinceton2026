@@ -1,6 +1,8 @@
 'use client'
 
 import { RichDocEditor } from '@/components/platform/RichDocEditor'
+import { AgentChatPanel } from '@/components/platform/AgentChatPanel'
+import { aiMarkdownToEditorHtml } from '@/components/platform/editorHtml'
 import type { CloudWorkspaceApi } from '@/components/platform/useCloudWorkspaceDocs'
 import type { WorkspaceDocInsight } from '@/lib/platform/workspaceDocInsights'
 
@@ -155,7 +157,8 @@ export function CloudWorkspaceEditor({
         <div className="notion-doc-tools notion-blank-doc-tools">
           <div className="notion-cloud-doc-tools-copy">
             <span className="notion-blank-doc-hint">
-              Cross-doc intelligence: hover the folder on the editor (background extract + scan after save).
+              Cross-doc intelligence: hover the folder on the editor (background extract + scan after save). Right:
+              workspace agent chat.
             </span>
           </div>
           <button
@@ -189,7 +192,7 @@ export function CloudWorkspaceEditor({
               cloud.updateLocalDoc(doc.id, { body_html: html })
               cloud.queueSave(doc.id, { body_html: html })
             }}
-            placeholder="Write here — saves to Supabase; chunks index for retrieval and analysis."
+            placeholder="Write here — saves to Supabase; chunks index for retrieval, agent, and analysis."
           />
           <div className="notion-editor-insight-dock notion-editor-insight-dock--persistent" title={editorInsightTip}>
             <button type="button" className="notion-editor-insight-fab" aria-label="Cross-doc intelligence for this file">
@@ -250,6 +253,23 @@ export function CloudWorkspaceEditor({
           </div>
         </div>
       </article>
+
+      <aside className="notion-cloud-rail notion-cloud-rail--agent-only" aria-label="Workspace agent">
+        <div className="notion-cloud-rail-inner notion-cloud-rail-inner--chat">
+          <AgentChatPanel
+            contextDocId={doc.id}
+            focusedDocTitle={doc.title || 'Untitled'}
+            onApplyToDocument={(markdown) => {
+              const fragment = aiMarkdownToEditorHtml(markdown)
+              const banner = `<hr data-rontzen-agent="1" /><p class="rontzen-agent-banner"><em>From agent — ${(doc.title || 'Untitled').replace(/</g, '')}</em></p>`
+              const base = cloud.coerceHtml(doc.body_html)
+              const next = base ? `${base}${banner}${fragment}` : `${banner}${fragment}`
+              cloud.updateLocalDoc(doc.id, { body_html: next })
+              cloud.queueSave(doc.id, { body_html: next })
+            }}
+          />
+        </div>
+      </aside>
     </div>
   )
 }

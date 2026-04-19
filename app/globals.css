@@ -4242,7 +4242,7 @@ body {
 /* Cursor-style editor + right rail (cloud workspace) */
 .notion-cloud-workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 380px);
   gap: 0 1.5rem;
   align-items: start;
   width: 100%;
