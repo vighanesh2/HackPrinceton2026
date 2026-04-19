@@ -1,5 +1,10 @@
 import { NextResponse } from 'next/server'
-import { extractJsonObject, normalizeSmartFillPayload, type SmartFillData } from '@/lib/platform/smartFill'
+import {
+  extractJsonObject,
+  mergeSmartFillWithDeckInference,
+  normalizeSmartFillPayload,
+  type SmartFillData,
+} from '@/lib/platform/smartFill'
 
 const MAX_DECK_CHARS = 24_000
 
@@ -59,7 +64,7 @@ export async function POST(request: Request) {
       'Rules:',
       '- Only use facts stated or clearly implied in the deck. If unknown, use null for that field or omit teamMembers entries.',
       '- Never invent traction metrics, logos, or confidential numbers.',
-      '- tamUsd, samUsd, somUsd: total/serviceable/obtainable market in USD as plain numbers (e.g. 12000000000 for $12B). Use null if the deck does not support a defensible estimate.',
+      '- tamUsd, samUsd, somUsd: total/serviceable/obtainable market in USD as plain numbers (e.g. 12000000000 for $12B TAM). Convert phrases like "$50B TAM" / "SAM of 1.2B" into numeric USD; use null only when the deck gives no usable figure.',
       '- Text fields use Markdown (headings, bullets allowed).',
       '- teamMembers: max 6 entries from team / about slides; each needs name, role, bio (1–3 sentences). linkedinUrl: full URL or null. experience: 1–4 short bullet strings per person, deck-grounded or placeholder if thin.',
       '- suggestedPageTitle: short workspace title (e.g. "Acme — Brief") or null.',
@@ -133,7 +138,7 @@ export async function POST(request: Request) {
       )
     }
 
-    const data: SmartFillData = normalizeSmartFillPayload(json)
+    const data: SmartFillData = mergeSmartFillWithDeckInference(normalizeSmartFillPayload(json), clipped)
 
     const hasAny =
       data.companyDescriptionMd ||
