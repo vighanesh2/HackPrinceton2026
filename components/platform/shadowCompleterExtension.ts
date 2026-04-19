@@ -2,15 +2,36 @@ import { Extension, type Editor } from '@tiptap/core'
 import type { EditorState, Transaction } from '@tiptap/pm/state'
 import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
-import { detectShadowPattern } from '@/lib/platform/shadowCompleteGates'
+import { detectShadowPattern, type ShadowPatternId } from '@/lib/platform/shadowCompleteGates'
+import { buildShadowFallbackCompletion } from '@/lib/platform/shadowFallbackCompletion'
 
 type ShadowCompleterSideStorage = {
-  debounceTimer: ReturnType<typeof setTimeout> | null
+  /** Debounces LLM fetch only; fallback ghost is shown in a microtask (feels instant). */
+  fetchDebounceTimer: ReturnType<typeof setTimeout> | null
   sessionToken: number
+  lastInvalidationSig: string
 }
 
 function shadowCompleterSideStore(editor: Editor): ShadowCompleterSideStorage {
   return (editor.storage as unknown as { shadowCompleter: ShadowCompleterSideStorage }).shadowCompleter
+}
+
+/** After programmatic inserts (e.g. inline AI), cancel pending fetches and skip stale microtasks so ghost text does not mirror the new content. */
+export function invalidateShadowCompleter(editor: Editor): void {
+  if (!editor.view || editor.isDestroyed) return
+  const storage = shadowCompleterSideStore(editor)
+  if (storage.fetchDebounceTimer) {
+    clearTimeout(storage.fetchDebounceTimer)
+    storage.fetchDebounceTimer = null
+  }
+  storage.sessionToken += 1
+  storage.lastInvalidationSig = ''
+  clearShadowIfNeeded(editor)
+}
+
+/** Wait for ProseMirror to finish the transaction, then run (same tick as possible). */
+function afterDomUpdate(fn: () => void): void {
+  queueMicrotask(fn)
 }
 
 export const shadowCompleterPluginKey = new PluginKey<ShadowCompleterState>('shadowCompleter')
@@ -52,6 +73,36 @@ function applyShadowMeta(tr: Transaction, prev: ShadowCompleterState): ShadowCom
   return prev
 }
 
+function shadowGhostIsVisible(state: EditorState): boolean {
+  const st = shadowCompleterPluginKey.getState(state)
+  return Boolean(st?.ghost && st.pos != null)
+}
+
+/** Avoid dispatch → view.update → dispatch loops when the ghost is already cleared. */
+function clearShadowIfNeeded(editor: Editor): void {
+  if (!shadowGhostIsVisible(editor.state)) return
+  editor.view.dispatch(editor.state.tr.setMeta(shadowCompleterPluginKey, { type: 'clear' }))
+}
+
+function setShadowIfChanged(
+  editor: Editor,
+  ghost: string,
+  pos: number,
+  sourceHint?: string
+): void {
+  const st = shadowCompleterPluginKey.getState(editor.state)
+  const hint = sourceHint?.trim() || null
+  if (st?.ghost === ghost && st?.pos === pos && (st.sourceHint || null) === hint) return
+  editor.view.dispatch(
+    editor.state.tr.setMeta(shadowCompleterPluginKey, {
+      type: 'set',
+      ghost,
+      pos,
+      sourceHint: sourceHint?.trim() || undefined,
+    })
+  )
+}
+
 export const ShadowCompleter = Extension.create<{
   getContext: () => string
 }>({
@@ -60,8 +111,9 @@ export const ShadowCompleter = Extension.create<{
 
   addStorage() {
     return {
-      debounceTimer: null as ReturnType<typeof setTimeout> | null,
+      fetchDebounceTimer: null as ReturnType<typeof setTimeout> | null,
       sessionToken: 0,
+      lastInvalidationSig: '',
     }
   },
 
@@ -136,47 +188,77 @@ export const ShadowCompleter = Extension.create<{
         handleDOMEvents: {
           blur: () => {
             const storage = shadowCompleterSideStore(editor)
-            if (storage.debounceTimer) clearTimeout(storage.debounceTimer)
-            storage.debounceTimer = null
+            if (storage.fetchDebounceTimer) clearTimeout(storage.fetchDebounceTimer)
+            storage.fetchDebounceTimer = null
             return false
           },
         },
       },
       view() {
         return {
-          update: (view) => {
+          update: () => {
             const storage = shadowCompleterSideStore(editor)
-            if (storage.debounceTimer) clearTimeout(storage.debounceTimer)
-            storage.debounceTimer = null
-            storage.sessionToken += 1
-            const session = storage.sessionToken
+            if (storage.fetchDebounceTimer) clearTimeout(storage.fetchDebounceTimer)
+            storage.fetchDebounceTimer = null
 
-            storage.debounceTimer = setTimeout(() => {
-              storage.debounceTimer = null
+            if (!editor.view || editor.isDestroyed) return
+
+            const sel = editor.state.selection
+            if (!(sel instanceof TextSelection) || !sel.empty) {
+              clearShadowIfNeeded(editor)
+              return
+            }
+
+            const line = blockTextBeforeCursor(editor.state)
+            const pattern = detectShadowPattern(line)
+            const invalidationSig = `${pattern ?? ''}\0${line}`
+            if (invalidationSig !== storage.lastInvalidationSig) {
+              storage.lastInvalidationSig = invalidationSig
+              storage.sessionToken += 1
+            }
+            const session = storage.sessionToken
+            if (!pattern) {
+              clearShadowIfNeeded(editor)
+              return
+            }
+
+            // Instant: workspace fallback on the next microtask (no debounce).
+            afterDomUpdate(() => {
+              if (session !== storage.sessionToken) return
+              if (!editor.view || editor.isDestroyed) return
+              const lineNow = blockTextBeforeCursor(editor.state)
+              const patNow = detectShadowPattern(lineNow)
+              if (patNow !== pattern) return
+              const ctxNow = (getContext?.() || '').trim() || 'No workspace context.'
+              const fb = buildShadowFallbackCompletion(patNow, ctxNow)
+              if (fb) {
+                setShadowIfChanged(
+                  editor,
+                  fb.completion.trim(),
+                  editor.state.selection.from,
+                  fb.sourceHint
+                )
+              }
+            })
+
+            // Debounced: LLM upgrade only (avoids a fetch per keystroke).
+            storage.fetchDebounceTimer = setTimeout(() => {
+              storage.fetchDebounceTimer = null
+              if (session !== storage.sessionToken) return
               if (!editor.view || editor.isDestroyed) return
 
-              const sel = view.state.selection
-              if (!(sel instanceof TextSelection) || !sel.empty) {
-                view.dispatch(view.state.tr.setMeta(shadowCompleterPluginKey, { type: 'clear' }))
-                return
-              }
-
-              const line = blockTextBeforeCursor(view.state)
-              const pattern = detectShadowPattern(line)
-              if (!pattern) {
-                view.dispatch(view.state.tr.setMeta(shadowCompleterPluginKey, { type: 'clear' }))
-                return
-              }
-
-              const prefix = line.slice(-400)
-              const context = (getContext?.() || '').trim() || 'No workspace context.'
+              const lineFetch = blockTextBeforeCursor(editor.state)
+              const patternFetch = detectShadowPattern(lineFetch)
+              if (patternFetch !== pattern) return
+              const ctxFetch = (getContext?.() || '').trim() || 'No workspace context.'
+              const prefixFetch = lineFetch.slice(-400)
 
               void (async () => {
                 try {
                   const res = await fetch('/api/platform/shadow-complete', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ prefix, pattern, context }),
+                    body: JSON.stringify({ prefix: prefixFetch, pattern: patternFetch, context: ctxFetch }),
                   })
                   const payload = (await res.json()) as {
                     completion?: string
@@ -186,35 +268,51 @@ export const ShadowCompleter = Extension.create<{
                   if (session !== storage.sessionToken) return
                   if (!editor.view || editor.isDestroyed) return
 
-                  const completion = (payload.completion || '').trim()
+                  let completion = (payload.completion || '').trim()
+                  let sourceHint = (payload.sourceHint || '').trim()
                   if (!res.ok || !completion) {
-                    editor.view.dispatch(editor.state.tr.setMeta(shadowCompleterPluginKey, { type: 'clear' }))
+                    const fb = buildShadowFallbackCompletion(patternFetch, ctxFetch)
+                    if (fb) {
+                      completion = fb.completion.trim()
+                      sourceHint = fb.sourceHint
+                    }
+                  }
+                  if (!completion) {
+                    clearShadowIfNeeded(editor)
                     return
                   }
 
-                  const pos = editor.state.selection.from
-                  if (detectShadowPattern(blockTextBeforeCursor(editor.state)) !== pattern) return
+                  if (detectShadowPattern(blockTextBeforeCursor(editor.state)) !== patternFetch) return
 
-                  editor.view.dispatch(
-                    editor.state.tr.setMeta(shadowCompleterPluginKey, {
-                      type: 'set',
-                      ghost: completion,
-                      pos,
-                      sourceHint: payload.sourceHint,
-                    })
+                  setShadowIfChanged(
+                    editor,
+                    completion,
+                    editor.state.selection.from,
+                    sourceHint || undefined
                   )
                 } catch {
-                  if (editor.view && !editor.isDestroyed) {
-                    editor.view.dispatch(editor.state.tr.setMeta(shadowCompleterPluginKey, { type: 'clear' }))
+                  if (session !== storage.sessionToken) return
+                  if (!editor.view || editor.isDestroyed) return
+                  const fb = buildShadowFallbackCompletion(patternFetch, ctxFetch)
+                  if (
+                    fb &&
+                    detectShadowPattern(blockTextBeforeCursor(editor.state)) === patternFetch
+                  ) {
+                    setShadowIfChanged(
+                      editor,
+                      fb.completion.trim(),
+                      editor.state.selection.from,
+                      fb.sourceHint
+                    )
                   }
                 }
               })()
-            }, 320)
+            }, 45)
           },
           destroy: () => {
             const storage = shadowCompleterSideStore(editor)
-            if (storage.debounceTimer) clearTimeout(storage.debounceTimer)
-            storage.debounceTimer = null
+            if (storage.fetchDebounceTimer) clearTimeout(storage.fetchDebounceTimer)
+            storage.fetchDebounceTimer = null
           },
         }
       },

@@ -8,6 +8,7 @@ import Placeholder from '@tiptap/extension-placeholder'
 import Image from '@tiptap/extension-image'
 import { Table, TableRow, TableCell, TableHeader } from '@tiptap/extension-table'
 import Link from '@tiptap/extension-link'
+import { InlineAiAtCursor } from '@/components/platform/InlineAiAtCursor'
 import { ShadowCompleter } from '@/components/platform/shadowCompleterExtension'
 
 type RichDocEditorProps = {
@@ -37,7 +38,10 @@ function Toolbar({ editor, shadowEnabled }: { editor: Editor | null; shadowEnabl
   return (
     <div className="notion-rte-toolbar" role="toolbar" aria-label="Text formatting">
       {shadowEnabled ? (
-        <span className="notion-rte-shadow-hint" title="Ghost text from your workspace. Tab to insert, Esc to dismiss.">
+        <span
+          className="notion-rte-shadow-hint"
+          title="Workspace hints show immediately where available. A local LLM (Ollama) can refine the ghost after a short pause. Tab inserts, Esc dismisses."
+        >
           Shadow
         </span>
       ) : null}
@@ -215,6 +219,9 @@ export function RichDocEditor({ value, onChange, placeholder, shadowContext, sur
     <div className={shellClass}>
       <Toolbar editor={editor} shadowEnabled={shadowEnabled} />
       <EditorContent editor={editor} className="notion-rte-content" />
+      {shadowEnabled && editor ? (
+        <InlineAiAtCursor editor={editor} getWorkspaceContext={() => contextRef.current} />
+      ) : null}
     </div>
   )
 }

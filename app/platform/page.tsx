@@ -3,7 +3,7 @@
 import { createClient } from '@/lib/supabase/client'
 import { isSupabaseConfigured } from '@/lib/supabase/config'
 import { useRouter } from 'next/navigation'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { RichDocEditor } from '@/components/platform/RichDocEditor'
 import { aiMarkdownToEditorHtml, coerceStoredEditorHtml } from '@/components/platform/editorHtml'
 import {
@@ -30,6 +30,21 @@ import {
   normalizeSmartFillPayload,
   type SmartFillData,
 } from '@/lib/platform/smartFill'
+import {
+  pickWorkspaceFolderViaFileSystemAccess,
+  type WorkspacePickedFile,
+} from '@/lib/platform/workspaceDirectoryPicker'
+import {
+  classifyWorkspaceFile,
+  defaultFolderLabelFromFileList,
+  MAX_WORKSPACE_FILES_PER_FOLDER,
+  MAX_WORKSPACE_FOLDER_FILE_CHARS,
+  parseWorkspaceFolders,
+  plainExtractToEditorHtml,
+  shouldSkipWorkspacePath,
+  type WorkspaceFolder,
+  type WorkspaceFolderFileKind,
+} from '@/lib/platform/workspaceFolders'
 import {
   clearTractionLogos,
   loadTractionLogoRows,
@@ -66,6 +81,8 @@ const STORAGE_MARKET_COMPETITIVE_KEY = 'platform_market_competitive_v1'
 const STORAGE_TEAM_WORKSPACE_KEY = 'platform_team_workspace_v1'
 const STORAGE_BLANK_DOCS_KEY = 'platform_blank_docs_v1'
 const STORAGE_ACTIVE_BLANK_DOC_ID_KEY = 'platform_active_blank_doc_id'
+const STORAGE_WORKSPACE_FOLDERS_KEY = 'platform_workspace_folders_v1'
+const STORAGE_ACTIVE_WORKSPACE_FILE_KEY = 'platform_active_workspace_file_v1'
 
 const MAX_PDF_TEXT_CHARS = 24000
 
@@ -213,7 +230,22 @@ function htmlToPlainSnippet(html: string, maxChars: number): string {
   return t.length <= maxChars ? t : `${t.slice(0, maxChars)}…`
 }
 
+const SHADOW_SECTION_LABEL: Record<TabId, string> = {
+  onepager: 'One pager',
+  pitchdeck: 'Pitch deck',
+  market: 'Market',
+  product: 'Product',
+  traction: 'Traction',
+  team: 'Team',
+  financials: 'Financials',
+}
+
 function buildPlatformShadowContext(params: {
+  activeTab: TabId
+  /** When the user is typing in a blank workspace doc, its title (sidebar document). */
+  activeBlankDocTitle: string | null
+  onePagerViewTitle: string
+  embeddedPitchDeckName: string | null
   deckText: string
   deckFileName: string | null
   financials: FinancialInputs
@@ -231,6 +263,17 @@ function buildPlatformShadowContext(params: {
     if (t) chunks.push(title, t)
   }
 
+  const focusLines = [
+    params.activeBlankDocTitle?.trim()
+      ? `Primary editor: workspace document "${params.activeBlankDocTitle.trim()}" (sidebar Documents). Workspace tab selection: ${SHADOW_SECTION_LABEL[params.activeTab]}.`
+      : `Primary editor: ${SHADOW_SECTION_LABEL[params.activeTab]} tab.`,
+    params.onePagerViewTitle.trim() ? `One pager document title: ${params.onePagerViewTitle.trim()}` : null,
+    params.embeddedPitchDeckName?.trim()
+      ? `Embedded pitch deck (Pitch deck tab): ${params.embeddedPitchDeckName.trim()}`
+      : null,
+  ].filter(Boolean) as string[]
+  add('=== Editor focus ===', focusLines.join('\n'))
+
   add(
     '=== Pitch deck extract ===',
     params.deckText.trim()
@@ -239,10 +282,18 @@ function buildPlatformShadowContext(params: {
   )
 
   const f = params.financials
+  const variableCost = f.mrr * (f.cogsPct / 100)
+  const grossProfit = f.mrr - variableCost
+  const totalMonthlyCosts = f.monthlyOpex + f.monthlyDebt
+  const netBurn = totalMonthlyCosts - grossProfit
+  const runwayMo =
+    Number.isFinite(netBurn) && netBurn > 0 ? (f.cashOnHand / netBurn).toFixed(1) : null
+
   add(
     '=== Financial inputs (workspace) ===',
     [
       `MRR (modeled): ${formatMoney(f.mrr)}`,
+      `Modeled ARR (MRR×12): ${formatMoney(f.mrr * 12)}`,
       `Cash on hand: ${formatMoney(f.cashOnHand)}`,
       `Monthly opex: ${formatMoney(f.monthlyOpex)}`,
       `Monthly debt service: ${formatMoney(f.monthlyDebt)}`,
@@ -250,6 +301,14 @@ function buildPlatformShadowContext(params: {
       `Implied monthly revenue growth %: ${f.monthlyRevenueGrowthPct}`,
       `Implied monthly expense growth %: ${f.monthlyExpenseGrowthPct}`,
       `New MRR / mo (modeled): ${formatMoney(f.newMrrPerMonth)}`,
+    ].join('\n')
+  )
+
+  add(
+    '=== Derived financial snapshot (from inputs above) ===',
+    [
+      `Approx. net burn / month (opex + debt − gross profit on modeled MRR): ${formatMoney(Math.max(0, netBurn))}`,
+      runwayMo != null ? `Approx. runway (cash ÷ net burn): ${runwayMo} months` : 'Runway: not computable (net burn ≤ 0 or invalid).',
     ].join('\n')
   )
 
@@ -434,12 +493,54 @@ async function extractPdfTextOnServer(file: File): Promise<string> {
   return (payload.text || '').trim()
 }
 
+async function extractDocxHtmlOnServer(file: File): Promise<string> {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const response = await fetch('/api/platform/extract-docx', {
+    method: 'POST',
+    body: formData,
+  })
+
+  const raw = await response.text()
+  const contentType = response.headers.get('content-type') || ''
+  let payload: { html?: string; error?: string } = {}
+  if (contentType.includes('application/json')) {
+    try {
+      payload = JSON.parse(raw) as { html?: string; error?: string }
+    } catch {
+      throw new Error('DOCX extract returned invalid JSON.')
+    }
+  } else if (raw.trimStart().startsWith('<')) {
+    throw new Error('Server returned HTML instead of JSON while extracting DOCX.')
+  } else {
+    throw new Error(raw.slice(0, 200) || `DOCX extract failed (${response.status}).`)
+  }
+
+  if (!response.ok) {
+    throw new Error(payload.error || `DOCX extract failed (${response.status}).`)
+  }
+
+  const html = (payload.html || '').trim()
+  if (!html) {
+    throw new Error('This DOCX had no convertible HTML body (empty or unsupported).')
+  }
+  return html
+}
+
 export default function PlatformPage() {
   const router = useRouter()
   const [accountEmail, setAccountEmail] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<TabId>('onepager')
   const [blankWorkspaceDocs, setBlankWorkspaceDocs] = useState<BlankWorkspaceDoc[]>([])
   const [activeBlankDocId, setActiveBlankDocId] = useState<string | null>(null)
+  const [workspaceFolders, setWorkspaceFolders] = useState<WorkspaceFolder[]>([])
+  const [activeWorkspaceFile, setActiveWorkspaceFile] = useState<{
+    folderId: string
+    fileId: string
+  } | null>(null)
+  /** Fallback when `showDirectoryPicker` is unavailable (Safari / older browsers). */
+  const workspaceWebkitDirectoryInputRef = useRef<HTMLInputElement>(null)
 
   const [deckFileName, setDeckFileName] = useState<string | null>(null)
   const [deckText, setDeckText] = useState('')
@@ -496,8 +597,18 @@ export default function PlatformPage() {
     return blankWorkspaceDocs.find((d) => d.id === activeBlankDocId) ?? null
   }, [activeBlankDocId, blankWorkspaceDocs])
 
+  const activeWorkspaceView = useMemo(() => {
+    if (!activeWorkspaceFile) return null
+    const folder = workspaceFolders.find((f) => f.id === activeWorkspaceFile.folderId)
+    if (!folder) return null
+    const file = folder.files.find((x) => x.id === activeWorkspaceFile.fileId) ?? null
+    if (!file) return null
+    return { folder, file }
+  }, [activeWorkspaceFile, workspaceFolders])
+
   function goToTab(tab: TabId) {
     setActiveBlankDocId(null)
+    setActiveWorkspaceFile(null)
     setActiveTab(tab)
   }
 
@@ -511,11 +622,163 @@ export default function PlatformPage() {
 
   function addBlankWorkspaceDocument() {
     const id = crypto.randomUUID()
+    setActiveWorkspaceFile(null)
     setBlankWorkspaceDocs((prev) => {
       const title = nextBlankWorkspaceTitle(prev)
       return [{ id, title, bodyHtml: '' }, ...prev]
     })
     setActiveBlankDocId(id)
+  }
+
+  function removeWorkspaceFolder(folderId: string) {
+    setWorkspaceFolders((prev) => prev.filter((f) => f.id !== folderId))
+    setActiveWorkspaceFile((cur) => (cur?.folderId === folderId ? null : cur))
+  }
+
+  function openWorkspaceFolderFile(folderId: string, fileId: string) {
+    setActiveBlankDocId(null)
+    setActiveWorkspaceFile({ folderId, fileId })
+  }
+
+  async function extractWorkspaceFolderFileOne(
+    file: File,
+    kind: WorkspaceFolderFileKind
+  ): Promise<{ html: string } | { error: string }> {
+    try {
+      if (kind === 'pdf') {
+        const text = await extractPdfTextOnServer(file)
+        if (!text.trim()) return { error: 'No extractable text in this PDF (try a text-based export).' }
+        return { html: plainExtractToEditorHtml(text.slice(0, MAX_WORKSPACE_FOLDER_FILE_CHARS)) }
+      }
+      if (kind === 'text') {
+        const text = await file.text()
+        return { html: plainExtractToEditorHtml(text.slice(0, MAX_WORKSPACE_FOLDER_FILE_CHARS)) }
+      }
+      if (kind === 'markdown') {
+        const text = await file.text()
+        return { html: aiMarkdownToEditorHtml(text.slice(0, MAX_WORKSPACE_FOLDER_FILE_CHARS)) }
+      }
+      if (kind === 'docx') {
+        const rawHtml = await extractDocxHtmlOnServer(file)
+        const html = coerceStoredEditorHtml(rawHtml)
+        const stripped = html.replace(/<[^>]+>/g, ' ')
+        if (stripped.length > MAX_WORKSPACE_FOLDER_FILE_CHARS) {
+          return { html: `${html.slice(0, Math.min(html.length, MAX_WORKSPACE_FOLDER_FILE_CHARS))}<p>…</p>` }
+        }
+        return { html }
+      }
+    } catch (err) {
+      return { error: err instanceof Error ? err.message : 'Extraction failed.' }
+    }
+    return { error: 'Unsupported file type.' }
+  }
+
+  async function extractWorkspaceFolderEntries(
+    folderId: string,
+    entries: { fileId: string; file: File; kind: WorkspaceFolderFileKind }[]
+  ) {
+    for (const { fileId, file, kind } of entries) {
+      setWorkspaceFolders((prev) =>
+        prev.map((folder) => {
+          if (folder.id !== folderId) return folder
+          return {
+            ...folder,
+            files: folder.files.map((f) => (f.id === fileId ? { ...f, status: 'loading' } : f)),
+          }
+        })
+      )
+      const result = await extractWorkspaceFolderFileOne(file, kind)
+      setWorkspaceFolders((prev) =>
+        prev.map((folder) => {
+          if (folder.id !== folderId) return folder
+          return {
+            ...folder,
+            files: folder.files.map((f) => {
+              if (f.id !== fileId) return f
+              if ('html' in result) {
+                return { ...f, status: 'ready' as const, bodyHtml: result.html, error: undefined }
+              }
+              return { ...f, status: 'error' as const, error: result.error, bodyHtml: '' }
+            }),
+          }
+        })
+      )
+    }
+  }
+
+  /** Folder upload: items include `relPath` (from FS API walk or webkitRelativePath). */
+  function ingestWorkspaceItemsWithPaths(items: WorkspacePickedFile[], sectionLabel: string) {
+    const sorted = [...items].sort((a, b) =>
+      a.relPath.localeCompare(b.relPath, undefined, { sensitivity: 'base' })
+    )
+    const folderId = crypto.randomUUID()
+    const createdAt = new Date().toISOString()
+    const picked: WorkspacePickedFile[] = []
+    for (const row of sorted) {
+      if (shouldSkipWorkspacePath(row.relPath)) continue
+      const kind = classifyWorkspaceFile(row.file)
+      if (!kind) continue
+      picked.push(row)
+      if (picked.length >= MAX_WORKSPACE_FILES_PER_FOLDER) break
+    }
+    if (!picked.length) {
+      window.alert(
+        'No supported files found in that folder. Supported: PDF, Word (.docx), .txt, and Markdown (.md).'
+      )
+      return
+    }
+    const files = picked.map(({ file, relPath }) => {
+      const kind = classifyWorkspaceFile(file)!
+      return {
+        id: crypto.randomUUID(),
+        relPath,
+        displayName: file.name,
+        kind,
+        bodyHtml: '',
+        status: 'pending' as const,
+      }
+    })
+    const newFolder: WorkspaceFolder = { id: folderId, label: sectionLabel, createdAt, files }
+    setWorkspaceFolders((prev) => [...prev, newFolder])
+    setActiveBlankDocId(null)
+    setActiveWorkspaceFile({ folderId, fileId: files[0]!.id })
+    const entries = files.map((row, i) => ({
+      fileId: row.id,
+      file: picked[i]!.file,
+      kind: row.kind,
+    }))
+    void extractWorkspaceFolderEntries(folderId, entries)
+  }
+
+  async function onWorkspaceFolderButtonClick() {
+    try {
+      const picked = await pickWorkspaceFolderViaFileSystemAccess()
+      if (picked.ok) {
+        ingestWorkspaceItemsWithPaths(picked.items, picked.label)
+        return
+      }
+      if (picked.reason === 'aborted') return
+      workspaceWebkitDirectoryInputRef.current?.click()
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : 'Could not read that folder.')
+    }
+  }
+
+  function onWorkspaceWebkitDirectoryChange(event: ChangeEvent<HTMLInputElement>) {
+    const list = event.target.files
+    if (!list?.length) return
+    const arr = Array.from(list).sort((a, b) => {
+      const pa = (a as File & { webkitRelativePath?: string }).webkitRelativePath || a.name
+      const pb = (b as File & { webkitRelativePath?: string }).webkitRelativePath || b.name
+      return pa.localeCompare(pb, undefined, { sensitivity: 'base' })
+    })
+    event.target.value = ''
+    const items: WorkspacePickedFile[] = arr.map((file) => ({
+      file,
+      relPath: (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name,
+    }))
+    const label = defaultFolderLabelFromFileList(arr)
+    ingestWorkspaceItemsWithPaths(items, label)
   }
 
   useEffect(() => {
@@ -560,6 +823,7 @@ export default function PlatformPage() {
     if (urlTab) {
       setActiveTab(urlTab)
       setActiveBlankDocId(null)
+      setActiveWorkspaceFile(null)
       if (window.location.pathname === '/platform') {
         window.history.replaceState({}, '', '/platform')
       }
@@ -636,8 +900,31 @@ export default function PlatformPage() {
     setProductRoadmap(coerceStoredEditorHtml(window.localStorage.getItem(STORAGE_PRODUCT_ROADMAP_KEY) || ''))
     const blanks = parseBlankWorkspaceDocs(window.localStorage.getItem(STORAGE_BLANK_DOCS_KEY))
     setBlankWorkspaceDocs(blanks)
+    const folderStore = parseWorkspaceFolders(window.localStorage.getItem(STORAGE_WORKSPACE_FOLDERS_KEY))
+    setWorkspaceFolders(folderStore)
+    let restoredWorkspaceFile: { folderId: string; fileId: string } | null = null
+    try {
+      const rawWf = window.localStorage.getItem(STORAGE_ACTIVE_WORKSPACE_FILE_KEY)
+      if (rawWf) {
+        const j = JSON.parse(rawWf) as { folderId?: string; fileId?: string }
+        if (
+          j.folderId &&
+          j.fileId &&
+          folderStore.some(
+            (fl) => fl.id === j.folderId && fl.files.some((fi) => fi.id === j.fileId)
+          )
+        ) {
+          restoredWorkspaceFile = { folderId: j.folderId, fileId: j.fileId }
+        }
+      }
+    } catch {
+      restoredWorkspaceFile = null
+    }
     const savedActiveBlank = window.localStorage.getItem(STORAGE_ACTIVE_BLANK_DOC_ID_KEY)
-    if (!usedUrlTab && savedActiveBlank && blanks.some((d) => d.id === savedActiveBlank)) {
+    if (restoredWorkspaceFile) {
+      setActiveWorkspaceFile(restoredWorkspaceFile)
+      setActiveBlankDocId(null)
+    } else if (!usedUrlTab && savedActiveBlank && blanks.some((d) => d.id === savedActiveBlank)) {
       setActiveBlankDocId(savedActiveBlank)
     }
 
@@ -825,6 +1112,22 @@ export default function PlatformPage() {
   }, [blankWorkspaceDocs])
 
   useEffect(() => {
+    try {
+      window.localStorage.setItem(STORAGE_WORKSPACE_FOLDERS_KEY, JSON.stringify(workspaceFolders))
+    } catch {
+      console.warn('Could not save workspace folders (storage may be full). Remove a folder or shorten edits.')
+    }
+  }, [workspaceFolders])
+
+  useEffect(() => {
+    if (activeWorkspaceFile) {
+      window.localStorage.setItem(STORAGE_ACTIVE_WORKSPACE_FILE_KEY, JSON.stringify(activeWorkspaceFile))
+    } else {
+      window.localStorage.removeItem(STORAGE_ACTIVE_WORKSPACE_FILE_KEY)
+    }
+  }, [activeWorkspaceFile])
+
+  useEffect(() => {
     if (activeBlankDocId) {
       window.localStorage.setItem(STORAGE_ACTIVE_BLANK_DOC_ID_KEY, activeBlankDocId)
     } else {
@@ -837,6 +1140,13 @@ export default function PlatformPage() {
       setActiveBlankDocId(null)
     }
   }, [activeBlankDocId, blankWorkspaceDocs])
+
+  useEffect(() => {
+    if (!activeWorkspaceFile) return
+    const folder = workspaceFolders.find((f) => f.id === activeWorkspaceFile.folderId)
+    const file = folder?.files.find((x) => x.id === activeWorkspaceFile.fileId)
+    if (!folder || !file) setActiveWorkspaceFile(null)
+  }, [activeWorkspaceFile, workspaceFolders])
 
   useEffect(() => {
     window.localStorage.setItem(STORAGE_ACTIVE_TAB_KEY, activeTab)
@@ -1648,6 +1958,14 @@ export default function PlatformPage() {
   const shadowContextBundle = useMemo(
     () =>
       buildPlatformShadowContext({
+        activeTab,
+        activeBlankDocTitle:
+          activeBlankDoc?.title ??
+          (activeWorkspaceView
+            ? `${activeWorkspaceView.folder.label} / ${activeWorkspaceView.file.displayName}`
+            : null),
+        onePagerViewTitle,
+        embeddedPitchDeckName: embeddedDeckName,
         deckText,
         deckFileName,
         financials,
@@ -1660,6 +1978,11 @@ export default function PlatformPage() {
         blankWorkspaceDocs,
       }),
     [
+      activeTab,
+      activeBlankDoc?.title,
+      activeWorkspaceView,
+      onePagerViewTitle,
+      embeddedDeckName,
       deckText,
       deckFileName,
       financials,
@@ -1716,49 +2039,63 @@ export default function PlatformPage() {
           <nav className="notion-sidebar-nav">
             <button
               type="button"
-              className={`notion-sidebar-item ${!activeBlankDocId && activeTab === 'onepager' ? 'is-active' : ''}`}
+              className={`notion-sidebar-item ${
+                !activeBlankDocId && !activeWorkspaceFile && activeTab === 'onepager' ? 'is-active' : ''
+              }`}
               onClick={() => goToTab('onepager')}
             >
               One pager
             </button>
             <button
               type="button"
-              className={`notion-sidebar-item ${!activeBlankDocId && activeTab === 'pitchdeck' ? 'is-active' : ''}`}
+              className={`notion-sidebar-item ${
+                !activeBlankDocId && !activeWorkspaceFile && activeTab === 'pitchdeck' ? 'is-active' : ''
+              }`}
               onClick={() => goToTab('pitchdeck')}
             >
               Pitch deck
             </button>
             <button
               type="button"
-              className={`notion-sidebar-item ${!activeBlankDocId && activeTab === 'market' ? 'is-active' : ''}`}
+              className={`notion-sidebar-item ${
+                !activeBlankDocId && !activeWorkspaceFile && activeTab === 'market' ? 'is-active' : ''
+              }`}
               onClick={() => goToTab('market')}
             >
               Market
             </button>
             <button
               type="button"
-              className={`notion-sidebar-item ${!activeBlankDocId && activeTab === 'product' ? 'is-active' : ''}`}
+              className={`notion-sidebar-item ${
+                !activeBlankDocId && !activeWorkspaceFile && activeTab === 'product' ? 'is-active' : ''
+              }`}
               onClick={() => goToTab('product')}
             >
               Product
             </button>
             <button
               type="button"
-              className={`notion-sidebar-item ${!activeBlankDocId && activeTab === 'traction' ? 'is-active' : ''}`}
+              className={`notion-sidebar-item ${
+                !activeBlankDocId && !activeWorkspaceFile && activeTab === 'traction' ? 'is-active' : ''
+              }`}
               onClick={() => goToTab('traction')}
             >
               Traction
             </button>
             <button
               type="button"
-              className={`notion-sidebar-item ${!activeBlankDocId && activeTab === 'team' ? 'is-active' : ''}`}
+              className={`notion-sidebar-item ${
+                !activeBlankDocId && !activeWorkspaceFile && activeTab === 'team' ? 'is-active' : ''
+              }`}
               onClick={() => goToTab('team')}
             >
               Team
             </button>
             <button
               type="button"
-              className={`notion-sidebar-item ${!activeBlankDocId && activeTab === 'financials' ? 'is-active' : ''}`}
+              className={`notion-sidebar-item ${
+                !activeBlankDocId && !activeWorkspaceFile && activeTab === 'financials' ? 'is-active' : ''
+              }`}
               onClick={() => goToTab('financials')}
             >
               Financials
@@ -1766,39 +2103,163 @@ export default function PlatformPage() {
           </nav>
 
           <div className="notion-sidebar-docs">
+            <input
+              ref={workspaceWebkitDirectoryInputRef}
+              type="file"
+              className="notion-sidebar-folder-input-hidden"
+              tabIndex={-1}
+              aria-hidden
+              multiple
+              {...({ webkitdirectory: '', directory: '' } as Record<string, string>)}
+              onChange={onWorkspaceWebkitDirectoryChange}
+            />
             <div className="notion-sidebar-docs-head">
               <span className="notion-sidebar-docs-label">Documents</span>
-              <button
-                type="button"
-                className="notion-sidebar-add-doc"
-                onClick={addBlankWorkspaceDocument}
-                title="New blank document"
-                aria-label="New blank document"
-              >
-                +
-              </button>
+              <div className="notion-sidebar-docs-actions">
+                <button
+                  type="button"
+                  className="notion-sidebar-add-doc"
+                  onClick={addBlankWorkspaceDocument}
+                  title="New blank document"
+                  aria-label="New blank document"
+                >
+                  +
+                </button>
+                <button
+                  type="button"
+                  className="notion-sidebar-add-folder"
+                  onClick={() => void onWorkspaceFolderButtonClick()}
+                  title="Choose a folder — all supported files inside (including subfolders) are imported. If your browser opens an older file dialog, select the folder row once, then Open."
+                  aria-label="Upload folder"
+                >
+                  <svg
+                    className="notion-sidebar-add-folder-icon"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden
+                  >
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                  </svg>
+                </button>
+              </div>
             </div>
             {blankWorkspaceDocs.map((doc) => (
               <button
                 key={doc.id}
                 type="button"
                 className={`notion-sidebar-item notion-sidebar-doc-item ${
-                  activeBlankDocId === doc.id ? 'is-active' : ''
+                  activeBlankDocId === doc.id && !activeWorkspaceFile ? 'is-active' : ''
                 }`}
-                onClick={() => setActiveBlankDocId(doc.id)}
+                onClick={() => {
+                  setActiveWorkspaceFile(null)
+                  setActiveBlankDocId(doc.id)
+                }}
               >
                 {doc.title}
               </button>
+            ))}
+            {workspaceFolders.map((folder) => (
+              <div key={folder.id} className="notion-sidebar-folder">
+                <div className="notion-sidebar-folder-head">
+                  <span className="notion-sidebar-folder-label" title={folder.label}>
+                    {folder.label}
+                  </span>
+                  <button
+                    type="button"
+                    className="notion-sidebar-folder-remove"
+                    onClick={() => removeWorkspaceFolder(folder.id)}
+                    aria-label={`Remove folder ${folder.label}`}
+                    title="Remove folder from sidebar"
+                  >
+                    ×
+                  </button>
+                </div>
+                <ul className="notion-sidebar-folder-files">
+                  {folder.files.map((f) => (
+                    <li key={f.id}>
+                      <button
+                        type="button"
+                        className={`notion-sidebar-folder-file ${
+                          activeWorkspaceFile?.folderId === folder.id && activeWorkspaceFile?.fileId === f.id
+                            ? 'is-active'
+                            : ''
+                        }`}
+                        onClick={() => openWorkspaceFolderFile(folder.id, f.id)}
+                        title={f.relPath}
+                      >
+                        <span className="notion-sidebar-folder-file-name">{f.displayName}</span>
+                        {f.status === 'pending' || f.status === 'loading' ? (
+                          <span className="notion-sidebar-folder-file-badge" aria-hidden>
+                            …
+                          </span>
+                        ) : null}
+                        {f.status === 'error' ? (
+                          <span className="notion-sidebar-folder-file-badge notion-sidebar-folder-file-badge--err" title={f.error}>
+                            !
+                          </span>
+                        ) : null}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ))}
           </div>
         </aside>
 
         <div className="notion-main">
-          {activeBlankDoc ? (
+          {activeWorkspaceView ? (
+            <article className="notion-doc notion-doc--uploaded" aria-label={activeWorkspaceView.file.displayName}>
+              <p className="notion-uploaded-source">
+                {activeWorkspaceView.folder.label}
+                <span className="notion-uploaded-source-sep">·</span>
+                <span className="notion-uploaded-source-path">{activeWorkspaceView.file.relPath}</span>
+              </p>
+              <input
+                className="notion-title"
+                readOnly
+                value={activeWorkspaceView.file.displayName}
+                aria-label="File name"
+              />
+              {activeWorkspaceView.file.status === 'pending' || activeWorkspaceView.file.status === 'loading' ? (
+                <p className="notion-uploaded-status">Extracting text…</p>
+              ) : null}
+              {activeWorkspaceView.file.status === 'error' ? (
+                <p className="notion-uploaded-error" role="alert">
+                  {activeWorkspaceView.file.error || 'Could not read this file.'}
+                </p>
+              ) : null}
+              {activeWorkspaceView.file.status === 'ready' ? (
+                <RichDocEditor
+                  value={coerceStoredEditorHtml(activeWorkspaceView.file.bodyHtml)}
+                  onChange={(html) => {
+                    const fid = activeWorkspaceView.file.id
+                    const foid = activeWorkspaceView.folder.id
+                    setWorkspaceFolders((prev) =>
+                      prev.map((folder) => {
+                        if (folder.id !== foid) return folder
+                        return {
+                          ...folder,
+                          files: folder.files.map((file) =>
+                            file.id === fid ? { ...file, bodyHtml: html } : file
+                          ),
+                        }
+                      })
+                    )
+                  }}
+                  placeholder="Extracted text appears here — edit freely."
+                  shadowContext={shadowContextBundle}
+                />
+              ) : null}
+            </article>
+          ) : activeBlankDoc ? (
             <article className="notion-doc" aria-label={activeBlankDoc.title}>
-              <div className="notion-doc-tools notion-blank-doc-tools">
-                <span className="notion-blank-doc-hint">Rich text · saved in this browser</span>
-              </div>
               <input
                 className="notion-title"
                 placeholder="Untitled"

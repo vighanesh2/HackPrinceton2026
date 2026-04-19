@@ -55,12 +55,39 @@ function patternInstructions(pattern: ShadowPatternId): string {
         'Every number and currency figure in "completion" must appear verbatim in CONTEXT (same digits). If you cannot ground a number in CONTEXT, use an empty completion.',
         'Prefer one short clause (e.g. " $15,000 as of the workspace inputs, net of discounts mentioned in the deck."). Max 220 characters.',
       ].join('\n')
+    case 'narrative_financial':
+      return [
+        'Pattern: NARRATIVE FINANCIAL (plain English about sales/revenue for a period).',
+        'Continue the sentence the way a founder or memo usually would: one short clause, max 220 characters.',
+        'If CONTEXT has matching figures (financial snapshot, deck, traction), use those numbers verbatim—same digits.',
+        'If CONTEXT has no usable figure for that period, use obvious placeholders the user can replace: $[AMOUNT], [X]%, [N] customers, [GROWTH]—never fake specific dollars or percentages as if they were real.',
+      ].join('\n')
     case 'ownership':
       return [
         'Pattern: OWNERSHIP.',
         'Suggest a person name and role using ONLY names and titles that appear in CONTEXT (team roster, deck, or doc).',
         'If no person fits, return empty completion.',
         'Max 160 characters, one line.',
+      ].join('\n')
+    case 'market':
+      return [
+        'Pattern: MARKET.',
+        'Complete with phrasing grounded in CONTEXT: "=== Market sizing (workspace) ===" and "=== Competitive landscape" and deck extract.',
+        'Do not invent new TAM/SAM/SOM dollar figures; only restate or qualify numbers already in CONTEXT.',
+        'One short clause after the cursor, max 220 characters.',
+      ].join('\n')
+    case 'traction_write':
+      return [
+        'Pattern: TRACTION.',
+        'Ground in "=== Traction inputs (workspace) ===", deck extract, and one-pager excerpt if present.',
+        'Customer counts and % must match CONTEXT when cited; otherwise use qualitative phrasing without new numbers.',
+        'Max 220 characters.',
+      ].join('\n')
+    case 'product_risk':
+      return [
+        'Pattern: PRODUCT / RISK / GTM.',
+        'Ground in "=== Product roadmap (plain excerpt) ===", deck, and financial snapshot if relevant.',
+        'Do not invent ship dates or contract names. Prefer one actionable clause. Max 220 characters.',
       ].join('\n')
     case 'boilerplate':
       return [
@@ -93,10 +120,12 @@ export async function POST(request: Request) {
 
     const systemPrompt = [
       'You are "Shadow Completer" for a founder workspace editor.',
+      'CONTEXT always starts with "=== Editor focus ===" (which tab or document the user is in), then deck extract, financials, traction, market, team, one pager, competitive, roadmap, and other notes.',
+      'Use that focus to match tone (e.g. investor memo vs product spec) and to prefer facts from the most relevant section.',
       'Return ONLY one JSON object, no markdown fences, no commentary.',
       'Shape: {"completion": string, "sourceHint": string}',
       'completion: text to append after the user cursor (no leading newline). Use empty string "" if unsure.',
-      'sourceHint: short label like "Deck", "Financial inputs", "Team", or "Workspace".',
+      'sourceHint: short label like "Deck", "Financial inputs", "Market sizing", "Traction", "Roadmap", "Team", or "Workspace".',
       patternInstructions(pattern as ShadowPatternId),
     ].join('\n')
 
