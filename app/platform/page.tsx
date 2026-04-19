@@ -16,16 +16,22 @@ import {
   type LineageEvent,
 } from '@/lib/platform/dataLineage'
 import {
-  claimValuesDiffer,
-  conflictCountForDoc,
-  detectClaimConflictGroups,
-  type ClaimsStore,
-  type StoredDocClaims,
-} from '@/lib/platform/claimsConflict'
-import { filterConflictGroupsDeterministic } from '@/lib/platform/deterministicConflictFilter'
-import { surfaceStringsToHighlightClaim } from '@/lib/platform/claimSurfaceStrings'
-import { groundedClaimsAndEvidence } from '@/lib/platform/claimsGrounding'
-import { formatClaimValue } from '@/lib/platform/claimsDisplay'
+  clearProductDemoVideo,
+  clearProductScreenshots,
+  loadProductDemoVideo,
+  loadProductScreenshotRows,
+  loadProductScreenshots,
+  MAX_SCREENSHOTS,
+  MAX_SHOT_BYTES,
+  saveProductDemoVideo,
+  saveProductScreenshots,
+  type StoredScreenshotRow,
+} from '@/components/platform/productStorage'
+import { HOME_TEAM, type TeamMember } from '@/components/homeTeam'
+import { CloudWorkspaceEditor, CloudWorkspaceSidebar } from '@/components/platform/CloudWorkspaceShell'
+import { useCloudWorkspaceDocs } from '@/components/platform/useCloudWorkspaceDocs'
+import { useWorkspaceInsights } from '@/components/platform/useWorkspaceInsights'
+import { normalizeSmartFillPayload, type SmartFillData } from '@/lib/platform/smartFill'
 import {
   CLAIM_KEYS,
   CLAIM_LABEL,
@@ -236,14 +242,135 @@ async function extractPdfTextOnServer(file: File): Promise<string> {
   return (payload.text || '').trim()
 }
 
-async function extractDocxHtmlOnServer(file: File): Promise<string> {
-  const formData = new FormData()
-  formData.append('file', file)
-  const response = await fetch('/api/platform/extract-docx', { method: 'POST', body: formData })
-  const raw = await response.text()
-  const contentType = response.headers.get('content-type') || ''
-  let payload: { html?: string; error?: string } = {}
-  if (contentType.includes('application/json')) {
+export default function PlatformPage() {
+  const router = useRouter()
+  const cloud = useCloudWorkspaceDocs(isSupabaseConfigured())
+  const cloudDocsFingerprint = useMemo(
+    () => cloud.documents.map((d) => `${d.id}:${d.updated_at}`).join('|'),
+    [cloud.documents]
+  )
+  const workspaceInsights = useWorkspaceInsights(cloud.enabled, cloudDocsFingerprint)
+  const [accountEmail, setAccountEmail] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<TabId>('onepager')
+  const [blankWorkspaceDocs, setBlankWorkspaceDocs] = useState<BlankWorkspaceDoc[]>([])
+  const [activeBlankDocId, setActiveBlankDocId] = useState<string | null>(null)
+
+  const [deckFileName, setDeckFileName] = useState<string | null>(null)
+  const [deckText, setDeckText] = useState('')
+  const [onePagerSummary, setOnePagerSummary] = useState('')
+  const [onePagerViewTitle, setOnePagerViewTitle] = useState('')
+  const [onePagerError, setOnePagerError] = useState<string | null>(null)
+  const [isGeneratingOnePager, setIsGeneratingOnePager] = useState(false)
+  const [isExtractingPdf, setIsExtractingPdf] = useState(false)
+  const deckFileInputRef = useRef<HTMLInputElement>(null)
+  const pitchDeckEmbedInputRef = useRef<HTMLInputElement>(null)
+  const embeddedDeckUrlRef = useRef<string | null>(null)
+  const onePagerViewTitleRef = useRef('')
+  const onePagerCloudReadyRef = useRef(false)
+
+  const [embeddedDeckUrl, setEmbeddedDeckUrl] = useState<string | null>(null)
+  const [embeddedDeckName, setEmbeddedDeckName] = useState<string | null>(null)
+  const [embeddedDeckError, setEmbeddedDeckError] = useState<string | null>(null)
+  const [embeddedDeckBusy, setEmbeddedDeckBusy] = useState(false)
+  const [isPresentingDeck, setIsPresentingDeck] = useState(false)
+  const [financials, setFinancials] = useState<FinancialInputs>(DEFAULT_FINANCIALS)
+
+  const [productRoadmap, setProductRoadmap] = useState('')
+  const [productDemoUrl, setProductDemoUrl] = useState<string | null>(null)
+  const [productDemoName, setProductDemoName] = useState<string | null>(null)
+  const [productDemoBusy, setProductDemoBusy] = useState(false)
+  const [productDemoError, setProductDemoError] = useState<string | null>(null)
+  const [productShots, setProductShots] = useState<ProductShotItem[]>([])
+  const [productShotsBusy, setProductShotsBusy] = useState(false)
+  const [productShotsError, setProductShotsError] = useState<string | null>(null)
+  const [traction, setTraction] = useState<TractionInputs>(DEFAULT_TRACTION)
+  const [tractionLogos, setTractionLogos] = useState<ProductShotItem[]>([])
+  const [tractionLogosBusy, setTractionLogosBusy] = useState(false)
+  const [tractionLogosError, setTractionLogosError] = useState<string | null>(null)
+  const [marketSizing, setMarketSizing] = useState<MarketSizing>(DEFAULT_MARKET_SIZING)
+  const [marketCompetitive, setMarketCompetitive] = useState('')
+  const [teamWorkspace, setTeamWorkspace] = useState<TeamMember[]>([])
+  const [isSmartFilling, setIsSmartFilling] = useState(false)
+  const [smartFillError, setSmartFillError] = useState<string | null>(null)
+  const productDemoInputRef = useRef<HTMLInputElement>(null)
+  const productShotsInputRef = useRef<HTMLInputElement>(null)
+  const tractionLogoInputRef = useRef<HTMLInputElement>(null)
+  const productDemoUrlRef = useRef<string | null>(null)
+  const productShotsRef = useRef<ProductShotItem[]>([])
+  const tractionLogosRef = useRef<ProductShotItem[]>([])
+
+  const activeBlankDoc = useMemo(() => {
+    if (!activeBlankDocId) return null
+    return blankWorkspaceDocs.find((d) => d.id === activeBlankDocId) ?? null
+  }, [activeBlankDocId, blankWorkspaceDocs])
+
+  /** When a cloud doc is open, main content is the cloud editor — tab highlights should clear. */
+  const workspaceTabActive = !activeBlankDocId && !(cloud.enabled && cloud.activeId)
+
+  function goToTab(tab: TabId) {
+    cloud.clearSelection()
+    setActiveBlankDocId(null)
+    setActiveTab(tab)
+  }
+
+  async function signOut() {
+    if (!isSupabaseConfigured()) return
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push('/login')
+    router.refresh()
+  }
+
+  function addBlankWorkspaceDocument() {
+    const id = crypto.randomUUID()
+    setBlankWorkspaceDocs((prev) => {
+      const title = nextBlankWorkspaceTitle(prev)
+      return [{ id, title, bodyHtml: '' }, ...prev]
+    })
+    setActiveBlankDocId(id)
+  }
+
+  useEffect(() => {
+    if (!isSupabaseConfigured()) return
+    let cancelled = false
+    const supabase = createClient()
+    void supabase.auth.getUser().then(({ data }) => {
+      if (!cancelled) setAccountEmail(data.user?.email ?? null)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+
+    const rawTab = window.localStorage.getItem(STORAGE_ACTIVE_TAB_KEY)
+    const savedTab = (rawTab === 'doc' ? 'onepager' : rawTab) as TabId | null
+    const savedSummary = window.localStorage.getItem(STORAGE_ONE_PAGER_SUMMARY_KEY) || ''
+    const savedViewTitle = window.localStorage.getItem(STORAGE_ONE_PAGER_VIEW_TITLE_KEY) || ''
+    const savedDeckName = window.localStorage.getItem(STORAGE_ONE_PAGER_FILENAME_KEY) || ''
+    const savedDeckText = window.localStorage.getItem(STORAGE_ONE_PAGER_DECK_TEXT_KEY) || ''
+    if (
+      savedTab === 'onepager' ||
+      savedTab === 'pitchdeck' ||
+      savedTab === 'market' ||
+      savedTab === 'product' ||
+      savedTab === 'traction' ||
+      savedTab === 'team' ||
+      savedTab === 'financials'
+    ) {
+      setActiveTab(savedTab)
+    }
+    setOnePagerSummary(coerceStoredEditorHtml(savedSummary))
+    setOnePagerViewTitle(savedViewTitle)
+    setDeckFileName(savedDeckName || null)
+    setDeckText(savedDeckText)
+    if (savedDeckName && !savedDeckText.trim()) {
+      setOnePagerError(
+        'This deck was selected before, but no extracted text is saved. Choose the PDF again to extract text, or pick a PDF with selectable text (not image-only).'
+      )
+    }
     try {
       payload = JSON.parse(raw) as { html?: string; error?: string }
     } catch {
@@ -870,30 +997,184 @@ export default function PlatformPage() {
               </div>
             )}
           </div>
+          <nav className="notion-sidebar-nav">
+            <button
+              type="button"
+              className={`notion-sidebar-item ${workspaceTabActive && activeTab === 'onepager' ? 'is-active' : ''}`}
+              onClick={() => goToTab('onepager')}
+            >
+              One pager
+            </button>
+            <button
+              type="button"
+              className={`notion-sidebar-item ${workspaceTabActive && activeTab === 'pitchdeck' ? 'is-active' : ''}`}
+              onClick={() => goToTab('pitchdeck')}
+            >
+              Pitch deck
+            </button>
+            <button
+              type="button"
+              className={`notion-sidebar-item ${workspaceTabActive && activeTab === 'market' ? 'is-active' : ''}`}
+              onClick={() => goToTab('market')}
+            >
+              Market
+            </button>
+            <button
+              type="button"
+              className={`notion-sidebar-item ${workspaceTabActive && activeTab === 'product' ? 'is-active' : ''}`}
+              onClick={() => goToTab('product')}
+            >
+              Product
+            </button>
+            <button
+              type="button"
+              className={`notion-sidebar-item ${workspaceTabActive && activeTab === 'traction' ? 'is-active' : ''}`}
+              onClick={() => goToTab('traction')}
+            >
+              Traction
+            </button>
+            <button
+              type="button"
+              className={`notion-sidebar-item ${workspaceTabActive && activeTab === 'team' ? 'is-active' : ''}`}
+              onClick={() => goToTab('team')}
+            >
+              Team
+            </button>
+            <button
+              type="button"
+              className={`notion-sidebar-item ${workspaceTabActive && activeTab === 'financials' ? 'is-active' : ''}`}
+              onClick={() => goToTab('financials')}
+            >
+              Financials
+            </button>
+          </nav>
 
-          <div className="notion-sidebar-docs">
-            <input
-              ref={fileInputRef}
-              type="file"
-              className="notion-sidebar-folder-input-hidden"
-              tabIndex={-1}
-              aria-hidden
-              multiple
-              accept=".pdf,.docx,.dotx,.pptx,.txt,.text,.md,.markdown,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/plain,text/markdown"
-              onChange={onFilesSelected}
+          {cloud.enabled ? (
+            <CloudWorkspaceSidebar
+              cloud={cloud}
+              insightsByDoc={workspaceInsights.byDocId}
+              onOpenDoc={() => {
+                setActiveBlankDocId(null)
+              }}
             />
-            <div className="notion-sidebar-docs-head">
-              <span className="notion-sidebar-docs-label">Documents</span>
-              <div className="notion-sidebar-docs-actions">
+          ) : (
+            <div className="notion-sidebar-docs">
+              <div className="notion-sidebar-docs-head">
+                <span className="notion-sidebar-docs-label">Documents</span>
                 <button
                   type="button"
                   className="notion-sidebar-add-doc"
-                  onClick={openFilePicker}
-                  title="Upload documents (PDF, Word, PowerPoint .pptx, Markdown, or plain text). You can add many at once."
-                  aria-label="Upload documents"
+                  onClick={addBlankWorkspaceDocument}
+                  title="New blank document"
+                  aria-label="New blank document"
                 >
                   +
                 </button>
+              </div>
+              {blankWorkspaceDocs.map((doc) => (
+                <button
+                  key={doc.id}
+                  type="button"
+                  className={`notion-sidebar-item notion-sidebar-doc-item ${
+                    activeBlankDocId === doc.id ? 'is-active' : ''
+                  }`}
+                  onClick={() => setActiveBlankDocId(doc.id)}
+                >
+                  {doc.title}
+                </button>
+              ))}
+            </div>
+          )}
+        </aside>
+
+        <div className="notion-main">
+          {cloud.enabled && cloud.activeDoc ? (
+            <CloudWorkspaceEditor
+              cloud={cloud}
+              insightsByDoc={workspaceInsights.byDocId}
+              workspaceDocCount={workspaceInsights.workspaceDocCount}
+            />
+          ) : activeBlankDoc ? (
+            <article className="notion-doc" aria-label={activeBlankDoc.title}>
+              <div className="notion-doc-tools notion-blank-doc-tools">
+                <span className="notion-blank-doc-hint">Rich text · saved in this browser</span>
+              </div>
+              <input
+                className="notion-title"
+                placeholder="Untitled"
+                value={activeBlankDoc.title}
+                onChange={(event) => {
+                  const title = event.target.value
+                  setBlankWorkspaceDocs((prev) =>
+                    prev.map((d) => (d.id === activeBlankDoc.id ? { ...d, title } : d))
+                  )
+                }}
+              />
+              <RichDocEditor
+                value={activeBlankDoc.bodyHtml}
+                onChange={(html) =>
+                  setBlankWorkspaceDocs((prev) =>
+                    prev.map((d) => (d.id === activeBlankDoc.id ? { ...d, bodyHtml: html } : d))
+                  )
+                }
+                placeholder="Blank page — write notes, memos, or drafts here."
+              />
+            </article>
+          ) : activeTab === 'onepager' ? (
+            <article className="notion-doc" aria-label="One pager from pitch deck">
+              <div className="notion-doc-tools">
+                <label className="notion-upload">
+                  <span className="notion-upload-label">Pitch deck (PDF)</span>
+                  <input
+                    ref={deckFileInputRef}
+                    type="file"
+                    accept="application/pdf,.pdf,.ppt,.pptx"
+                    onChange={(event) => void onDeckSelected(event.target.files)}
+                  />
+                  {deckFileName && (
+                    <span className="notion-upload-meta">
+                      Selected: {deckFileName}
+                      {isExtractingPdf
+                        ? ' · Extracting text…'
+                        : deckText
+                          ? ` · ${Math.round(deckText.length / 1024)} KB text extracted`
+                          : ' · No text extracted yet'}
+                    </span>
+                  )}
+                </label>
+                <div className="notion-doc-tools-actions">
+                  <button
+                    type="button"
+                    onClick={() => presentDocument(onePagerViewTitle || 'One pager', onePagerSummary)}
+                  >
+                    Present
+                  </button>
+                  <button
+                    type="button"
+                    className="notion-doc-tool-secondary"
+                    onClick={() => void runSmartFill()}
+                    disabled={
+                      isSmartFilling ||
+                      isGeneratingOnePager ||
+                      isExtractingPdf ||
+                      !deckText.trim()
+                    }
+                  >
+                    {isSmartFilling ? 'Smart fill…' : 'Smart fill with AI'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={generateOnePager}
+                    disabled={
+                      isSmartFilling ||
+                      isGeneratingOnePager ||
+                      isExtractingPdf ||
+                      !deckText.trim()
+                    }
+                  >
+                    {isGeneratingOnePager ? 'Generating…' : 'Generate 1-pager'}
+                  </button>
+                </div>
               </div>
             </div>
             {docs.length === 0 ? (
