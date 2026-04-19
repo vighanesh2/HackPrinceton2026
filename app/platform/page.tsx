@@ -24,6 +24,9 @@ import {
   type StoredScreenshotRow,
 } from '@/components/platform/productStorage'
 import { HOME_TEAM, type TeamMember } from '@/components/homeTeam'
+import { CloudWorkspaceEditor, CloudWorkspaceSidebar } from '@/components/platform/CloudWorkspaceShell'
+import { useCloudWorkspaceDocs } from '@/components/platform/useCloudWorkspaceDocs'
+import { useWorkspaceInsights } from '@/components/platform/useWorkspaceInsights'
 import { normalizeSmartFillPayload, type SmartFillData } from '@/lib/platform/smartFill'
 import {
   clearTractionLogos,
@@ -316,6 +319,12 @@ async function extractPdfTextOnServer(file: File): Promise<string> {
 
 export default function PlatformPage() {
   const router = useRouter()
+  const cloud = useCloudWorkspaceDocs(isSupabaseConfigured())
+  const cloudDocsFingerprint = useMemo(
+    () => cloud.documents.map((d) => `${d.id}:${d.updated_at}`).join('|'),
+    [cloud.documents]
+  )
+  const workspaceInsights = useWorkspaceInsights(cloud.enabled, cloudDocsFingerprint)
   const [accountEmail, setAccountEmail] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<TabId>('onepager')
   const [blankWorkspaceDocs, setBlankWorkspaceDocs] = useState<BlankWorkspaceDoc[]>([])
@@ -370,7 +379,11 @@ export default function PlatformPage() {
     return blankWorkspaceDocs.find((d) => d.id === activeBlankDocId) ?? null
   }, [activeBlankDocId, blankWorkspaceDocs])
 
+  /** When a cloud doc is open, main content is the cloud editor — tab highlights should clear. */
+  const workspaceTabActive = !activeBlankDocId && !(cloud.enabled && cloud.activeId)
+
   function goToTab(tab: TabId) {
+    cloud.clearSelection()
     setActiveBlankDocId(null)
     setActiveTab(tab)
   }
@@ -1371,85 +1384,101 @@ export default function PlatformPage() {
           <nav className="notion-sidebar-nav">
             <button
               type="button"
-              className={`notion-sidebar-item ${!activeBlankDocId && activeTab === 'onepager' ? 'is-active' : ''}`}
+              className={`notion-sidebar-item ${workspaceTabActive && activeTab === 'onepager' ? 'is-active' : ''}`}
               onClick={() => goToTab('onepager')}
             >
               One pager
             </button>
             <button
               type="button"
-              className={`notion-sidebar-item ${!activeBlankDocId && activeTab === 'pitchdeck' ? 'is-active' : ''}`}
+              className={`notion-sidebar-item ${workspaceTabActive && activeTab === 'pitchdeck' ? 'is-active' : ''}`}
               onClick={() => goToTab('pitchdeck')}
             >
               Pitch deck
             </button>
             <button
               type="button"
-              className={`notion-sidebar-item ${!activeBlankDocId && activeTab === 'market' ? 'is-active' : ''}`}
+              className={`notion-sidebar-item ${workspaceTabActive && activeTab === 'market' ? 'is-active' : ''}`}
               onClick={() => goToTab('market')}
             >
               Market
             </button>
             <button
               type="button"
-              className={`notion-sidebar-item ${!activeBlankDocId && activeTab === 'product' ? 'is-active' : ''}`}
+              className={`notion-sidebar-item ${workspaceTabActive && activeTab === 'product' ? 'is-active' : ''}`}
               onClick={() => goToTab('product')}
             >
               Product
             </button>
             <button
               type="button"
-              className={`notion-sidebar-item ${!activeBlankDocId && activeTab === 'traction' ? 'is-active' : ''}`}
+              className={`notion-sidebar-item ${workspaceTabActive && activeTab === 'traction' ? 'is-active' : ''}`}
               onClick={() => goToTab('traction')}
             >
               Traction
             </button>
             <button
               type="button"
-              className={`notion-sidebar-item ${!activeBlankDocId && activeTab === 'team' ? 'is-active' : ''}`}
+              className={`notion-sidebar-item ${workspaceTabActive && activeTab === 'team' ? 'is-active' : ''}`}
               onClick={() => goToTab('team')}
             >
               Team
             </button>
             <button
               type="button"
-              className={`notion-sidebar-item ${!activeBlankDocId && activeTab === 'financials' ? 'is-active' : ''}`}
+              className={`notion-sidebar-item ${workspaceTabActive && activeTab === 'financials' ? 'is-active' : ''}`}
               onClick={() => goToTab('financials')}
             >
               Financials
             </button>
           </nav>
 
-          <div className="notion-sidebar-docs">
-            <div className="notion-sidebar-docs-head">
-              <span className="notion-sidebar-docs-label">Documents</span>
-              <button
-                type="button"
-                className="notion-sidebar-add-doc"
-                onClick={addBlankWorkspaceDocument}
-                title="New blank document"
-                aria-label="New blank document"
-              >
-                +
-              </button>
+          {cloud.enabled ? (
+            <CloudWorkspaceSidebar
+              cloud={cloud}
+              insightsByDoc={workspaceInsights.byDocId}
+              onOpenDoc={() => {
+                setActiveBlankDocId(null)
+              }}
+            />
+          ) : (
+            <div className="notion-sidebar-docs">
+              <div className="notion-sidebar-docs-head">
+                <span className="notion-sidebar-docs-label">Documents</span>
+                <button
+                  type="button"
+                  className="notion-sidebar-add-doc"
+                  onClick={addBlankWorkspaceDocument}
+                  title="New blank document"
+                  aria-label="New blank document"
+                >
+                  +
+                </button>
+              </div>
+              {blankWorkspaceDocs.map((doc) => (
+                <button
+                  key={doc.id}
+                  type="button"
+                  className={`notion-sidebar-item notion-sidebar-doc-item ${
+                    activeBlankDocId === doc.id ? 'is-active' : ''
+                  }`}
+                  onClick={() => setActiveBlankDocId(doc.id)}
+                >
+                  {doc.title}
+                </button>
+              ))}
             </div>
-            {blankWorkspaceDocs.map((doc) => (
-              <button
-                key={doc.id}
-                type="button"
-                className={`notion-sidebar-item notion-sidebar-doc-item ${
-                  activeBlankDocId === doc.id ? 'is-active' : ''
-                }`}
-                onClick={() => setActiveBlankDocId(doc.id)}
-              >
-                {doc.title}
-              </button>
-            ))}
-          </div>
+          )}
         </aside>
 
         <div className="notion-main">
-          {activeBlankDoc ? (
+          {cloud.enabled && cloud.activeDoc ? (
+            <CloudWorkspaceEditor
+              cloud={cloud}
+              insightsByDoc={workspaceInsights.byDocId}
+              workspaceDocCount={workspaceInsights.workspaceDocCount}
+            />
+          ) : activeBlankDoc ? (
             <article className="notion-doc" aria-label={activeBlankDoc.title}>
               <div className="notion-doc-tools notion-blank-doc-tools">
                 <span className="notion-blank-doc-hint">Rich text · saved in this browser</span>
