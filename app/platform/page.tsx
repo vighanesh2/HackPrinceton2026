@@ -24,7 +24,12 @@ import {
   type StoredScreenshotRow,
 } from '@/components/platform/productStorage'
 import { HOME_TEAM, type TeamMember } from '@/components/homeTeam'
-import { normalizeSmartFillPayload, type SmartFillData } from '@/lib/platform/smartFill'
+import {
+  inferMarketSizingFromDeckText,
+  mergeSmartFillWithDeckInference,
+  normalizeSmartFillPayload,
+  type SmartFillData,
+} from '@/lib/platform/smartFill'
 import {
   clearTractionLogos,
   loadTractionLogoRows,
@@ -33,9 +38,23 @@ import {
   MAX_LOGOS,
   saveTractionLogos,
 } from '@/components/platform/tractionStorage'
+import {
+  buildProjectZenHtmlFromAi,
+  buildStrategicHtmlFromAi,
+  editorSurfaceClassForLayout,
+  layoutUsesStructuredGenerate,
+  ONE_PAGER_LAYOUTS,
+  parseProjectZenAiJson,
+  parseStrategicAiJson,
+  parseStoredOnePagerLayoutId,
+  projectZenPageTitleFromPayload,
+  strategicPageTitleFromPayload,
+  type OnePagerLayoutId,
+} from '@/lib/platform/onePagerTemplates'
 
 const STORAGE_ACTIVE_TAB_KEY = 'platform_notion_active_tab'
 const STORAGE_ONE_PAGER_SUMMARY_KEY = 'platform_one_pager_summary'
+const STORAGE_ONE_PAGER_LAYOUT_KEY = 'platform_one_pager_layout_v1'
 const STORAGE_ONE_PAGER_VIEW_TITLE_KEY = 'platform_one_pager_view_title'
 const STORAGE_ONE_PAGER_FILENAME_KEY = 'platform_one_pager_filename'
 const STORAGE_ONE_PAGER_DECK_TEXT_KEY = 'platform_one_pager_deck_text'
@@ -51,6 +70,26 @@ const STORAGE_ACTIVE_BLANK_DOC_ID_KEY = 'platform_active_blank_doc_id'
 const MAX_PDF_TEXT_CHARS = 24000
 
 type TabId = 'onepager' | 'pitchdeck' | 'market' | 'product' | 'traction' | 'team' | 'financials'
+
+const TAB_IDS: TabId[] = [
+  'onepager',
+  'pitchdeck',
+  'market',
+  'product',
+  'traction',
+  'team',
+  'financials',
+]
+
+function tabFromUrlSearch(search: string): TabId | null {
+  try {
+    const tab = new URLSearchParams(search).get('tab')
+    if (tab && TAB_IDS.includes(tab as TabId)) return tab as TabId
+    return null
+  } catch {
+    return null
+  }
+}
 
 type BlankWorkspaceDoc = {
   id: string
@@ -168,6 +207,87 @@ function workspacePlainLen(html: string): number {
   return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().length
 }
 
+function htmlToPlainSnippet(html: string, maxChars: number): string {
+  const t = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+  if (!t) return ''
+  return t.length <= maxChars ? t : `${t.slice(0, maxChars)}…`
+}
+
+function buildPlatformShadowContext(params: {
+  deckText: string
+  deckFileName: string | null
+  financials: FinancialInputs
+  traction: TractionInputs
+  marketSizing: MarketSizing
+  teamMembers: TeamMember[]
+  onePagerSummaryHtml: string
+  marketCompetitiveHtml: string
+  productRoadmapHtml: string
+  blankWorkspaceDocs: BlankWorkspaceDoc[]
+}): string {
+  const chunks: string[] = []
+  const add = (title: string, body: string) => {
+    const t = body.trim()
+    if (t) chunks.push(title, t)
+  }
+
+  add(
+    '=== Pitch deck extract ===',
+    params.deckText.trim()
+      ? `${params.deckFileName ? `File: ${params.deckFileName}\n` : ''}${params.deckText.slice(0, 12_000)}`
+      : ''
+  )
+
+  const f = params.financials
+  add(
+    '=== Financial inputs (workspace) ===',
+    [
+      `MRR (modeled): ${formatMoney(f.mrr)}`,
+      `Cash on hand: ${formatMoney(f.cashOnHand)}`,
+      `Monthly opex: ${formatMoney(f.monthlyOpex)}`,
+      `Monthly debt service: ${formatMoney(f.monthlyDebt)}`,
+      `COGS %: ${f.cogsPct}`,
+      `Implied monthly revenue growth %: ${f.monthlyRevenueGrowthPct}`,
+      `Implied monthly expense growth %: ${f.monthlyExpenseGrowthPct}`,
+      `New MRR / mo (modeled): ${formatMoney(f.newMrrPerMonth)}`,
+    ].join('\n')
+  )
+
+  const tr = params.traction
+  add(
+    '=== Traction inputs (workspace) ===',
+    [
+      `MRR: ${formatMoney(tr.mrr)}`,
+      `Paying customers: ${tr.customers}`,
+      `MoM growth % (implied chart): ${tr.momGrowthPct}`,
+      `NRR %: ${tr.nrrPct}`,
+    ].join('\n')
+  )
+
+  add(
+    '=== Market sizing (workspace) ===',
+    `TAM ${formatMarketMoney(params.marketSizing.tam)} · SAM ${formatMarketMoney(params.marketSizing.sam)} · SOM ${formatMarketMoney(params.marketSizing.som)}`
+  )
+
+  const teamBlock = params.teamMembers.map((m) => `- ${m.name} (${m.role}): ${m.bio}`).join('\n')
+  add('=== Team roster ===', teamBlock)
+
+  add('=== One pager (plain excerpt) ===', htmlToPlainSnippet(params.onePagerSummaryHtml, 4_000))
+  add('=== Competitive landscape (plain excerpt) ===', htmlToPlainSnippet(params.marketCompetitiveHtml, 3_000))
+  add('=== Product roadmap (plain excerpt) ===', htmlToPlainSnippet(params.productRoadmapHtml, 3_000))
+
+  if (params.blankWorkspaceDocs.length) {
+    const docBits = params.blankWorkspaceDocs
+      .map((d) => `## ${d.title}\n${htmlToPlainSnippet(d.bodyHtml, 1_800)}`)
+      .join('\n\n')
+    add('=== Blank workspace documents ===', docBits.slice(0, 10_000))
+  }
+
+  let out = chunks.join('\n')
+  if (out.length > 26_000) out = `${out.slice(0, 26_000)}\n…[truncated]`
+  return out
+}
+
 function buildSmartFillNarrativeMd(data: SmartFillData): string {
   const parts: string[] = []
   if (data.companyDescriptionMd) parts.push('## Company', data.companyDescriptionMd, '')
@@ -258,7 +378,7 @@ function TractionMrrChart({ series }: { series: number[] }) {
   )
 }
 
-/** First line `TITLE: …` is stripped and used for the page title; rest is Markdown body. */
+/** First line `TITLE: …` is stripped for the page title; rest is Markdown body (default / Normal layout). */
 function splitGeneratedTitleBlock(raw: string): { title: string | null; bodyMarkdown: string } {
   const trimmed = raw.trimStart()
   const firstNl = trimmed.indexOf('\n')
@@ -333,6 +453,10 @@ export default function PlatformPage() {
   const embeddedDeckUrlRef = useRef<string | null>(null)
   const onePagerViewTitleRef = useRef('')
   const onePagerCloudReadyRef = useRef(false)
+  /** Skip initial cloud hydrate for market $ fields after local/smart-fill writes. */
+  const blockCloudMarketSizingHydrateRef = useRef(false)
+  /** Skip initial cloud hydrate for competitive HTML after local/smart-fill writes. */
+  const blockCloudMarketCompetitiveHydrateRef = useRef(false)
 
   const [embeddedDeckUrl, setEmbeddedDeckUrl] = useState<string | null>(null)
   const [embeddedDeckName, setEmbeddedDeckName] = useState<string | null>(null)
@@ -358,6 +482,8 @@ export default function PlatformPage() {
   const [teamWorkspace, setTeamWorkspace] = useState<TeamMember[]>([])
   const [isSmartFilling, setIsSmartFilling] = useState(false)
   const [smartFillError, setSmartFillError] = useState<string | null>(null)
+  const [onePagerMenuOpen, setOnePagerMenuOpen] = useState(false)
+  const [onePagerLayoutId, setOnePagerLayoutId] = useState<OnePagerLayoutId>('default')
   const productDemoInputRef = useRef<HTMLInputElement>(null)
   const productShotsInputRef = useRef<HTMLInputElement>(null)
   const tractionLogoInputRef = useRef<HTMLInputElement>(null)
@@ -405,15 +531,39 @@ export default function PlatformPage() {
   }, [])
 
   useEffect(() => {
+    if (activeTab !== 'onepager') setOnePagerMenuOpen(false)
+  }, [activeTab])
+
+  useEffect(() => {
+    if (!onePagerMenuOpen) return
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== 'Escape') return
+      setOnePagerMenuOpen(false)
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [onePagerMenuOpen])
+
+  useEffect(() => {
     let cancelled = false
 
     const rawTab = window.localStorage.getItem(STORAGE_ACTIVE_TAB_KEY)
     const savedTab = (rawTab === 'doc' ? 'onepager' : rawTab) as TabId | null
+    const urlTab = tabFromUrlSearch(window.location.search)
     const savedSummary = window.localStorage.getItem(STORAGE_ONE_PAGER_SUMMARY_KEY) || ''
+    const savedLayout = parseStoredOnePagerLayoutId(window.localStorage.getItem(STORAGE_ONE_PAGER_LAYOUT_KEY))
+    setOnePagerLayoutId(savedLayout)
     const savedViewTitle = window.localStorage.getItem(STORAGE_ONE_PAGER_VIEW_TITLE_KEY) || ''
     const savedDeckName = window.localStorage.getItem(STORAGE_ONE_PAGER_FILENAME_KEY) || ''
     const savedDeckText = window.localStorage.getItem(STORAGE_ONE_PAGER_DECK_TEXT_KEY) || ''
-    if (
+    const usedUrlTab = Boolean(urlTab)
+    if (urlTab) {
+      setActiveTab(urlTab)
+      setActiveBlankDocId(null)
+      if (window.location.pathname === '/platform') {
+        window.history.replaceState({}, '', '/platform')
+      }
+    } else if (
       savedTab === 'onepager' ||
       savedTab === 'pitchdeck' ||
       savedTab === 'market' ||
@@ -451,16 +601,26 @@ export default function PlatformPage() {
     } catch {
       setTraction(DEFAULT_TRACTION)
     }
+    let preferLocalMarketSizing = false
     try {
       const rawM = window.localStorage.getItem(STORAGE_MARKET_SIZING_KEY)
       if (rawM) {
         const parsed = JSON.parse(rawM) as Partial<MarketSizing>
-        setMarketSizing({ ...DEFAULT_MARKET_SIZING, ...parsed })
+        const merged = { ...DEFAULT_MARKET_SIZING, ...parsed }
+        setMarketSizing(merged)
+        preferLocalMarketSizing =
+          merged.tam !== DEFAULT_MARKET_SIZING.tam ||
+          merged.sam !== DEFAULT_MARKET_SIZING.sam ||
+          merged.som !== DEFAULT_MARKET_SIZING.som
       }
     } catch {
       setMarketSizing(DEFAULT_MARKET_SIZING)
     }
-    setMarketCompetitive(coerceStoredEditorHtml(window.localStorage.getItem(STORAGE_MARKET_COMPETITIVE_KEY) || ''))
+    const initialCompetitiveHtml = coerceStoredEditorHtml(
+      window.localStorage.getItem(STORAGE_MARKET_COMPETITIVE_KEY) || ''
+    )
+    setMarketCompetitive(initialCompetitiveHtml)
+    const preferLocalMarketCompetitive = workspacePlainLen(initialCompetitiveHtml) >= 40
     try {
       const rawTw = window.localStorage.getItem(STORAGE_TEAM_WORKSPACE_KEY)
       if (rawTw) {
@@ -477,7 +637,7 @@ export default function PlatformPage() {
     const blanks = parseBlankWorkspaceDocs(window.localStorage.getItem(STORAGE_BLANK_DOCS_KEY))
     setBlankWorkspaceDocs(blanks)
     const savedActiveBlank = window.localStorage.getItem(STORAGE_ACTIVE_BLANK_DOC_ID_KEY)
-    if (savedActiveBlank && blanks.some((d) => d.id === savedActiveBlank)) {
+    if (!usedUrlTab && savedActiveBlank && blanks.some((d) => d.id === savedActiveBlank)) {
       setActiveBlankDocId(savedActiveBlank)
     }
 
@@ -551,21 +711,27 @@ export default function PlatformPage() {
             } | null
           }
           if (!cancelled && mk.record) {
-            const s = mk.record.sizing
-            if (s) {
-              const tam = s.tam
-              const sam = s.sam
-              const som = s.som
-              if (
-                typeof tam === 'number' &&
-                typeof sam === 'number' &&
-                typeof som === 'number' &&
-                [tam, sam, som].every((n) => Number.isFinite(n) && n >= 0)
-              ) {
-                setMarketSizing({ ...DEFAULT_MARKET_SIZING, tam, sam, som })
+            if (!preferLocalMarketSizing && !blockCloudMarketSizingHydrateRef.current) {
+              const s = mk.record.sizing
+              if (s) {
+                const tam = s.tam
+                const sam = s.sam
+                const som = s.som
+                if (
+                  typeof tam === 'number' &&
+                  typeof sam === 'number' &&
+                  typeof som === 'number' &&
+                  [tam, sam, som].every((n) => Number.isFinite(n) && n >= 0)
+                ) {
+                  setMarketSizing({ ...DEFAULT_MARKET_SIZING, tam, sam, som })
+                }
               }
             }
-            if (typeof mk.record.competitive_html === 'string') {
+            if (
+              !preferLocalMarketCompetitive &&
+              !blockCloudMarketCompetitiveHydrateRef.current &&
+              typeof mk.record.competitive_html === 'string'
+            ) {
               setMarketCompetitive(coerceStoredEditorHtml(mk.record.competitive_html))
             }
           }
@@ -581,6 +747,26 @@ export default function PlatformPage() {
       cancelled = true
     }
   }, [])
+
+  /** If the extracted deck spells out TAM/SAM/SOM but Market is still the stock placeholder row, pull numbers from the deck. */
+  useEffect(() => {
+    if (!deckText.trim()) return
+    const inferred = inferMarketSizingFromDeckText(deckText)
+    if (inferred.tamUsd == null && inferred.samUsd == null && inferred.somUsd == null) return
+    setMarketSizing((prev) => {
+      const isPlaceholder =
+        prev.tam === DEFAULT_MARKET_SIZING.tam &&
+        prev.sam === DEFAULT_MARKET_SIZING.sam &&
+        prev.som === DEFAULT_MARKET_SIZING.som
+      if (!isPlaceholder) return prev
+      blockCloudMarketSizingHydrateRef.current = true
+      return {
+        tam: inferred.tamUsd ?? prev.tam,
+        sam: inferred.samUsd ?? prev.sam,
+        som: inferred.somUsd ?? prev.som,
+      }
+    })
+  }, [deckText])
 
   useEffect(() => {
     if (!onePagerCloudReadyRef.current) return
@@ -655,6 +841,10 @@ export default function PlatformPage() {
   useEffect(() => {
     window.localStorage.setItem(STORAGE_ACTIVE_TAB_KEY, activeTab)
   }, [activeTab])
+
+  useEffect(() => {
+    window.localStorage.setItem(STORAGE_ONE_PAGER_LAYOUT_KEY, onePagerLayoutId)
+  }, [onePagerLayoutId])
 
   useEffect(() => {
     window.localStorage.setItem(STORAGE_ONE_PAGER_SUMMARY_KEY, onePagerSummary)
@@ -1164,29 +1354,94 @@ export default function PlatformPage() {
     setIsGeneratingOnePager(true)
     setOnePagerError(null)
 
-    const prompt = [
-      'You are helping a founder turn a pitch deck into a crisp 1-pager.',
+    const structured = layoutUsesStructuredGenerate(onePagerLayoutId)
+
+    const generalStructuredPrompt = [
+      'You are filling a fixed print-style one-pager layout from a pitch deck (hero + headline row, two columns, benefits list, next steps, CTA strip, footer).',
+      'Your job is to supply ONLY the copy fields as JSON — no HTML, no Markdown body.',
       '',
-      'Using ONLY the deck text below, produce:',
-      '1) Company Overview (1-pager): problem, solution, who it is for, traction (only if present), business model (only if present), differentiation, and what you are raising (only if present).',
-      '2) Elevator pitch: 2-3 sentences, confident, specific, no buzzword soup.',
+      'Reply with a single JSON object only (no markdown code fences, no commentary before or after). Use straight double quotes for JSON strings.',
+      '',
+      'Required keys (all string values except "benefits" and optional "heroImageUrl"):',
+      '- "pageTitle": short document title, max 12 words (company or product + "One pager" if helpful).',
+      '- "headline": one compelling headline for the top of the page, max 14 words.',
+      '- "whoWeAre": 2–4 sentences: what the company is and does.',
+      '- "problem": 2–4 sentences: pain / urgency from the deck.',
+      '- "solution": 2–4 sentences: how the product solves it.',
+      '- "benefits": array of 3–5 objects, each { "boldLabel": "2–4 words", "detail": "one short sentence" } — concrete, tied to the deck, not generic slogans.',
+      '- "whatsNext": 1–3 sentences: roadmap, milestones, or near-term plans if present.',
+      '- "ctaBold": 2–5 words for the CTA emphasis (e.g. "Request a demo").',
+      '- "ctaRest": one sentence continuing after the bold CTA.',
+      '- "footerEmail": email if clearly stated in deck, otherwise "contact@company.com".',
+      '- "footerPhone": phone if clearly stated, otherwise "Not stated in deck".',
+      '',
+      'Optional key:',
+      '- "heroImageUrl": a public https image URL ONLY if explicitly present in the deck text; otherwise null.',
       '',
       'Rules:',
-      '- If something is missing, say "Not stated in deck" instead of inventing.',
-      '- Keep it tight and readable.',
-      '',
-      'Formatting (required):',
-      '- First line of your reply (exact pattern): TITLE: <short page title, max 12 words — usually company or product name, e.g. TITLE: Acme Robotics — One pager>',
-      '- Second line: blank.',
-      '- Then write the rest as Markdown (the editor will convert it to rich text).',
-      '- Use ## for each major section (e.g. ## Company overview, ## Elevator pitch).',
-      '- Use **Label:** for short inline labels when helpful (e.g. **Who it is for:** mid-market …).',
-      '- Use normal Markdown bullet lists (- item) for enumerations.',
-      '- Use a short intro line, then sections—no code fences around the answer.',
+      '- Do not invent traction, customers, revenue, or investors. If missing, say "Not stated in deck" in the relevant string fields.',
+      '- Keep sentences concise; this must read well on a single printed page.',
       '',
       'DECK TEXT:',
       deckText,
     ].join('\n')
+
+    const strategicStructuredPrompt = [
+      'You are filling a "Strategic plan" one-pager layout from a pitch deck: top banner image, centered main title + subtitle, two equal columns (mission, budget, allocation + CTA on the left; numbered strategic goals and key metrics on the right), then a horizontal timeline with three milestones at the bottom.',
+      'Supply ONLY copy as JSON — no HTML, no Markdown body.',
+      '',
+      'Reply with a single JSON object only (no markdown code fences, no commentary). Use straight double quotes.',
+      '',
+      'Keys:',
+      '- "pageTitle": short document title for the tab (max 12 words).',
+      '- "title": large centered headline (max 14 words), e.g. direction or company name + theme.',
+      '- "subtitle": short centered line under the title (e.g. "— Our strategic plan —").',
+      '- "missionStatement": 2–4 sentences from the deck.',
+      '- "totalBudget": one line — raise amount or budget if stated, else "Not stated in deck."',
+      '- "allocations": array of 3–6 strings, each one line (e.g. "70% program implementation") — infer splits only if the deck implies them; else use "Not stated in deck." as a single item.',
+      '- "strategicGoals": array of 3–5 objects { "title": "short goal name", "description": "one sentence" } from deck priorities.',
+      '- "keyMetrics": array of 3–6 bullet strings (traction, milestones, KPIs) — only if in deck.',
+      '- "footerCtaText": one sentence inviting readers to learn more or contribute (no URL inside this string).',
+      '- "footerLinkUrl": https URL if clearly in deck, else null.',
+      '- "footerLinkLabel": short link text (e.g. company site domain).',
+      '- "timeline": array of exactly 3 objects { "year": "YYYY or range", "description": "2–3 lines max", "accent": "red" | "yellow" | "blue" } — order left to right; use milestones from deck or "Not stated in deck." if missing.',
+      '',
+      'Optional:',
+      '- "bannerImageUrl": public https image URL ONLY if explicitly in deck text; else null.',
+      '',
+      'Rules: do not invent revenue, investors, or customers. If missing, say "Not stated in deck."',
+      '',
+      'DECK TEXT:',
+      deckText,
+    ].join('\n')
+
+    const prompt = structured
+      ? onePagerLayoutId === 'strategic'
+        ? strategicStructuredPrompt
+        : generalStructuredPrompt
+      : [
+          'You are helping a founder turn a pitch deck into a crisp 1-pager.',
+          '',
+          'Using ONLY the deck text below, produce:',
+          '1) Company Overview (1-pager): problem, solution, who it is for, traction (only if present), business model (only if present), differentiation, and what you are raising (only if present).',
+          '2) Elevator pitch: 2-3 sentences, confident, specific, no buzzword soup.',
+          '',
+          'Rules:',
+          '- If something is missing, say "Not stated in deck" instead of inventing.',
+          '- Keep it tight and readable.',
+          '',
+          'Formatting (required):',
+          '- First line of your reply (exact pattern): TITLE: <short page title, max 12 words — usually company or product name, e.g. TITLE: Acme Robotics — One pager>',
+          '- Second line: blank.',
+          '- Then write the rest as Markdown (the editor will convert it to rich text).',
+          '- Use ## for each major section (e.g. ## Company overview, ## Elevator pitch).',
+          '- Use **Label:** for short inline labels when helpful (e.g. **Who it is for:** mid-market …).',
+          '- Use normal Markdown bullet lists (- item) for enumerations.',
+          '- Use a short intro line, then sections—no code fences around the answer.',
+          '',
+          'DECK TEXT:',
+          deckText,
+        ].join('\n')
 
     try {
       const response = await fetch('/api/platform/chat', {
@@ -1204,12 +1459,45 @@ export default function PlatformPage() {
       if (!response.ok || !payload?.answer) {
         throw new Error(payload?.error || 'Failed to generate one pager.')
       }
-      const { title: generatedTitle, bodyMarkdown } = splitGeneratedTitleBlock(payload.answer)
+
       const prevViewTitle = onePagerViewTitleRef.current
-      const nextViewTitle =
-        generatedTitle ?? (prevViewTitle.trim() ? prevViewTitle : titleFromDeckFilename(deckFileName))
-      setOnePagerViewTitle(nextViewTitle)
-      setOnePagerSummary(aiMarkdownToEditorHtml(bodyMarkdown))
+
+      if (structured) {
+        if (onePagerLayoutId === 'strategic') {
+          const strategicPayload = parseStrategicAiJson(payload.answer)
+          if (!strategicPayload) {
+            throw new Error(
+              'The model did not return valid JSON for this layout. Close the + menu and try Generate again.'
+            )
+          }
+          const generatedTitle = strategicPageTitleFromPayload(strategicPayload, payload.answer)
+          const nextViewTitle =
+            generatedTitle ?? (prevViewTitle.trim() ? prevViewTitle : titleFromDeckFilename(deckFileName))
+          setOnePagerViewTitle(nextViewTitle)
+          setOnePagerSummary(coerceStoredEditorHtml(buildStrategicHtmlFromAi(strategicPayload)))
+        } else if (onePagerLayoutId === 'general') {
+          const zenPayload = parseProjectZenAiJson(payload.answer)
+          if (!zenPayload) {
+            throw new Error(
+              'The model did not return valid JSON for this layout. Close the + menu and try Generate again.'
+            )
+          }
+          const generatedTitle = projectZenPageTitleFromPayload(zenPayload, payload.answer)
+          const nextViewTitle =
+            generatedTitle ?? (prevViewTitle.trim() ? prevViewTitle : titleFromDeckFilename(deckFileName))
+          setOnePagerViewTitle(nextViewTitle)
+          const filledHtml = buildProjectZenHtmlFromAi(zenPayload)
+          setOnePagerSummary(coerceStoredEditorHtml(filledHtml))
+        } else {
+          throw new Error('This layout is not available for AI generate yet. Pick Normal or General.')
+        }
+      } else {
+        const { title: generatedTitle, bodyMarkdown } = splitGeneratedTitleBlock(payload.answer)
+        const nextViewTitle =
+          generatedTitle ?? (prevViewTitle.trim() ? prevViewTitle : titleFromDeckFilename(deckFileName))
+        setOnePagerViewTitle(nextViewTitle)
+        setOnePagerSummary(aiMarkdownToEditorHtml(bodyMarkdown))
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to generate one pager.'
       setOnePagerError(message)
@@ -1240,7 +1528,14 @@ export default function PlatformPage() {
       if (!response.ok || !payload.data) {
         throw new Error(payload.error || 'Smart fill failed.')
       }
-      const data = payload.data
+      const data = mergeSmartFillWithDeckInference(payload.data, deckText)
+
+      if (data.tamUsd != null || data.samUsd != null || data.somUsd != null) {
+        blockCloudMarketSizingHydrateRef.current = true
+      }
+      if (Boolean(data.competitiveLandscapeMd?.trim())) {
+        blockCloudMarketCompetitiveHydrateRef.current = true
+      }
 
       const narrativeMd = buildSmartFillNarrativeMd(data)
       if (narrativeMd) {
@@ -1322,6 +1617,7 @@ export default function PlatformPage() {
   }
 
   function updateMarketSizing<K extends keyof MarketSizing>(key: K, value: number) {
+    blockCloudMarketSizingHydrateRef.current = true
     setMarketSizing((prev) => ({ ...prev, [key]: value }))
   }
 
@@ -1349,6 +1645,34 @@ export default function PlatformPage() {
 
   const displayTeam = teamWorkspace.length > 0 ? teamWorkspace : HOME_TEAM
 
+  const shadowContextBundle = useMemo(
+    () =>
+      buildPlatformShadowContext({
+        deckText,
+        deckFileName,
+        financials,
+        traction,
+        marketSizing,
+        teamMembers: displayTeam,
+        onePagerSummaryHtml: onePagerSummary,
+        marketCompetitiveHtml: marketCompetitive,
+        productRoadmapHtml: productRoadmap,
+        blankWorkspaceDocs,
+      }),
+    [
+      deckText,
+      deckFileName,
+      financials,
+      traction,
+      marketSizing,
+      displayTeam,
+      onePagerSummary,
+      marketCompetitive,
+      productRoadmap,
+      blankWorkspaceDocs,
+    ]
+  )
+
   return (
     <main className="notion-page">
       <div className="notion-shell">
@@ -1362,7 +1686,28 @@ export default function PlatformPage() {
                     {accountEmail}
                   </span>
                 ) : null}
-                <button type="button" className="notion-sidebar-sign-out" onClick={() => void signOut()}>
+                <button
+                  type="button"
+                  className="notion-sidebar-sign-out"
+                  onClick={() => void signOut()}
+                  aria-label="Sign out"
+                >
+                  <svg
+                    className="notion-sidebar-sign-out-icon"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden
+                  >
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                    <polyline points="16 17 21 12 16 7" />
+                    <line x1="21" y1="12" x2="9" y2="12" />
+                  </svg>
                   Sign out
                 </button>
               </div>
@@ -1473,64 +1818,140 @@ export default function PlatformPage() {
                   )
                 }
                 placeholder="Blank page — write notes, memos, or drafts here."
+                shadowContext={shadowContextBundle}
               />
             </article>
           ) : activeTab === 'onepager' ? (
-            <article className="notion-doc" aria-label="One pager from pitch deck">
-              <div className="notion-doc-tools">
-                <label className="notion-upload">
-                  <span className="notion-upload-label">Pitch deck (PDF)</span>
-                  <input
-                    ref={deckFileInputRef}
-                    type="file"
-                    accept="application/pdf,.pdf,.ppt,.pptx"
-                    onChange={(event) => void onDeckSelected(event.target.files)}
-                  />
-                  {deckFileName && (
-                    <span className="notion-upload-meta">
-                      Selected: {deckFileName}
-                      {isExtractingPdf
-                        ? ' · Extracting text…'
-                        : deckText
-                          ? ` · ${Math.round(deckText.length / 1024)} KB text extracted`
-                          : ' · No text extracted yet'}
-                    </span>
-                  )}
-                </label>
-                <div className="notion-doc-tools-actions">
-                  <button
-                    type="button"
-                    onClick={() => presentDocument(onePagerViewTitle || 'One pager', onePagerSummary)}
-                  >
-                    Present
-                  </button>
-                  <button
-                    type="button"
-                    className="notion-doc-tool-secondary"
-                    onClick={() => void runSmartFill()}
-                    disabled={
-                      isSmartFilling ||
-                      isGeneratingOnePager ||
-                      isExtractingPdf ||
-                      !deckText.trim()
-                    }
-                  >
-                    {isSmartFilling ? 'Smart fill…' : 'Smart fill with AI'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={generateOnePager}
-                    disabled={
-                      isSmartFilling ||
-                      isGeneratingOnePager ||
-                      isExtractingPdf ||
-                      !deckText.trim()
-                    }
-                  >
-                    {isGeneratingOnePager ? 'Generating…' : 'Generate 1-pager'}
-                  </button>
+            <article className="notion-doc notion-doc--onepager" aria-label="One pager from pitch deck">
+              <input
+                ref={deckFileInputRef}
+                type="file"
+                accept="application/pdf,.pdf,.ppt,.pptx"
+                className="notion-onepager-file-hidden"
+                tabIndex={-1}
+                aria-hidden
+                onChange={(event) => void onDeckSelected(event.target.files)}
+              />
+              <div className="notion-onepager-topbar">
+                <button
+                  type="button"
+                  className={`notion-onepager-fab${deckText.trim() ? ' notion-onepager-fab--ready' : ''}`}
+                  aria-label="One pager actions"
+                  aria-expanded={onePagerMenuOpen}
+                  aria-haspopup="dialog"
+                  onClick={() => setOnePagerMenuOpen((open) => !open)}
+                >
+                  <span aria-hidden>+</span>
+                </button>
+              </div>
+
+              <div className="notion-onepager-layout-row" role="group" aria-label="One pager layout">
+                <span className="notion-onepager-layout-label">Layout</span>
+                <div className="notion-onepager-layout-pills">
+                  {ONE_PAGER_LAYOUTS.map((layout) => (
+                    <button
+                      key={layout.id}
+                      type="button"
+                      disabled={!layout.enabled}
+                      className={`notion-onepager-layout-pill${
+                        onePagerLayoutId === layout.id ? ' is-active' : ''
+                      }${!layout.enabled ? ' is-disabled' : ''}`}
+                      aria-pressed={onePagerLayoutId === layout.id}
+                      onClick={() => {
+                        if (!layout.enabled) return
+                        setOnePagerLayoutId(layout.id)
+                      }}
+                    >
+                      <span className="notion-onepager-layout-pill-label">{layout.label}</span>
+                      {!layout.enabled ? (
+                        <span className="notion-onepager-layout-pill-soon">Soon</span>
+                      ) : null}
+                    </button>
+                  ))}
                 </div>
               </div>
+
+              {onePagerMenuOpen ? (
+                <div
+                  className="notion-onepager-overlay"
+                  role="presentation"
+                  onClick={() => setOnePagerMenuOpen(false)}
+                >
+                  <div
+                    className="notion-onepager-overlay-card"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="one-pager-actions-title"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <h2 id="one-pager-actions-title" className="notion-onepager-overlay-title">
+                      One pager
+                    </h2>
+
+                    <div className="notion-onepager-overlay-upload">
+                      <span className="notion-onepager-overlay-label">Pitch deck (PDF)</span>
+                      <button
+                        type="button"
+                        className="notion-onepager-overlay-file-btn"
+                        onClick={() => deckFileInputRef.current?.click()}
+                      >
+                        Choose file…
+                      </button>
+                      {deckFileName ? (
+                        <p className="notion-onepager-overlay-meta">
+                          Selected: {deckFileName}
+                          {isExtractingPdf
+                            ? ' · Extracting text…'
+                            : deckText
+                              ? ` · ${Math.round(deckText.length / 1024)} KB text extracted`
+                              : ' · No text extracted yet'}
+                        </p>
+                      ) : (
+                        <p className="notion-onepager-overlay-meta notion-onepager-overlay-meta--muted">
+                          No file selected
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="notion-doc-tools-actions notion-onepager-overlay-actions">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          presentDocument(onePagerViewTitle || 'One pager', onePagerSummary)
+                          setOnePagerMenuOpen(false)
+                        }}
+                      >
+                        Present
+                      </button>
+                      <button
+                        type="button"
+                        className="notion-doc-tool-secondary"
+                        onClick={() => void runSmartFill()}
+                        disabled={
+                          isSmartFilling ||
+                          isGeneratingOnePager ||
+                          isExtractingPdf ||
+                          !deckText.trim()
+                        }
+                      >
+                        {isSmartFilling ? 'Smart fill…' : 'Smart fill with AI'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void generateOnePager()}
+                        disabled={
+                          isSmartFilling ||
+                          isGeneratingOnePager ||
+                          isExtractingPdf ||
+                          !deckText.trim()
+                        }
+                      >
+                        {isGeneratingOnePager ? 'Generating…' : 'Generate 1-pager'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
 
               {smartFillError && <p className="notion-doc-error">{smartFillError}</p>}
               {onePagerError && <p className="notion-doc-error">{onePagerError}</p>}
@@ -1543,9 +1964,18 @@ export default function PlatformPage() {
               />
 
               <RichDocEditor
+                key={`onepager-${onePagerLayoutId}`}
                 value={onePagerSummary}
                 onChange={setOnePagerSummary}
-                placeholder="Upload a pitch deck PDF above, then generate—or write and format your one pager here."
+                placeholder={
+                  onePagerLayoutId === 'default'
+                    ? 'Rich text one-pager — use + to upload a deck and generate, or write and format here.'
+                    : onePagerLayoutId === 'strategic'
+                      ? 'Strategic plan — use + to generate from your deck or edit here.'
+                      : 'Designed canvas — use + to upload a deck and generate, or write and format here.'
+                }
+                shadowContext={shadowContextBundle}
+                surfaceClass={editorSurfaceClassForLayout(onePagerLayoutId)}
               />
             </article>
           ) : activeTab === 'pitchdeck' ? (
@@ -1714,7 +2144,11 @@ export default function PlatformPage() {
                 </p>
                 <RichDocEditor
                   value={marketCompetitive}
-                  onChange={setMarketCompetitive}
+                  onChange={(html) => {
+                    blockCloudMarketCompetitiveHydrateRef.current = true
+                    setMarketCompetitive(html)
+                  }}
+                  shadowContext={shadowContextBundle}
                   placeholder={`## Direct competitors
 - **Acme** — enterprise incumbents, slow innovation…
 
@@ -1832,6 +2266,7 @@ What only you can claim (with proof).`}
                 <RichDocEditor
                   value={productRoadmap}
                   onChange={setProductRoadmap}
+                  shadowContext={shadowContextBundle}
                   placeholder="Ship timeline, milestones, themes (Now / Next / Later), links to tickets—whatever helps you tell the product story."
                 />
               </section>

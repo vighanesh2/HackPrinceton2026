@@ -1,15 +1,23 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { EditorContent, useEditor } from '@tiptap/react'
 import type { Editor } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
+import Image from '@tiptap/extension-image'
+import { Table, TableRow, TableCell, TableHeader } from '@tiptap/extension-table'
+import Link from '@tiptap/extension-link'
+import { ShadowCompleter } from '@/components/platform/shadowCompleterExtension'
 
 type RichDocEditorProps = {
   value: string
   onChange: (html: string) => void
   placeholder?: string
+  /** Workspace text used to ground ghost completions (financial / ownership / boilerplate). Omit to disable. */
+  shadowContext?: string
+  /** Optional class on the editor shell (e.g. one-pager print template theme). */
+  surfaceClass?: string
 }
 
 function toStoredHtml(editor: Editor): string {
@@ -23,11 +31,16 @@ function fromStoredHtml(value: string): string {
   return value.trim() === '' ? '<p></p>' : value
 }
 
-function Toolbar({ editor }: { editor: Editor | null }) {
+function Toolbar({ editor, shadowEnabled }: { editor: Editor | null; shadowEnabled: boolean }) {
   if (!editor) return null
 
   return (
     <div className="notion-rte-toolbar" role="toolbar" aria-label="Text formatting">
+      {shadowEnabled ? (
+        <span className="notion-rte-shadow-hint" title="Ghost text from your workspace. Tab to insert, Esc to dismiss.">
+          Shadow
+        </span>
+      ) : null}
       <button
         type="button"
         className={editor.isActive('bold') ? 'is-active' : ''}
@@ -123,28 +136,67 @@ function Toolbar({ editor }: { editor: Editor | null }) {
   )
 }
 
-export function RichDocEditor({ value, onChange, placeholder }: RichDocEditorProps) {
-  const editor = useEditor({
-    immediatelyRender: false,
-    shouldRerenderOnTransaction: true,
-    extensions: [
-      // Default heading levels (1–6) so Markdown HTML (h1, h4, …) from `marked` never breaks setContent.
+export function RichDocEditor({ value, onChange, placeholder, shadowContext, surfaceClass }: RichDocEditorProps) {
+  const shadowEnabled = shadowContext !== undefined
+  const contextRef = useRef(shadowContext ?? '')
+  contextRef.current = shadowContext ?? ''
+
+  const extensions = useMemo(() => {
+    const docExtensions = [
       StarterKit,
       Placeholder.configure({
         placeholder: placeholder ?? '',
       }),
-    ],
-    content: '<p></p>',
-    editorProps: {
-      attributes: {
-        class: 'notion-prosemirror',
-        spellCheck: 'true',
+      Image.configure({
+        inline: false,
+        allowBase64: true,
+        HTMLAttributes: { class: 'onepager-tpl-hero-img' },
+      }),
+      Table.configure({
+        resizable: false,
+        HTMLAttributes: { class: 'onepager-tpl-table-node' },
+      }),
+      TableRow,
+      TableHeader,
+      TableCell,
+      Link.configure({
+        openOnClick: true,
+        autolink: true,
+        HTMLAttributes: {
+          class: 'onepager-tpl-link',
+          rel: 'noopener noreferrer',
+        },
+      }),
+    ]
+    const base = shadowEnabled
+      ? [
+          ...docExtensions,
+          ShadowCompleter.configure({
+            getContext: () => contextRef.current,
+          }),
+        ]
+      : docExtensions
+    return base
+  }, [placeholder, shadowEnabled])
+
+  const editor = useEditor(
+    {
+      immediatelyRender: false,
+      shouldRerenderOnTransaction: true,
+      extensions,
+      content: '<p></p>',
+      editorProps: {
+        attributes: {
+          class: 'notion-prosemirror',
+          spellCheck: 'true',
+        },
+      },
+      onUpdate: ({ editor: ed }) => {
+        onChange(toStoredHtml(ed))
       },
     },
-    onUpdate: ({ editor: ed }) => {
-      onChange(toStoredHtml(ed))
-    },
-  })
+    [extensions]
+  )
 
   useEffect(() => {
     if (!editor || editor.isDestroyed) return
@@ -157,9 +209,11 @@ export function RichDocEditor({ value, onChange, placeholder }: RichDocEditorPro
     }
   }, [editor, value])
 
+  const shellClass = ['notion-rte', surfaceClass].filter(Boolean).join(' ')
+
   return (
-    <div className="notion-rte">
-      <Toolbar editor={editor} />
+    <div className={shellClass}>
+      <Toolbar editor={editor} shadowEnabled={shadowEnabled} />
       <EditorContent editor={editor} className="notion-rte-content" />
     </div>
   )
