@@ -82,7 +82,7 @@ export async function buildAgentContextBlockWithMeta(
     })
 
     parts.push(
-      '\nRETRIEVED DOC CHUNKS (hybrid vector + keyword; cite facts as [S1], [S2], … matching labels below):'
+      '\nRETRIEVED DOC CHUNKS (hybrid vector + keyword; labels [S1], [S2]… are for your reasoning only—do not echo them in user-facing text):'
     )
 
     if (chunks.length === 0) {

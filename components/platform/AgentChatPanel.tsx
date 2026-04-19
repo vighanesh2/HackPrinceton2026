@@ -1,7 +1,14 @@
 'use client'
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import DOMPurify from 'isomorphic-dompurify'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { aiMarkdownToEditorHtml } from '@/components/platform/editorHtml'
 import type { AgentConversationRow, AgentMessageRow } from '@/lib/platform/agentChatTypes'
+
+function assistantMarkdownToSafeHtml(md: string): string {
+  const raw = aiMarkdownToEditorHtml(md)
+  return DOMPurify.sanitize(raw, { USE_PROFILES: { html: true } })
+}
 
 type AgentRagPayload = {
   chunkCount: number
@@ -364,6 +371,7 @@ function AssistantBlock({
   rag?: AgentRagPayload
   onApplyToDocument?: (markdownFromAssistant: string) => void
 }) {
+  const html = useMemo(() => assistantMarkdownToSafeHtml(content), [content])
   return (
     <>
       {rag && (rag.chunkCount > 0 || rag.sources.length > 0) ? (
@@ -385,7 +393,10 @@ function AssistantBlock({
           ) : null}
         </div>
       ) : null}
-      <pre className="notion-agent-chat-text">{content}</pre>
+      <div
+        className="notion-agent-chat-text notion-agent-chat-md"
+        dangerouslySetInnerHTML={{ __html: html }}
+      />
       {onApplyToDocument && content.trim() ? (
         <div className="notion-agent-chat-apply-wrap">
           <button

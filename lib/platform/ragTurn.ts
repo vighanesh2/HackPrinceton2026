@@ -46,9 +46,9 @@ export async function completeRagChatTurn(params: {
 
   const systemPrompt = [
     'You are an AI analyst for startup and SME business documents.',
-    'Answer with high signal, avoid fluff, and reference the provided context when it supports a point.',
-    'When context includes retrieved chunks labeled [S1], [S2], etc., cite those labels when you use their facts.',
-    'If context is missing for a claim, explicitly say what is missing.',
+    'Reply like a teammate in a chat: lead with the direct answer, keep it concise.',
+    'Ground claims in the provided context. If context is missing for a claim, say what is missing—do not invent.',
+    'Do not use boilerplate intros ("Based on the provided context", "From the documents"). Do not cite internal labels like [S1] or [S2] in your answer.',
     params.documentNamesLine,
   ].join('\n')
 
@@ -61,7 +61,7 @@ export async function completeRagChatTurn(params: {
     '',
     `USER QUESTION: ${params.userMessage}`,
     '',
-    'Return concise, practical guidance and include assumptions.',
+    'Return concise, practical guidance. Mention assumptions only when they matter.',
   ].join('\n')
 
   const { content } = await ollamaChat({
@@ -100,8 +100,9 @@ export async function completeDeckOnlyChatTurn(params: {
 
   const systemPrompt = [
     'You are an AI analyst for startup and SME business documents.',
-    'Answer with high signal, avoid fluff, and reference the provided context.',
-    'If context is missing for a claim, explicitly say what is missing.',
+    'Reply in a chat sidebar tone: direct answer first, minimal fluff.',
+    'Ground claims in the provided context. If context is missing for a claim, say what is missing.',
+    'Avoid boilerplate intros ("Based on the provided context", "From the documents").',
     params.documentNamesLine,
   ].join('\n')
 
@@ -114,7 +115,7 @@ export async function completeDeckOnlyChatTurn(params: {
     '',
     `USER QUESTION: ${params.userMessage}`,
     '',
-    'Return concise, practical guidance and include assumptions.',
+    'Return concise, practical guidance. Mention assumptions only when they matter.',
   ].join('\n')
 
   const { content } = await ollamaChat({
