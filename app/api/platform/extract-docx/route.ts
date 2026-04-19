@@ -38,7 +38,26 @@ export async function POST(request: Request) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer())
-    const result = await mammoth.convertToHtml({ buffer })
+
+    /** Map common Word paragraph styles to semantic HTML + classes (TipTap-friendly). */
+    const styleMap = [
+      "p[style-name='Title'] => h1.docx-title:fresh",
+      "p[style-name='Subtitle'] => h2.docx-subtitle:fresh",
+      "p[style-name='Heading 1'] => h1.docx-h1:fresh",
+      "p[style-name='Heading 2'] => h2.docx-h2:fresh",
+      "p[style-name='Heading 3'] => h3.docx-h3:fresh",
+      // H4–6 as styled paragraphs (TipTap StarterKit headings are usually levels 1–3 only).
+      "p[style-name='Heading 4'] => p.docx-h4:fresh",
+      "p[style-name='Heading 5'] => p.docx-h5:fresh",
+      "p[style-name='Heading 6'] => p.docx-h6:fresh",
+      "p[style-name='Quote'] => blockquote.docx-quote:fresh",
+      "p[style-name='Intense Quote'] => blockquote.docx-quote.docx-quote-intense:fresh",
+    ]
+
+    const result = await mammoth.convertToHtml(
+      { buffer },
+      { styleMap }
+    )
     const html = (result.value || '').trim()
     return NextResponse.json({ html })
   } catch (error) {

@@ -1,4 +1,4 @@
-export type WorkspaceFolderFileKind = 'pdf' | 'text' | 'markdown' | 'docx'
+export type WorkspaceFolderFileKind = 'pdf' | 'text' | 'markdown' | 'docx' | 'pptx'
 
 export type WorkspaceFolderFileStatus = 'pending' | 'loading' | 'ready' | 'error'
 
@@ -40,6 +40,7 @@ export function classifyWorkspaceFilename(name: string): WorkspaceFolderFileKind
   const lower = name.toLowerCase()
   if (lower.endsWith('.pdf')) return 'pdf'
   if (lower.endsWith('.docx') || lower.endsWith('.dotx')) return 'docx'
+  if (lower.endsWith('.pptx')) return 'pptx'
   if (lower.endsWith('.md') || lower.endsWith('.markdown')) return 'markdown'
   if (lower.endsWith('.txt') || lower.endsWith('.text')) return 'text'
   return null
@@ -57,6 +58,12 @@ export function classifyWorkspaceFile(file: File): WorkspaceFolderFileKind | nul
     mime === 'application/vnd.openxmlformats-officedocument.wordprocessingml.template'
   ) {
     return 'docx'
+  }
+  if (
+    name.endsWith('.pptx') ||
+    mime === 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+  ) {
+    return 'pptx'
   }
   if (name.endsWith('.md') || name.endsWith('.markdown') || mime === 'text/markdown') return 'markdown'
   if (name.endsWith('.txt') || name.endsWith('.text') || mime === 'text/plain') return 'text'
@@ -123,7 +130,15 @@ export function parseWorkspaceFolders(raw: string | null): WorkspaceFolder[] {
         const relPath = typeof x.relPath === 'string' ? x.relPath : ''
         const displayName = typeof x.displayName === 'string' ? x.displayName : relPath || 'File'
         const kind = x.kind as WorkspaceFolderFileKind
-        if (kind !== 'pdf' && kind !== 'text' && kind !== 'markdown' && kind !== 'docx') continue
+        if (
+          kind !== 'pdf' &&
+          kind !== 'text' &&
+          kind !== 'markdown' &&
+          kind !== 'docx' &&
+          kind !== 'pptx'
+        ) {
+          continue
+        }
         const bodyHtml = typeof x.bodyHtml === 'string' ? x.bodyHtml : ''
         const st = x.status as WorkspaceFolderFileStatus
         const status: WorkspaceFolderFileStatus =

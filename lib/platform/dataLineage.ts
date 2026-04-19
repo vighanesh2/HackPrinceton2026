@@ -26,6 +26,7 @@ export type LineageKind =
   | 'blank_docs_saved'
   | 'workspace_file_edited'
   | 'lineage_cleared'
+  | 'cross_doc_claim_synced'
 
 const MAX_CHANGE_LINES = 24
 
@@ -65,6 +66,7 @@ export const LINEAGE_KIND_LABEL: Record<LineageKind, string> = {
   blank_docs_saved: 'Documents',
   workspace_file_edited: 'Document',
   lineage_cleared: 'Lineage',
+  cross_doc_claim_synced: 'Cross-doc sync',
 }
 
 function newId(): string {

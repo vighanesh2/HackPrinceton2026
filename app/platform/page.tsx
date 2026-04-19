@@ -4,180 +4,125 @@ import { createClient } from '@/lib/supabase/client'
 import { isSupabaseConfigured } from '@/lib/supabase/config'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
+import { flushSync } from 'react-dom'
+import { OriginalPdfPreview } from '@/components/platform/OriginalPdfPreview'
 import { RichDocEditor } from '@/components/platform/RichDocEditor'
 import { aiMarkdownToEditorHtml, coerceStoredEditorHtml } from '@/components/platform/editorHtml'
 import {
-  clearEmbeddedPitchDeckPdf,
-  loadEmbeddedPitchDeckPdf,
-  saveEmbeddedPitchDeckPdf,
-} from '@/components/platform/pitchDeckStorage'
-import {
-  clearProductDemoVideo,
-  clearProductScreenshots,
-  loadProductDemoVideo,
-  loadProductScreenshotRows,
-  loadProductScreenshots,
-  MAX_SCREENSHOTS,
-  MAX_SHOT_BYTES,
-  saveProductDemoVideo,
-  saveProductScreenshots,
-  type StoredScreenshotRow,
-} from '@/components/platform/productStorage'
-import { HOME_TEAM, type TeamMember } from '@/components/homeTeam'
-import {
-  inferMarketSizingFromDeckText,
-  mergeSmartFillWithDeckInference,
-  normalizeSmartFillPayload,
-  type SmartFillData,
-} from '@/lib/platform/smartFill'
-import {
-  pickWorkspaceFolderViaFileSystemAccess,
-  type WorkspacePickedFile,
-} from '@/lib/platform/workspaceDirectoryPicker'
-import {
-  classifyWorkspaceFile,
-  defaultFolderLabelFromFileList,
-  MAX_WORKSPACE_FILES_PER_FOLDER,
-  MAX_WORKSPACE_FOLDER_FILE_CHARS,
-  parseWorkspaceFolders,
-  plainExtractToEditorHtml,
-  shouldSkipWorkspacePath,
-  type WorkspaceFolder,
-  type WorkspaceFolderFileKind,
-} from '@/lib/platform/workspaceFolders'
-import {
-  clearTractionLogos,
-  loadTractionLogoRows,
-  loadTractionLogos,
-  MAX_LOGO_BYTES,
-  MAX_LOGOS,
-  saveTractionLogos,
-} from '@/components/platform/tractionStorage'
-import {
-  buildProjectZenHtmlFromAi,
-  buildStrategicHtmlFromAi,
-  editorSurfaceClassForLayout,
-  layoutUsesStructuredGenerate,
-  ONE_PAGER_LAYOUTS,
-  parseProjectZenAiJson,
-  parseStrategicAiJson,
-  parseStoredOnePagerLayoutId,
-  projectZenPageTitleFromPayload,
-  strategicPageTitleFromPayload,
-  type OnePagerLayoutId,
-} from '@/lib/platform/onePagerTemplates'
-import {
   appendDataLineageEvent,
+  formatLineageDisplayTime,
+  LINEAGE_KIND_LABEL,
   loadDataLineageEvents,
-  type LineageAppendInput,
   type LineageEvent,
 } from '@/lib/platform/dataLineage'
 import {
-  describeBlankDocsDiff,
-  describeDeckBlobChange,
-  describeFinancialDiff,
-  describeHtmlPlainShift,
-  describeMarketSizingDiff,
-  describeTeamRosterDiff,
-  describeTractionDiff,
-  type BlankDocLineageSnap,
-  type FinancialLineageSnapshot,
-  type MarketSizingLineageSnapshot,
-  type TractionLineageSnapshot,
-} from '@/lib/platform/lineageDescribe'
-import { DataLineagePanel } from '@/components/platform/DataLineagePanel'
+  claimValuesDiffer,
+  conflictCountForDoc,
+  detectClaimConflictGroups,
+  type ClaimsStore,
+  type StoredDocClaims,
+} from '@/lib/platform/claimsConflict'
+import { filterConflictGroupsDeterministic } from '@/lib/platform/deterministicConflictFilter'
+import { surfaceStringsToHighlightClaim } from '@/lib/platform/claimSurfaceStrings'
+import { groundedClaimsAndEvidence } from '@/lib/platform/claimsGrounding'
+import { formatClaimValue } from '@/lib/platform/claimsDisplay'
+import {
+  CLAIM_KEYS,
+  CLAIM_LABEL,
+  emptyClaimEvidenceRecord,
+  emptyClaimsRecord,
+  normalizeClaimEvidence,
+  type ClaimEvidenceRecord,
+  type ClaimKey,
+  type ClaimsRecord,
+} from '@/lib/platform/claimsSchema'
+import { pickScrollPhraseInPlainDoc } from '@/lib/platform/pickScrollPhraseForClaim'
+import { appendSyncFootnote, patchClaimInHtml } from '@/lib/platform/patchClaimInHtml'
+import {
+  classifyWorkspaceFile,
+  MAX_WORKSPACE_FOLDER_FILE_CHARS,
+  plainExtractToEditorHtml,
+  type WorkspaceFolderFileKind,
+} from '@/lib/platform/workspaceFolders'
+import {
+  heuristicExtractClaimsWithEvidence,
+  mergeClaimEvidence,
+  mergeClaimRecords,
+} from '@/lib/platform/heuristicExtractClaims'
 
-const STORAGE_ACTIVE_TAB_KEY = 'platform_notion_active_tab'
-const STORAGE_ONE_PAGER_SUMMARY_KEY = 'platform_one_pager_summary'
-const STORAGE_ONE_PAGER_LAYOUT_KEY = 'platform_one_pager_layout_v1'
-const STORAGE_ONE_PAGER_VIEW_TITLE_KEY = 'platform_one_pager_view_title'
-const STORAGE_ONE_PAGER_FILENAME_KEY = 'platform_one_pager_filename'
-const STORAGE_ONE_PAGER_DECK_TEXT_KEY = 'platform_one_pager_deck_text'
-const STORAGE_FINANCIALS_KEY = 'platform_financials_v1'
-const STORAGE_PRODUCT_ROADMAP_KEY = 'platform_product_roadmap_v1'
-const STORAGE_TRACTION_KEY = 'platform_traction_v1'
-const STORAGE_MARKET_SIZING_KEY = 'platform_market_sizing_v1'
-const STORAGE_MARKET_COMPETITIVE_KEY = 'platform_market_competitive_v1'
-const STORAGE_TEAM_WORKSPACE_KEY = 'platform_team_workspace_v1'
-const STORAGE_BLANK_DOCS_KEY = 'platform_blank_docs_v1'
-const STORAGE_ACTIVE_BLANK_DOC_ID_KEY = 'platform_active_blank_doc_id'
-const STORAGE_WORKSPACE_FOLDERS_KEY = 'platform_workspace_folders_v1'
-const STORAGE_ACTIVE_WORKSPACE_FILE_KEY = 'platform_active_workspace_file_v1'
+const SOURCE_KINDS: ReadonlySet<WorkspaceFolderFileKind> = new Set([
+  'pdf',
+  'docx',
+  'pptx',
+  'markdown',
+  'text',
+])
 
-const MAX_PDF_TEXT_CHARS = 24000
+const STORAGE_PLATFORM_DOCS = 'platform_uploaded_docs_v1'
+const STORAGE_LEGACY_DEMO_DOCS = 'platform_demo_docs_v1'
+const STORAGE_CLAIMS_GRAPH = 'platform_claims_graph_v1'
+const MAX_PLATFORM_DOCS = 50
 
-type TabId =
-  | 'onepager'
-  | 'pitchdeck'
-  | 'market'
-  | 'product'
-  | 'traction'
-  | 'team'
-  | 'financials'
-  | 'lineage'
-
-const TAB_IDS: TabId[] = [
-  'onepager',
-  'pitchdeck',
-  'market',
-  'product',
-  'traction',
-  'team',
-  'financials',
-  'lineage',
-]
-
-const TAB_LINEAGE_LABEL: Record<TabId, string> = {
-  onepager: 'One pager',
-  pitchdeck: 'Pitch deck',
-  market: 'Market',
-  product: 'Product',
-  traction: 'Traction',
-  team: 'Team',
-  financials: 'Financials',
-  lineage: 'Data lineage',
-}
-
-function tabFromUrlSearch(search: string): TabId | null {
-  try {
-    const tab = new URLSearchParams(search).get('tab')
-    if (tab && TAB_IDS.includes(tab as TabId)) return tab as TabId
-    return null
-  } catch {
-    return null
-  }
-}
-
-type BlankWorkspaceDoc = {
+type PlatformDoc = {
   id: string
   title: string
   bodyHtml: string
+  status: 'loading' | 'ready' | 'error'
+  error?: string
+  /** Persisted: original upload kind (PDF preview is session-only). */
+  sourceKind?: WorkspaceFolderFileKind
+  /** Session-only blob URL for native PDF layout (not saved to localStorage). */
+  originalPreviewUrl?: string
 }
 
-function nextBlankWorkspaceTitle(existing: BlankWorkspaceDoc[]) {
-  const base = 'Untitled'
-  const names = new Set(existing.map((d) => d.title))
-  if (!names.has(base)) return base
-  let n = 2
-  while (names.has(`${base} (${n})`)) n += 1
-  return `${base} (${n})`
+type PendingExtraction = { id: string; file: File; kind: WorkspaceFolderFileKind }
+
+function htmlToPlain(html: string): string {
+  return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
 }
 
-function parseBlankWorkspaceDocs(raw: string | null): BlankWorkspaceDoc[] {
-  if (!raw) return []
+function parsePlatformDocs(raw: string): PlatformDoc[] {
   try {
     const parsed = JSON.parse(raw) as unknown
     if (!Array.isArray(parsed)) return []
-    const out: BlankWorkspaceDoc[] = []
+    const out: PlatformDoc[] = []
     for (const row of parsed) {
       if (!row || typeof row !== 'object') continue
       const r = row as Record<string, unknown>
       const id = typeof r.id === 'string' ? r.id : ''
       if (!id) continue
       const title = typeof r.title === 'string' && r.title.trim() ? r.title.trim() : 'Untitled'
-      const bodyHtml =
-        typeof r.bodyHtml === 'string' ? coerceStoredEditorHtml(r.bodyHtml) : coerceStoredEditorHtml('')
-      out.push({ id, title, bodyHtml })
+      const bodyHtmlRaw = typeof r.bodyHtml === 'string' ? r.bodyHtml : ''
+      const bodyHtml = coerceStoredEditorHtml(bodyHtmlRaw)
+      const st = r.status
+      const skRaw = r.sourceKind
+      const sourceKind =
+        typeof skRaw === 'string' && SOURCE_KINDS.has(skRaw as WorkspaceFolderFileKind)
+          ? (skRaw as WorkspaceFolderFileKind)
+          : undefined
+      if (st === 'loading') {
+        out.push({
+          id,
+          title,
+          bodyHtml: '',
+          status: 'error',
+          error: 'Upload was interrupted — re-upload this file.',
+          ...(sourceKind ? { sourceKind } : {}),
+        })
+        continue
+      }
+      if (st === 'error') {
+        out.push({
+          id,
+          title,
+          bodyHtml,
+          status: 'error',
+          error: typeof r.error === 'string' && r.error.trim() ? r.error.trim() : 'Could not read this file.',
+          ...(sourceKind ? { sourceKind } : {}),
+        })
+        continue
+      }
+      out.push({ id, title, bodyHtml, status: 'ready', ...(sourceKind ? { sourceKind } : {}) })
     }
     return out
   } catch {
@@ -185,329 +130,94 @@ function parseBlankWorkspaceDocs(raw: string | null): BlankWorkspaceDoc[] {
   }
 }
 
-type ProductShotItem = { id: string; name: string; url: string }
-
-type FinancialInputs = {
-  cashOnHand: number
-  mrr: number
-  cogsPct: number
-  monthlyOpex: number
-  monthlyDebt: number
-  monthlyRevenueGrowthPct: number
-  monthlyExpenseGrowthPct: number
-  newMrrPerMonth: number
-  projectionMonths: number
-}
-
-const DEFAULT_FINANCIALS: FinancialInputs = {
-  cashOnHand: 250000,
-  mrr: 15000,
-  cogsPct: 20,
-  monthlyOpex: 40000,
-  monthlyDebt: 0,
-  monthlyRevenueGrowthPct: 8,
-  monthlyExpenseGrowthPct: 2,
-  newMrrPerMonth: 3000,
-  projectionMonths: 18,
-}
-
-type TractionInputs = {
-  mrr: number
-  customers: number
-  momGrowthPct: number
-  nrrPct: number
-  chartMonths: number
-}
-
-const DEFAULT_TRACTION: TractionInputs = {
-  mrr: 42000,
-  customers: 48,
-  momGrowthPct: 8,
-  nrrPct: 118,
-  chartMonths: 12,
-}
-
-type MarketSizing = {
-  tam: number
-  sam: number
-  som: number
-}
-
-const DEFAULT_MARKET_SIZING: MarketSizing = {
-  tam: 12_000_000_000,
-  sam: 2_400_000_000,
-  som: 180_000_000,
-}
-
-/** MRR points ending at `latestMrr`, implied constant MoM growth over `months` periods. */
-function buildMrrSeries(latestMrr: number, momPct: number, months: number): number[] {
-  const n = clamp(Math.round(months), 3, 24)
-  if (!Number.isFinite(latestMrr) || latestMrr < 0) return Array.from({ length: n }, () => 0)
-  const g = momPct / 100
-  if (n <= 1) return [latestMrr]
-  if (g === 0) return Array.from({ length: n }, () => latestMrr)
-  const start = latestMrr / Math.pow(1 + g, n - 1)
-  return Array.from({ length: n }, (_, i) => start * Math.pow(1 + g, i))
-}
-
-function formatMoney(value: number): string {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(
-    Number.isFinite(value) ? value : 0
-  )
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value))
-}
-
-function workspacePlainLen(html: string): number {
-  return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().length
-}
-
-function htmlToPlainSnippet(html: string, maxChars: number): string {
-  const t = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
-  if (!t) return ''
-  return t.length <= maxChars ? t : `${t.slice(0, maxChars)}…`
-}
-
-const SHADOW_SECTION_LABEL: Record<TabId, string> = {
-  onepager: 'One pager',
-  pitchdeck: 'Pitch deck',
-  market: 'Market',
-  product: 'Product',
-  traction: 'Traction',
-  team: 'Team',
-  financials: 'Financials',
-  lineage: 'Data lineage',
-}
-
-function buildPlatformShadowContext(params: {
-  activeTab: TabId
-  /** When the user is typing in a blank workspace doc, its title (sidebar document). */
-  activeBlankDocTitle: string | null
-  onePagerViewTitle: string
-  embeddedPitchDeckName: string | null
-  deckText: string
-  deckFileName: string | null
-  financials: FinancialInputs
-  traction: TractionInputs
-  marketSizing: MarketSizing
-  teamMembers: TeamMember[]
-  onePagerSummaryHtml: string
-  marketCompetitiveHtml: string
-  productRoadmapHtml: string
-  blankWorkspaceDocs: BlankWorkspaceDoc[]
-}): string {
-  const chunks: string[] = []
-  const add = (title: string, body: string) => {
-    const t = body.trim()
-    if (t) chunks.push(title, t)
+function migrateLegacyDemoDocs(legacyRaw: string): PlatformDoc[] {
+  try {
+    const o = JSON.parse(legacyRaw) as Record<string, unknown>
+    const order: [string, string][] = [
+      ['one_pager', 'One-Pager'],
+      ['pitch_deck', 'Pitch Deck'],
+      ['financials', 'Financials'],
+    ]
+    const out: PlatformDoc[] = []
+    for (const [id, title] of order) {
+      const v = o[id]
+      if (typeof v !== 'string' || !v.trim()) continue
+      out.push({ id, title, bodyHtml: coerceStoredEditorHtml(v), status: 'ready' })
+    }
+    return out
+  } catch {
+    return []
   }
+}
 
-  const focusLines = [
-    params.activeBlankDocTitle?.trim()
-      ? `Primary editor: workspace document "${params.activeBlankDocTitle.trim()}" (sidebar Documents). Workspace tab selection: ${SHADOW_SECTION_LABEL[params.activeTab]}.`
-      : `Primary editor: ${SHADOW_SECTION_LABEL[params.activeTab]} tab.`,
-    params.onePagerViewTitle.trim() ? `One pager document title: ${params.onePagerViewTitle.trim()}` : null,
-    params.embeddedPitchDeckName?.trim()
-      ? `Embedded pitch deck (Pitch deck tab): ${params.embeddedPitchDeckName.trim()}`
-      : null,
-  ].filter(Boolean) as string[]
-  add('=== Editor focus ===', focusLines.join('\n'))
-
-  add(
-    '=== Pitch deck extract ===',
-    params.deckText.trim()
-      ? `${params.deckFileName ? `File: ${params.deckFileName}\n` : ''}${params.deckText.slice(0, 12_000)}`
-      : ''
-  )
-
-  const f = params.financials
-  const variableCost = f.mrr * (f.cogsPct / 100)
-  const grossProfit = f.mrr - variableCost
-  const totalMonthlyCosts = f.monthlyOpex + f.monthlyDebt
-  const netBurn = totalMonthlyCosts - grossProfit
-  const runwayMo =
-    Number.isFinite(netBurn) && netBurn > 0 ? (f.cashOnHand / netBurn).toFixed(1) : null
-
-  add(
-    '=== Financial inputs (workspace) ===',
-    [
-      `MRR (modeled): ${formatMoney(f.mrr)}`,
-      `Modeled ARR (MRR×12): ${formatMoney(f.mrr * 12)}`,
-      `Cash on hand: ${formatMoney(f.cashOnHand)}`,
-      `Monthly opex: ${formatMoney(f.monthlyOpex)}`,
-      `Monthly debt service: ${formatMoney(f.monthlyDebt)}`,
-      `COGS %: ${f.cogsPct}`,
-      `Implied monthly revenue growth %: ${f.monthlyRevenueGrowthPct}`,
-      `Implied monthly expense growth %: ${f.monthlyExpenseGrowthPct}`,
-      `New MRR / mo (modeled): ${formatMoney(f.newMrrPerMonth)}`,
-    ].join('\n')
-  )
-
-  add(
-    '=== Derived financial snapshot (from inputs above) ===',
-    [
-      `Approx. net burn / month (opex + debt − gross profit on modeled MRR): ${formatMoney(Math.max(0, netBurn))}`,
-      runwayMo != null ? `Approx. runway (cash ÷ net burn): ${runwayMo} months` : 'Runway: not computable (net burn ≤ 0 or invalid).',
-    ].join('\n')
-  )
-
-  const tr = params.traction
-  add(
-    '=== Traction inputs (workspace) ===',
-    [
-      `MRR: ${formatMoney(tr.mrr)}`,
-      `Paying customers: ${tr.customers}`,
-      `MoM growth % (implied chart): ${tr.momGrowthPct}`,
-      `NRR %: ${tr.nrrPct}`,
-    ].join('\n')
-  )
-
-  add(
-    '=== Market sizing (workspace) ===',
-    `TAM ${formatMarketMoney(params.marketSizing.tam)} · SAM ${formatMarketMoney(params.marketSizing.sam)} · SOM ${formatMarketMoney(params.marketSizing.som)}`
-  )
-
-  const teamBlock = params.teamMembers.map((m) => `- ${m.name} (${m.role}): ${m.bio}`).join('\n')
-  add('=== Team roster ===', teamBlock)
-
-  add('=== One pager (plain excerpt) ===', htmlToPlainSnippet(params.onePagerSummaryHtml, 4_000))
-  add('=== Competitive landscape (plain excerpt) ===', htmlToPlainSnippet(params.marketCompetitiveHtml, 3_000))
-  add('=== Product roadmap (plain excerpt) ===', htmlToPlainSnippet(params.productRoadmapHtml, 3_000))
-
-  if (params.blankWorkspaceDocs.length) {
-    const docBits = params.blankWorkspaceDocs
-      .map((d) => `## ${d.title}\n${htmlToPlainSnippet(d.bodyHtml, 1_800)}`)
-      .join('\n\n')
-    add('=== Blank workspace documents ===', docBits.slice(0, 10_000))
+function loadDocsFromStorage(): PlatformDoc[] {
+  if (typeof window === 'undefined') return []
+  const raw = window.localStorage.getItem(STORAGE_PLATFORM_DOCS)
+  if (raw !== null) {
+    return parsePlatformDocs(raw)
   }
+  const legacy = window.localStorage.getItem(STORAGE_LEGACY_DEMO_DOCS)
+  if (!legacy) return []
+  const migrated = migrateLegacyDemoDocs(legacy)
+  if (migrated.length) {
+    try {
+      window.localStorage.setItem(STORAGE_PLATFORM_DOCS, JSON.stringify(migrated))
+      window.localStorage.removeItem(STORAGE_LEGACY_DEMO_DOCS)
+    } catch {
+      /* ignore */
+    }
+  }
+  return migrated
+}
 
-  let out = chunks.join('\n')
-  if (out.length > 26_000) out = `${out.slice(0, 26_000)}\n…[truncated]`
+function loadClaimsFromStorage(): ClaimsStore {
+  if (typeof window === 'undefined') return {}
+  try {
+    const raw = window.localStorage.getItem(STORAGE_CLAIMS_GRAPH)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw) as unknown
+    if (!parsed || typeof parsed !== 'object') return {}
+    const out: ClaimsStore = {}
+    for (const id of Object.keys(parsed as Record<string, unknown>)) {
+      const row = (parsed as Record<string, unknown>)[id]
+      if (!row || typeof row !== 'object') continue
+      const r = row as Record<string, unknown>
+      const updatedAt = typeof r.updatedAt === 'string' ? r.updatedAt : ''
+      const c = r.claims
+      if (!c || typeof c !== 'object') continue
+      const claims = emptyClaimsRecord()
+      for (const k of CLAIM_KEYS) {
+        const v = (c as Record<string, unknown>)[k]
+        if (typeof v === 'number' && Number.isFinite(v) && v >= 0) claims[k] = v
+        else claims[k] = null
+      }
+      const evRaw = r.evidence
+      const evidence =
+        evRaw && typeof evRaw === 'object' ? normalizeClaimEvidence(evRaw) : undefined
+      if (updatedAt) {
+        out[id] = evidence
+          ? { claims, evidence, updatedAt }
+          : { claims, updatedAt }
+      }
+    }
+    return out
+  } catch {
+    return {}
+  }
+}
+
+function pruneClaimsStore(store: ClaimsStore, docIds: Set<string>): ClaimsStore {
+  const out: ClaimsStore = {}
+  for (const id of docIds) {
+    if (store[id]) out[id] = store[id]
+  }
   return out
-}
-
-function buildSmartFillNarrativeMd(data: SmartFillData): string {
-  const parts: string[] = []
-  if (data.companyDescriptionMd) parts.push('## Company', data.companyDescriptionMd, '')
-  if (data.problemMd) parts.push('## Problem', data.problemMd, '')
-  if (data.solutionMd) parts.push('## Solution', data.solutionMd, '')
-  return parts.join('\n').trim()
-}
-
-function formatCompactMoney(value: number): string {
-  if (!Number.isFinite(value) || value <= 0) return '$0'
-  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`
-  if (value >= 10_000) return `$${Math.round(value / 1000)}k`
-  return formatMoney(value)
-}
-
-function formatMarketMoney(value: number): string {
-  if (!Number.isFinite(value) || value < 0) return '$0'
-  if (value >= 1_000_000_000) return `$${(value / 1_000_000_000).toFixed(1)}B`
-  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`
-  if (value >= 10_000) return `$${Math.round(value / 1000)}k`
-  return formatMoney(value)
-}
-
-function TractionMrrChart({ series }: { series: number[] }) {
-  const pad = { l: 58, r: 18, t: 20, b: 46 }
-  const cw = 640
-  const ch = 276
-  const plotW = cw - pad.l - pad.r
-  const plotH = ch - pad.t - pad.b
-  const n = Math.max(1, series.length)
-  const maxY = Math.max(...series, 1) * 1.06
-  const pts = series.map((v, i) => {
-    const x = pad.l + (n <= 1 ? plotW / 2 : (i / (n - 1)) * plotW)
-    const y = pad.t + plotH - (v / maxY) * plotH
-    return { x, y, v }
-  })
-  const lineD = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ')
-  const bottom = pad.t + plotH
-  const firstX = pts[0]?.x ?? pad.l
-  const lastX = pts[pts.length - 1]?.x ?? pad.l
-  const areaD = `${lineD} L ${lastX.toFixed(1)} ${bottom.toFixed(1)} L ${firstX.toFixed(1)} ${bottom.toFixed(1)} Z`
-  const yTicks = [maxY, maxY * 0.5, 0]
-  const xLabelIdx = [...new Set([0, n - 1, Math.round((n - 1) / 2)])].sort((a, b) => a - b)
-
-  return (
-    <div className="notion-traction-chart-surface">
-      <svg className="notion-traction-chart-svg" viewBox={`0 0 ${cw} ${ch}`} role="img" aria-label="MRR over time">
-        <defs>
-          <linearGradient id="tractionMrrFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#2563eb" stopOpacity="0.2" />
-            <stop offset="100%" stopColor="#2563eb" stopOpacity="0.02" />
-          </linearGradient>
-        </defs>
-        {yTicks.map((tv, idx) => {
-          const gy = pad.t + plotH - (tv / maxY) * plotH
-          return (
-            <g key={`yt-${idx}`}>
-              <line x1={pad.l} y1={gy} x2={pad.l + plotW} y2={gy} className="notion-traction-chart-grid" />
-              <text x={pad.l - 10} y={gy + 4} textAnchor="end" className="notion-traction-chart-axis">
-                {formatCompactMoney(tv)}
-              </text>
-            </g>
-          )
-        })}
-        <path d={areaD} fill="url(#tractionMrrFill)" stroke="none" />
-        <path
-          d={lineD}
-          fill="none"
-          stroke="#1d4ed8"
-          strokeWidth="2.5"
-          strokeLinejoin="round"
-          strokeLinecap="round"
-        />
-        {pts.map((p, i) => (
-          <circle key={`pt-${i}`} cx={p.x} cy={p.y} r="4" fill="#ffffff" stroke="#1d4ed8" strokeWidth="2" />
-        ))}
-        {xLabelIdx.map((i) => {
-          const p = pts[i]
-          if (!p) return null
-          return (
-            <text key={`xl-${i}`} x={p.x} y={ch - 14} textAnchor="middle" className="notion-traction-chart-axis">
-              M{i + 1}
-            </text>
-          )
-        })}
-      </svg>
-    </div>
-  )
-}
-
-/** First line `TITLE: …` is stripped for the page title; rest is Markdown body (default / Normal layout). */
-function splitGeneratedTitleBlock(raw: string): { title: string | null; bodyMarkdown: string } {
-  const trimmed = raw.trimStart()
-  const firstNl = trimmed.indexOf('\n')
-  const firstLine = firstNl === -1 ? trimmed : trimmed.slice(0, firstNl)
-  const match = firstLine.match(/^TITLE:\s*(.+)$/i)
-  if (!match) return { title: null, bodyMarkdown: raw }
-  const title = match[1].trim() || null
-  let rest = firstNl === -1 ? '' : trimmed.slice(firstNl + 1)
-  rest = rest.replace(/^\s*\n+/, '')
-  return { title, bodyMarkdown: rest }
-}
-
-function titleFromDeckFilename(name: string | null): string {
-  if (!name) return 'One pager'
-  const withoutExt = name.replace(/\.(pdf|pptx?)$/i, '')
-  const cleaned = withoutExt.replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim()
-  if (!cleaned) return 'One pager'
-  return `${cleaned} — One pager`
 }
 
 async function extractPdfTextOnServer(file: File): Promise<string> {
   const formData = new FormData()
   formData.append('file', file)
-
-  const response = await fetch('/api/platform/extract-pdf', {
-    method: 'POST',
-    body: formData,
-  })
-
+  const response = await fetch('/api/platform/extract-pdf', { method: 'POST', body: formData })
   const raw = await response.text()
   const contentType = response.headers.get('content-type') || ''
   let payload: { text?: string; error?: string } = {}
@@ -515,34 +225,21 @@ async function extractPdfTextOnServer(file: File): Promise<string> {
     try {
       payload = JSON.parse(raw) as { text?: string; error?: string }
     } catch {
-      throw new Error(
-        'PDF extract returned invalid JSON. If this keeps happening, restart the dev server after updating dependencies.'
-      )
+      throw new Error('PDF extract returned invalid JSON.')
     }
   } else if (raw.trimStart().startsWith('<')) {
-    throw new Error(
-      'Server returned an HTML error page instead of JSON (usually a 500 while loading the PDF library). Restart `npm run dev` after a clean build if needed.'
-    )
+    throw new Error('Server returned HTML instead of JSON for PDF extract.')
   } else {
     throw new Error(raw.slice(0, 200) || `PDF extract failed (${response.status}).`)
   }
-
-  if (!response.ok) {
-    throw new Error(payload.error || `PDF extract failed (${response.status}).`)
-  }
-
+  if (!response.ok) throw new Error(payload.error || `PDF extract failed (${response.status}).`)
   return (payload.text || '').trim()
 }
 
 async function extractDocxHtmlOnServer(file: File): Promise<string> {
   const formData = new FormData()
   formData.append('file', file)
-
-  const response = await fetch('/api/platform/extract-docx', {
-    method: 'POST',
-    body: formData,
-  })
-
+  const response = await fetch('/api/platform/extract-docx', { method: 'POST', body: formData })
   const raw = await response.text()
   const contentType = response.headers.get('content-type') || ''
   let payload: { html?: string; error?: string } = {}
@@ -553,363 +250,172 @@ async function extractDocxHtmlOnServer(file: File): Promise<string> {
       throw new Error('DOCX extract returned invalid JSON.')
     }
   } else if (raw.trimStart().startsWith('<')) {
-    throw new Error('Server returned HTML instead of JSON while extracting DOCX.')
+    throw new Error('Server returned HTML instead of JSON for DOCX extract.')
   } else {
     throw new Error(raw.slice(0, 200) || `DOCX extract failed (${response.status}).`)
   }
+  if (!response.ok) throw new Error(payload.error || `DOCX extract failed (${response.status}).`)
+  return (payload.html || '').trim()
+}
 
-  if (!response.ok) {
-    throw new Error(payload.error || `DOCX extract failed (${response.status}).`)
+async function extractPptxTextOnServer(file: File): Promise<string> {
+  const formData = new FormData()
+  formData.append('file', file)
+  const response = await fetch('/api/platform/extract-pptx', { method: 'POST', body: formData })
+  const raw = await response.text()
+  const contentType = response.headers.get('content-type') || ''
+  let payload: { text?: string; error?: string } = {}
+  if (contentType.includes('application/json')) {
+    try {
+      payload = JSON.parse(raw) as { text?: string; error?: string }
+    } catch {
+      throw new Error('PPTX extract returned invalid JSON.')
+    }
+  } else if (raw.trimStart().startsWith('<')) {
+    throw new Error('Server returned HTML instead of JSON for PPTX extract.')
+  } else {
+    throw new Error(raw.slice(0, 200) || `PPTX extract failed (${response.status}).`)
   }
+  if (!response.ok) throw new Error(payload.error || `PPTX extract failed (${response.status}).`)
+  return (payload.text || '').trim()
+}
 
-  const html = (payload.html || '').trim()
-  if (!html) {
-    throw new Error('This DOCX had no convertible HTML body (empty or unsupported).')
+async function extractFileToHtml(
+  file: File,
+  kind: WorkspaceFolderFileKind
+): Promise<{ html: string } | { error: string }> {
+  try {
+    if (kind === 'pdf') {
+      const text = await extractPdfTextOnServer(file)
+      if (!text.trim()) return { error: 'No extractable text in this PDF (try a text-based export).' }
+      return { html: plainExtractToEditorHtml(text.slice(0, MAX_WORKSPACE_FOLDER_FILE_CHARS)) }
+    }
+    if (kind === 'text') {
+      const text = await file.text()
+      return { html: plainExtractToEditorHtml(text.slice(0, MAX_WORKSPACE_FOLDER_FILE_CHARS)) }
+    }
+    if (kind === 'markdown') {
+      const text = await file.text()
+      return { html: aiMarkdownToEditorHtml(text.slice(0, MAX_WORKSPACE_FOLDER_FILE_CHARS)) }
+    }
+    if (kind === 'docx') {
+      const rawHtml = await extractDocxHtmlOnServer(file)
+      const html = coerceStoredEditorHtml(rawHtml)
+      const stripped = html.replace(/<[^>]+>/g, ' ')
+      if (stripped.length > MAX_WORKSPACE_FOLDER_FILE_CHARS) {
+        return {
+          html: `${html.slice(0, Math.min(html.length, MAX_WORKSPACE_FOLDER_FILE_CHARS))}<p>…</p>`,
+        }
+      }
+      return { html }
+    }
+    if (kind === 'pptx') {
+      const text = await extractPptxTextOnServer(file)
+      if (!text.trim()) return { error: 'No extractable text in this PPTX (try exporting with editable text).' }
+      return { html: plainExtractToEditorHtml(text.slice(0, MAX_WORKSPACE_FOLDER_FILE_CHARS)) }
+    }
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : 'Extraction failed.' }
   }
-  return html
+  return { error: 'Unsupported file type.' }
 }
 
 export default function PlatformPage() {
   const router = useRouter()
   const [accountEmail, setAccountEmail] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<TabId>('onepager')
-  const [blankWorkspaceDocs, setBlankWorkspaceDocs] = useState<BlankWorkspaceDoc[]>([])
-  const [activeBlankDocId, setActiveBlankDocId] = useState<string | null>(null)
-  const [workspaceFolders, setWorkspaceFolders] = useState<WorkspaceFolder[]>([])
-  const [activeWorkspaceFile, setActiveWorkspaceFile] = useState<{
-    folderId: string
-    fileId: string
-  } | null>(null)
-  /** Fallback when `showDirectoryPicker` is unavailable (Safari / older browsers). */
-  const workspaceWebkitDirectoryInputRef = useRef<HTMLInputElement>(null)
-
-  const [deckFileName, setDeckFileName] = useState<string | null>(null)
-  const [deckText, setDeckText] = useState('')
-  const [onePagerSummary, setOnePagerSummary] = useState('')
-  const [onePagerViewTitle, setOnePagerViewTitle] = useState('')
-  const [onePagerError, setOnePagerError] = useState<string | null>(null)
-  const [isGeneratingOnePager, setIsGeneratingOnePager] = useState(false)
-  const [isExtractingPdf, setIsExtractingPdf] = useState(false)
-  const deckFileInputRef = useRef<HTMLInputElement>(null)
-  const pitchDeckEmbedInputRef = useRef<HTMLInputElement>(null)
-  const embeddedDeckUrlRef = useRef<string | null>(null)
-  const onePagerViewTitleRef = useRef('')
-  const onePagerCloudReadyRef = useRef(false)
-  /** Skip initial cloud hydrate for market $ fields after local/smart-fill writes. */
-  const blockCloudMarketSizingHydrateRef = useRef(false)
-  /** Skip initial cloud hydrate for competitive HTML after local/smart-fill writes. */
-  const blockCloudMarketCompetitiveHydrateRef = useRef(false)
-
-  const [embeddedDeckUrl, setEmbeddedDeckUrl] = useState<string | null>(null)
-  const [embeddedDeckName, setEmbeddedDeckName] = useState<string | null>(null)
-  const [embeddedDeckError, setEmbeddedDeckError] = useState<string | null>(null)
-  const [embeddedDeckBusy, setEmbeddedDeckBusy] = useState(false)
-  const [isPresentingDeck, setIsPresentingDeck] = useState(false)
-  const [financials, setFinancials] = useState<FinancialInputs>(DEFAULT_FINANCIALS)
-
-  const [productRoadmap, setProductRoadmap] = useState('')
-  const [productDemoUrl, setProductDemoUrl] = useState<string | null>(null)
-  const [productDemoName, setProductDemoName] = useState<string | null>(null)
-  const [productDemoBusy, setProductDemoBusy] = useState(false)
-  const [productDemoError, setProductDemoError] = useState<string | null>(null)
-  const [productShots, setProductShots] = useState<ProductShotItem[]>([])
-  const [productShotsBusy, setProductShotsBusy] = useState(false)
-  const [productShotsError, setProductShotsError] = useState<string | null>(null)
-  const [traction, setTraction] = useState<TractionInputs>(DEFAULT_TRACTION)
-  const [tractionLogos, setTractionLogos] = useState<ProductShotItem[]>([])
-  const [tractionLogosBusy, setTractionLogosBusy] = useState(false)
-  const [tractionLogosError, setTractionLogosError] = useState<string | null>(null)
-  const [marketSizing, setMarketSizing] = useState<MarketSizing>(DEFAULT_MARKET_SIZING)
-  const [marketCompetitive, setMarketCompetitive] = useState('')
-  const [teamWorkspace, setTeamWorkspace] = useState<TeamMember[]>([])
-  const [isSmartFilling, setIsSmartFilling] = useState(false)
-  const [smartFillError, setSmartFillError] = useState<string | null>(null)
-  const [onePagerMenuOpen, setOnePagerMenuOpen] = useState(false)
-  const [onePagerLayoutId, setOnePagerLayoutId] = useState<OnePagerLayoutId>('default')
-  const productDemoInputRef = useRef<HTMLInputElement>(null)
-  const productShotsInputRef = useRef<HTMLInputElement>(null)
-  const tractionLogoInputRef = useRef<HTMLInputElement>(null)
-  const productDemoUrlRef = useRef<string | null>(null)
-  const productShotsRef = useRef<ProductShotItem[]>([])
-  const tractionLogosRef = useRef<ProductShotItem[]>([])
-
+  const [docs, setDocs] = useState<PlatformDoc[]>([])
+  const [activeDocId, setActiveDocId] = useState<string | null>(null)
+  const [claimsStore, setClaimsStore] = useState<ClaimsStore>({})
   const [lineageEvents, setLineageEvents] = useState<LineageEvent[]>([])
-  const [lineageHydrated, setLineageHydrated] = useState(false)
-  const finFpRef = useRef<string | null>(null)
-  const tracFpRef = useRef<string | null>(null)
-  const marketSizingFpRef = useRef<string | null>(null)
-  const marketCompFpRef = useRef<string | null>(null)
-  const productRoadFpRef = useRef<string | null>(null)
-  const teamFpRef = useRef<string | null>(null)
-  const onePagerSummaryFpRef = useRef<string | null>(null)
-  const onePagerTitleFpRef = useRef<string | null>(null)
-  const onePagerLayoutFpRef = useRef<string | null>(null)
-  const deckFpRef = useRef<string | null>(null)
-  const blankDocsFpRef = useRef<string | null>(null)
-  const workspaceFileEditTimerRef = useRef<number | null>(null)
-  const finPrevSnapshotRef = useRef<FinancialLineageSnapshot | null>(null)
-  const tracPrevSnapshotRef = useRef<TractionLineageSnapshot | null>(null)
-  const marketSizingPrevRef = useRef<MarketSizingLineageSnapshot | null>(null)
-  const marketCompPrevHtmlRef = useRef('')
-  const productRoadPrevHtmlRef = useRef('')
-  const onePagerSummaryPrevHtmlRef = useRef('')
-  const teamPrevMembersRef = useRef<TeamMember[] | null>(null)
-  const deckPrevNameRef = useRef<string | null>(null)
-  const deckPrevLenRef = useRef(0)
-  const blankDocsPrevSnapRef = useRef<BlankDocLineageSnap[]>([])
-  const workspacePlainLastLoggedRef = useRef(0)
-  const latestWorkspacePlainLenRef = useRef(0)
-
-  const recordLineage = useCallback((input: LineageAppendInput) => {
-    appendDataLineageEvent(input)
-    setLineageEvents(loadDataLineageEvents())
-  }, [])
-
-  const activeBlankDoc = useMemo(() => {
-    if (!activeBlankDocId) return null
-    return blankWorkspaceDocs.find((d) => d.id === activeBlankDocId) ?? null
-  }, [activeBlankDocId, blankWorkspaceDocs])
-
-  const activeWorkspaceView = useMemo(() => {
-    if (!activeWorkspaceFile) return null
-    const folder = workspaceFolders.find((f) => f.id === activeWorkspaceFile.folderId)
-    if (!folder) return null
-    const file = folder.files.find((x) => x.id === activeWorkspaceFile.fileId) ?? null
-    if (!file) return null
-    return { folder, file }
-  }, [activeWorkspaceFile, workspaceFolders])
+  const [conflictPanelOpen, setConflictPanelOpen] = useState(false)
+  const [expandedConflictId, setExpandedConflictId] = useState<string | null>(null)
+  const [scrollConflict, setScrollConflict] = useState<{
+    docId: string
+    phrase: string
+    token: number
+  } | null>(null)
+  const [syncSourcePickerOpen, setSyncSourcePickerOpen] = useState(false)
+  const [extractStatus, setExtractStatus] = useState<string | null>(null)
+  const hydratedRef = useRef(false)
+  const extractTimerRef = useRef<number | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const docsRef = useRef<PlatformDoc[]>([])
 
   useEffect(() => {
-    if (!activeWorkspaceView) {
-      workspacePlainLastLoggedRef.current = 0
-      latestWorkspacePlainLenRef.current = 0
-      return
-    }
-    const len = workspacePlainLen(activeWorkspaceView.file.bodyHtml)
-    workspacePlainLastLoggedRef.current = len
-    latestWorkspacePlainLenRef.current = len
-  }, [activeWorkspaceView?.folder.id, activeWorkspaceView?.file.id])
+    docsRef.current = docs
+  }, [docs])
 
-  function goToTab(tab: TabId) {
-    const fromTab = activeTab
-    setActiveBlankDocId(null)
-    setActiveWorkspaceFile(null)
-    if (fromTab !== tab) {
-      recordLineage({
-        kind: 'tab_nav',
-        summary: `Opened ${TAB_LINEAGE_LABEL[tab]}`,
-        detail: SHADOW_SECTION_LABEL[tab],
-        changes: [`Section: ${TAB_LINEAGE_LABEL[fromTab]} → ${TAB_LINEAGE_LABEL[tab]}`],
-      })
-    }
-    setActiveTab(tab)
-  }
-
-  async function signOut() {
-    if (!isSupabaseConfigured()) return
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    router.push('/login')
-    router.refresh()
-  }
-
-  function addBlankWorkspaceDocument() {
-    const id = crypto.randomUUID()
-    setActiveWorkspaceFile(null)
-    setBlankWorkspaceDocs((prev) => {
-      const title = nextBlankWorkspaceTitle(prev)
-      return [{ id, title, bodyHtml: '' }, ...prev]
-    })
-    setActiveBlankDocId(id)
-    recordLineage({
-      kind: 'blank_doc_created',
-      summary: 'Created blank workspace document',
-      detail: 'Untitled or next available name — edit title in the header.',
-      changes: ['New blank page added to the sidebar Documents list.'],
-    })
-  }
-
-  function removeWorkspaceFolder(folderId: string) {
-    const removed = workspaceFolders.find((f) => f.id === folderId)
-    if (removed) {
-      const names = removed.files.map((f) => f.displayName).slice(0, 8)
-      const more = removed.files.length > names.length ? ` (+${removed.files.length - names.length} more)` : ''
-      recordLineage({
-        kind: 'workspace_folder_removed',
-        summary: `Removed workspace folder: ${removed.label}`,
-        detail: `${removed.files.length} file(s)`,
-        changes: [`Dropped files: ${names.join(', ')}${more}`],
-      })
-    }
-    setWorkspaceFolders((prev) => prev.filter((f) => f.id !== folderId))
-    setActiveWorkspaceFile((cur) => (cur?.folderId === folderId ? null : cur))
-  }
-
-  function openWorkspaceFolderFile(folderId: string, fileId: string) {
-    setActiveBlankDocId(null)
-    setActiveWorkspaceFile({ folderId, fileId })
-    const folder = workspaceFolders.find((f) => f.id === folderId)
-    const file = folder?.files.find((x) => x.id === fileId)
-    if (folder && file) {
-      recordLineage({
-        kind: 'document_opened',
-        summary: `Opened file: ${file.displayName}`,
-        detail: `${folder.label} · ${file.relPath}`,
-        changes: ['Editor switched to this file (main workspace view).'],
-      })
-    }
-  }
-
-  async function extractWorkspaceFolderFileOne(
-    file: File,
-    kind: WorkspaceFolderFileKind
-  ): Promise<{ html: string } | { error: string }> {
-    try {
-      if (kind === 'pdf') {
-        const text = await extractPdfTextOnServer(file)
-        if (!text.trim()) return { error: 'No extractable text in this PDF (try a text-based export).' }
-        return { html: plainExtractToEditorHtml(text.slice(0, MAX_WORKSPACE_FOLDER_FILE_CHARS)) }
-      }
-      if (kind === 'text') {
-        const text = await file.text()
-        return { html: plainExtractToEditorHtml(text.slice(0, MAX_WORKSPACE_FOLDER_FILE_CHARS)) }
-      }
-      if (kind === 'markdown') {
-        const text = await file.text()
-        return { html: aiMarkdownToEditorHtml(text.slice(0, MAX_WORKSPACE_FOLDER_FILE_CHARS)) }
-      }
-      if (kind === 'docx') {
-        const rawHtml = await extractDocxHtmlOnServer(file)
-        const html = coerceStoredEditorHtml(rawHtml)
-        const stripped = html.replace(/<[^>]+>/g, ' ')
-        if (stripped.length > MAX_WORKSPACE_FOLDER_FILE_CHARS) {
-          return { html: `${html.slice(0, Math.min(html.length, MAX_WORKSPACE_FOLDER_FILE_CHARS))}<p>…</p>` }
+  useEffect(() => {
+    return () => {
+      for (const d of docsRef.current) {
+        if (d.originalPreviewUrl) {
+          try {
+            URL.revokeObjectURL(d.originalPreviewUrl)
+          } catch {
+            /* ignore */
+          }
         }
-        return { html }
       }
-    } catch (err) {
-      return { error: err instanceof Error ? err.message : 'Extraction failed.' }
     }
-    return { error: 'Unsupported file type.' }
-  }
+  }, [])
 
-  async function extractWorkspaceFolderEntries(
-    folderId: string,
-    entries: { fileId: string; file: File; kind: WorkspaceFolderFileKind }[]
-  ) {
-    for (const { fileId, file, kind } of entries) {
-      setWorkspaceFolders((prev) =>
-        prev.map((folder) => {
-          if (folder.id !== folderId) return folder
-          return {
-            ...folder,
-            files: folder.files.map((f) => (f.id === fileId ? { ...f, status: 'loading' } : f)),
-          }
-        })
-      )
-      const result = await extractWorkspaceFolderFileOne(file, kind)
-      setWorkspaceFolders((prev) =>
-        prev.map((folder) => {
-          if (folder.id !== folderId) return folder
-          return {
-            ...folder,
-            files: folder.files.map((f) => {
-              if (f.id !== fileId) return f
-              if ('html' in result) {
-                return { ...f, status: 'ready' as const, bodyHtml: result.html, error: undefined }
-              }
-              return { ...f, status: 'error' as const, error: result.error, bodyHtml: '' }
-            }),
-          }
-        })
-      )
-    }
-  }
+  const docTitle = useCallback(
+    (id: string | undefined) =>
+      docs.find((d) => d.id === id)?.title ?? (id && id.length > 0 ? id.slice(0, 8) : 'Document'),
+    [docs]
+  )
 
-  /** Folder upload: items include `relPath` (from FS API walk or webkitRelativePath). */
-  function ingestWorkspaceItemsWithPaths(items: WorkspacePickedFile[], sectionLabel: string) {
-    const sorted = [...items].sort((a, b) =>
-      a.relPath.localeCompare(b.relPath, undefined, { sensitivity: 'base' })
-    )
-    const folderId = crypto.randomUUID()
-    const createdAt = new Date().toISOString()
-    const picked: WorkspacePickedFile[] = []
-    for (const row of sorted) {
-      if (shouldSkipWorkspacePath(row.relPath)) continue
-      const kind = classifyWorkspaceFile(row.file)
-      if (!kind) continue
-      picked.push(row)
-      if (picked.length >= MAX_WORKSPACE_FILES_PER_FOLDER) break
-    }
-    if (!picked.length) {
-      window.alert(
-        'No supported files found in that folder. Supported: PDF, Word (.docx), .txt, and Markdown (.md).'
-      )
-      return
-    }
-    const files = picked.map(({ file, relPath }) => {
-      const kind = classifyWorkspaceFile(file)!
-      return {
-        id: crypto.randomUUID(),
-        relPath,
-        displayName: file.name,
-        kind,
-        bodyHtml: '',
-        status: 'pending' as const,
-      }
-    })
-    const newFolder: WorkspaceFolder = { id: folderId, label: sectionLabel, createdAt, files }
-    setWorkspaceFolders((prev) => [...prev, newFolder])
-    setActiveBlankDocId(null)
-    setActiveWorkspaceFile({ folderId, fileId: files[0]!.id })
-    recordLineage({
-      kind: 'workspace_folder_imported',
-      summary: `Imported workspace folder: ${sectionLabel}`,
-      detail: `${files.length} supported file(s)`,
-      changes: [
-        `Folder label: ${sectionLabel}`,
-        ...files.slice(0, 10).map((f) => `· ${f.displayName}`),
-        ...(files.length > 10 ? [`(+${files.length - 10} more files)`] : []),
-      ],
-    })
-    const entries = files.map((row, i) => ({
-      fileId: row.id,
-      file: picked[i]!.file,
-      kind: row.kind,
+  const clearScrollConflict = useCallback(() => {
+    setScrollConflict(null)
+  }, [])
+
+  const openConflictInDoc = useCallback((docId: string, key: ClaimKey, value: number) => {
+    const d = docsRef.current.find((x) => x.id === docId && x.status === 'ready')
+    const plain = d ? htmlToPlain(d.bodyHtml) : ''
+    const picked = pickScrollPhraseInPlainDoc(plain, key, value)
+    const phrase = picked ?? formatClaimValue(key, value)
+    setActiveDocId(docId)
+    setScrollConflict((prev) => ({
+      docId,
+      phrase,
+      token: (prev?.token ?? 0) + 1,
     }))
-    void extractWorkspaceFolderEntries(folderId, entries)
-  }
+  }, [])
 
-  async function onWorkspaceFolderButtonClick() {
-    try {
-      const picked = await pickWorkspaceFolderViaFileSystemAccess()
-      if (picked.ok) {
-        ingestWorkspaceItemsWithPaths(picked.items, picked.label)
-        return
-      }
-      if (picked.reason === 'aborted') return
-      workspaceWebkitDirectoryInputRef.current?.click()
-    } catch (err) {
-      window.alert(err instanceof Error ? err.message : 'Could not read that folder.')
+  const rawConflictGroups = useMemo(() => detectClaimConflictGroups(claimsStore), [claimsStore])
+  const conflicts = useMemo(
+    () => filterConflictGroupsDeterministic(rawConflictGroups, claimsStore),
+    [rawConflictGroups, claimsStore]
+  )
+
+  useEffect(() => {
+    if (scrollConflict && activeDocId !== scrollConflict.docId) {
+      setScrollConflict(null)
     }
-  }
+  }, [activeDocId, scrollConflict])
 
-  function onWorkspaceWebkitDirectoryChange(event: ChangeEvent<HTMLInputElement>) {
-    const list = event.target.files
-    if (!list?.length) return
-    const arr = Array.from(list).sort((a, b) => {
-      const pa = (a as File & { webkitRelativePath?: string }).webkitRelativePath || a.name
-      const pb = (b as File & { webkitRelativePath?: string }).webkitRelativePath || b.name
-      return pa.localeCompare(pb, undefined, { sensitivity: 'base' })
-    })
-    event.target.value = ''
-    const items: WorkspacePickedFile[] = arr.map((file) => ({
-      file,
-      relPath: (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name,
-    }))
-    const label = defaultFolderLabelFromFileList(arr)
-    ingestWorkspaceItemsWithPaths(items, label)
-  }
+  const activeDoc = useMemo(
+    () => (activeDocId ? docs.find((d) => d.id === activeDocId) ?? null : null),
+    [activeDocId, docs]
+  )
+
+  /** Literal substrings in the open doc that participate in a cross-doc conflict (for red underlines). */
+  const conflictHighlightPhrases = useMemo(() => {
+    if (!activeDocId) return []
+    const phrases = new Set<string>()
+    for (const g of conflicts) {
+      const row = g.docs.find((d) => d.docId === activeDocId)
+      if (!row) continue
+      for (const s of surfaceStringsToHighlightClaim(g.key, row.value)) {
+        phrases.add(s)
+      }
+    }
+    return [...phrases].sort((a, b) => b.length - a.length)
+  }, [conflicts, activeDocId])
+
+  const refreshLineage = useCallback(() => {
+    setLineageEvents(loadDataLineageEvents().filter((e) => e.kind === 'cross_doc_claim_synced').slice(0, 12))
+  }, [])
 
   useEffect(() => {
     if (!isSupabaseConfigured()) return
@@ -924,1568 +430,409 @@ export default function PlatformPage() {
   }, [])
 
   useEffect(() => {
-    if (activeTab !== 'onepager') setOnePagerMenuOpen(false)
-  }, [activeTab])
-
-  useEffect(() => {
-    if (!onePagerMenuOpen) return
-    function onKey(e: KeyboardEvent) {
-      if (e.key !== 'Escape') return
-      setOnePagerMenuOpen(false)
+    if (hydratedRef.current) return
+    hydratedRef.current = true
+    const initialDocs = loadDocsFromStorage()
+    let initialClaims = loadClaimsFromStorage()
+    initialClaims = pruneClaimsStore(initialClaims, new Set(initialDocs.map((d) => d.id)))
+    setDocs(initialDocs)
+    setClaimsStore(initialClaims)
+    if (initialDocs.length) {
+      const first = initialDocs.find((d) => d.status === 'ready') ?? initialDocs[0]
+      setActiveDocId(first.id)
     }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onePagerMenuOpen])
-
-  useEffect(() => {
-    let cancelled = false
-
-    const rawTab = window.localStorage.getItem(STORAGE_ACTIVE_TAB_KEY)
-    const savedTab = (rawTab === 'doc' ? 'onepager' : rawTab) as TabId | null
-    const urlTab = tabFromUrlSearch(window.location.search)
-    const savedSummary = window.localStorage.getItem(STORAGE_ONE_PAGER_SUMMARY_KEY) || ''
-    const savedLayout = parseStoredOnePagerLayoutId(window.localStorage.getItem(STORAGE_ONE_PAGER_LAYOUT_KEY))
-    setOnePagerLayoutId(savedLayout)
-    const savedViewTitle = window.localStorage.getItem(STORAGE_ONE_PAGER_VIEW_TITLE_KEY) || ''
-    const savedDeckName = window.localStorage.getItem(STORAGE_ONE_PAGER_FILENAME_KEY) || ''
-    const savedDeckText = window.localStorage.getItem(STORAGE_ONE_PAGER_DECK_TEXT_KEY) || ''
-    const usedUrlTab = Boolean(urlTab)
-    if (urlTab) {
-      setActiveTab(urlTab)
-      setActiveBlankDocId(null)
-      setActiveWorkspaceFile(null)
-      if (window.location.pathname === '/platform') {
-        window.history.replaceState({}, '', '/platform')
-      }
-    } else if (
-      savedTab === 'onepager' ||
-      savedTab === 'pitchdeck' ||
-      savedTab === 'market' ||
-      savedTab === 'product' ||
-      savedTab === 'traction' ||
-      savedTab === 'team' ||
-      savedTab === 'financials' ||
-      savedTab === 'lineage'
-    ) {
-      setActiveTab(savedTab)
-    }
-    setOnePagerSummary(coerceStoredEditorHtml(savedSummary))
-    setOnePagerViewTitle(savedViewTitle)
-    setDeckFileName(savedDeckName || null)
-    setDeckText(savedDeckText)
-    if (savedDeckName && !savedDeckText.trim()) {
-      setOnePagerError(
-        'This deck was selected before, but no extracted text is saved. Choose the PDF again to extract text, or pick a PDF with selectable text (not image-only).'
-      )
-    }
-    try {
-      const raw = window.localStorage.getItem(STORAGE_FINANCIALS_KEY)
-      if (raw) {
-        const parsed = JSON.parse(raw) as Partial<FinancialInputs>
-        setFinancials({ ...DEFAULT_FINANCIALS, ...parsed })
-      }
-    } catch {
-      setFinancials(DEFAULT_FINANCIALS)
-    }
-    try {
-      const rawT = window.localStorage.getItem(STORAGE_TRACTION_KEY)
-      if (rawT) {
-        const parsed = JSON.parse(rawT) as Partial<TractionInputs>
-        setTraction({ ...DEFAULT_TRACTION, ...parsed })
-      }
-    } catch {
-      setTraction(DEFAULT_TRACTION)
-    }
-    let preferLocalMarketSizing = false
-    try {
-      const rawM = window.localStorage.getItem(STORAGE_MARKET_SIZING_KEY)
-      if (rawM) {
-        const parsed = JSON.parse(rawM) as Partial<MarketSizing>
-        const merged = { ...DEFAULT_MARKET_SIZING, ...parsed }
-        setMarketSizing(merged)
-        preferLocalMarketSizing =
-          merged.tam !== DEFAULT_MARKET_SIZING.tam ||
-          merged.sam !== DEFAULT_MARKET_SIZING.sam ||
-          merged.som !== DEFAULT_MARKET_SIZING.som
-      }
-    } catch {
-      setMarketSizing(DEFAULT_MARKET_SIZING)
-    }
-    const initialCompetitiveHtml = coerceStoredEditorHtml(
-      window.localStorage.getItem(STORAGE_MARKET_COMPETITIVE_KEY) || ''
-    )
-    setMarketCompetitive(initialCompetitiveHtml)
-    const preferLocalMarketCompetitive = workspacePlainLen(initialCompetitiveHtml) >= 40
-    try {
-      const rawTw = window.localStorage.getItem(STORAGE_TEAM_WORKSPACE_KEY)
-      if (rawTw) {
-        const parsed = JSON.parse(rawTw) as unknown
-        if (Array.isArray(parsed)) {
-          const { teamMembers } = normalizeSmartFillPayload({ teamMembers: parsed })
-          setTeamWorkspace(teamMembers)
-        }
-      }
-    } catch {
-      setTeamWorkspace([])
-    }
-    setProductRoadmap(coerceStoredEditorHtml(window.localStorage.getItem(STORAGE_PRODUCT_ROADMAP_KEY) || ''))
-    const blanks = parseBlankWorkspaceDocs(window.localStorage.getItem(STORAGE_BLANK_DOCS_KEY))
-    setBlankWorkspaceDocs(blanks)
-    const folderStore = parseWorkspaceFolders(window.localStorage.getItem(STORAGE_WORKSPACE_FOLDERS_KEY))
-    setWorkspaceFolders(folderStore)
-    let restoredWorkspaceFile: { folderId: string; fileId: string } | null = null
-    try {
-      const rawWf = window.localStorage.getItem(STORAGE_ACTIVE_WORKSPACE_FILE_KEY)
-      if (rawWf) {
-        const j = JSON.parse(rawWf) as { folderId?: string; fileId?: string }
-        if (
-          j.folderId &&
-          j.fileId &&
-          folderStore.some(
-            (fl) => fl.id === j.folderId && fl.files.some((fi) => fi.id === j.fileId)
-          )
-        ) {
-          restoredWorkspaceFile = { folderId: j.folderId, fileId: j.fileId }
-        }
-      }
-    } catch {
-      restoredWorkspaceFile = null
-    }
-    const savedActiveBlank = window.localStorage.getItem(STORAGE_ACTIVE_BLANK_DOC_ID_KEY)
-    if (restoredWorkspaceFile) {
-      setActiveWorkspaceFile(restoredWorkspaceFile)
-      setActiveBlankDocId(null)
-    } else if (!usedUrlTab && savedActiveBlank && blanks.some((d) => d.id === savedActiveBlank)) {
-      setActiveBlankDocId(savedActiveBlank)
-    }
+    refreshLineage()
 
     void (async () => {
-      try {
+      for (const doc of initialDocs) {
+        if (doc.status !== 'ready' || initialClaims[doc.id]) continue
+        const plain = htmlToPlain(doc.bodyHtml)
+        if (!plain) {
+          setClaimsStore((prev) => ({
+            ...prev,
+            [doc.id]: {
+              claims: emptyClaimsRecord(),
+              evidence: emptyClaimEvidenceRecord(),
+              updatedAt: new Date().toISOString(),
+            },
+          }))
+          continue
+        }
         try {
-          const row = await loadEmbeddedPitchDeckPdf()
-          if (!cancelled && row) {
-            setEmbeddedDeckUrl((prev) => {
-              if (prev) URL.revokeObjectURL(prev)
-              return URL.createObjectURL(row.blob)
-            })
-            setEmbeddedDeckName(row.filename)
-          }
+          const res = await fetch('/api/platform/extract-claims', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: plain }),
+          })
+          const data = (await res.json()) as { claims?: ClaimsRecord; evidence?: unknown }
+          const claims = data.claims ?? emptyClaimsRecord()
+          const evidence = normalizeClaimEvidence(data.evidence)
+          setClaimsStore((prev) => ({
+            ...prev,
+            [doc.id]: { claims, evidence, updatedAt: new Date().toISOString() },
+          }))
         } catch {
-          if (!cancelled) {
-            setEmbeddedDeckError('Could not load a deck saved in this browser. Try uploading again.')
-          }
+          setClaimsStore((prev) => ({
+            ...prev,
+            [doc.id]: {
+              claims: emptyClaimsRecord(),
+              evidence: emptyClaimEvidenceRecord(),
+              updatedAt: new Date().toISOString(),
+            },
+          }))
         }
-
-        if (!isSupabaseConfigured()) {
-          return
-        }
-
-        const [onePagerRes, pitchDeckRes, marketRes] = await Promise.all([
-          fetch('/api/platform/one-pager'),
-          fetch('/api/platform/pitch-deck'),
-          fetch('/api/platform/market'),
-        ])
-
-        if (cancelled) return
-
-        if (onePagerRes.ok) {
-          const payload = (await onePagerRes.json()) as {
-            record: {
-              view_title: string | null
-              summary_html: string | null
-              deck_filename: string | null
-              deck_text: string | null
-            } | null
-          }
-          if (!cancelled && payload.record) {
-            setOnePagerViewTitle(payload.record.view_title ?? '')
-            setOnePagerSummary(coerceStoredEditorHtml(payload.record.summary_html ?? ''))
-            setDeckFileName(payload.record.deck_filename ?? null)
-            setDeckText(payload.record.deck_text ?? '')
-          }
-        }
-
-        if (pitchDeckRes.ok) {
-          const pj = (await pitchDeckRes.json()) as {
-            record: { filename: string; mime: string; signedUrl: string } | null
-          }
-          if (!cancelled && pj.record?.signedUrl) {
-            const blob = await fetch(pj.record.signedUrl).then((r) => r.blob())
-            if (!cancelled) {
-              setEmbeddedDeckUrl((prev) => {
-                if (prev) URL.revokeObjectURL(prev)
-                return URL.createObjectURL(blob)
-              })
-              setEmbeddedDeckName(pj.record.filename || 'deck.pdf')
-            }
-          }
-        }
-
-        if (marketRes.ok) {
-          const mk = (await marketRes.json()) as {
-            record: {
-              sizing?: { tam?: number; sam?: number; som?: number }
-              competitive_html?: string
-            } | null
-          }
-          if (!cancelled && mk.record) {
-            if (!preferLocalMarketSizing && !blockCloudMarketSizingHydrateRef.current) {
-              const s = mk.record.sizing
-              if (s) {
-                const tam = s.tam
-                const sam = s.sam
-                const som = s.som
-                if (
-                  typeof tam === 'number' &&
-                  typeof sam === 'number' &&
-                  typeof som === 'number' &&
-                  [tam, sam, som].every((n) => Number.isFinite(n) && n >= 0)
-                ) {
-                  setMarketSizing({ ...DEFAULT_MARKET_SIZING, tam, sam, som })
-                }
-              }
-            }
-            if (
-              !preferLocalMarketCompetitive &&
-              !blockCloudMarketCompetitiveHydrateRef.current &&
-              typeof mk.record.competitive_html === 'string'
-            ) {
-              setMarketCompetitive(coerceStoredEditorHtml(mk.record.competitive_html))
-            }
-          }
-        }
-      } catch {
-        // keep local / localStorage values
-      } finally {
-        if (!cancelled) onePagerCloudReadyRef.current = true
       }
     })()
+  }, [refreshLineage])
 
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
+  /** Drop stored figures that do not literally appear in the doc (fixes stale / hallucinated extractions). */
   useEffect(() => {
-    setLineageEvents(loadDataLineageEvents())
-    try {
-      if (typeof sessionStorage === 'undefined') return
-      if (sessionStorage.getItem('rontzen_lineage_session_v1') === '1') return
-      sessionStorage.setItem('rontzen_lineage_session_v1', '1')
-      appendDataLineageEvent({
-        kind: 'session_start',
-        summary: 'Workspace session started',
-        detail: `Local: ${new Date().toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}`,
-      })
-      setLineageEvents(loadDataLineageEvents())
-    } catch {
-      /* ignore */
-    }
-  }, [])
-
-  useEffect(() => {
-    setLineageHydrated(true)
-  }, [])
-
-  /** If the extracted deck spells out TAM/SAM/SOM but Market is still the stock placeholder row, pull numbers from the deck. */
-  useEffect(() => {
-    if (!deckText.trim()) return
-    const inferred = inferMarketSizingFromDeckText(deckText)
-    if (inferred.tamUsd == null && inferred.samUsd == null && inferred.somUsd == null) return
-    setMarketSizing((prev) => {
-      const isPlaceholder =
-        prev.tam === DEFAULT_MARKET_SIZING.tam &&
-        prev.sam === DEFAULT_MARKET_SIZING.sam &&
-        prev.som === DEFAULT_MARKET_SIZING.som
-      if (!isPlaceholder) return prev
-      blockCloudMarketSizingHydrateRef.current = true
-      return {
-        tam: inferred.tamUsd ?? prev.tam,
-        sam: inferred.samUsd ?? prev.sam,
-        som: inferred.somUsd ?? prev.som,
+    if (!hydratedRef.current) return
+    setClaimsStore((prev) => {
+      let changed = false
+      const next: ClaimsStore = { ...prev }
+      for (const d of docs) {
+        if (d.status !== 'ready') continue
+        const e = prev[d.id]
+        if (!e) continue
+        const g = groundedClaimsAndEvidence(htmlToPlain(d.bodyHtml), e.claims, e.evidence)
+        const sameClaims = CLAIM_KEYS.every((k) => e.claims[k] === g.claims[k])
+        const sameEv = CLAIM_KEYS.every((k) => (e.evidence?.[k] ?? null) === g.evidence[k])
+        if (sameClaims && sameEv) continue
+        next[d.id] = { ...e, claims: g.claims, evidence: g.evidence, updatedAt: new Date().toISOString() }
+        changed = true
       }
+      return changed ? next : prev
     })
-  }, [deckText])
+  }, [docs, claimsStore])
 
   useEffect(() => {
-    if (!onePagerCloudReadyRef.current) return
-    const t = window.setTimeout(() => {
-      void (async () => {
-        try {
-          const res = await fetch('/api/platform/one-pager', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              viewTitle: onePagerViewTitle,
-              summaryHtml: onePagerSummary,
-              deckFilename: deckFileName,
-              deckText,
-            }),
-          })
-          if (!res.ok) {
-            const text = await res.text()
-            console.warn('One pager cloud save failed', res.status, text)
-          }
-        } catch (err) {
-          console.warn('One pager cloud save failed', err)
-        }
-      })()
-    }, 900)
-    return () => window.clearTimeout(t)
-  }, [onePagerSummary, onePagerViewTitle, deckFileName, deckText])
-
-  useEffect(() => {
-    if (!onePagerCloudReadyRef.current) return
-    const t = window.setTimeout(() => {
-      void (async () => {
-        try {
-          const res = await fetch('/api/platform/market', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              sizing: marketSizing,
-              competitiveHtml: marketCompetitive,
-            }),
-          })
-          if (!res.ok) {
-            const text = await res.text()
-            console.warn('Market cloud save failed', res.status, text)
-          }
-        } catch (err) {
-          console.warn('Market cloud save failed', err)
-        }
-      })()
-    }, 900)
-    return () => window.clearTimeout(t)
-  }, [marketSizing, marketCompetitive])
-
-  useEffect(() => {
-    window.localStorage.setItem(STORAGE_BLANK_DOCS_KEY, JSON.stringify(blankWorkspaceDocs))
-  }, [blankWorkspaceDocs])
-
-  useEffect(() => {
+    if (!hydratedRef.current) return
     try {
-      window.localStorage.setItem(STORAGE_WORKSPACE_FOLDERS_KEY, JSON.stringify(workspaceFolders))
+      const serializable = docs.map(({ originalPreviewUrl: _revokedBlob, ...rest }) => rest)
+      window.localStorage.setItem(STORAGE_PLATFORM_DOCS, JSON.stringify(serializable))
     } catch {
-      console.warn('Could not save workspace folders (storage may be full). Remove a folder or shorten edits.')
+      console.warn('Could not persist documents.')
     }
-  }, [workspaceFolders])
+  }, [docs])
 
   useEffect(() => {
-    if (activeWorkspaceFile) {
-      window.localStorage.setItem(STORAGE_ACTIVE_WORKSPACE_FILE_KEY, JSON.stringify(activeWorkspaceFile))
-    } else {
-      window.localStorage.removeItem(STORAGE_ACTIVE_WORKSPACE_FILE_KEY)
-    }
-  }, [activeWorkspaceFile])
-
-  useEffect(() => {
-    if (activeBlankDocId) {
-      window.localStorage.setItem(STORAGE_ACTIVE_BLANK_DOC_ID_KEY, activeBlankDocId)
-    } else {
-      window.localStorage.removeItem(STORAGE_ACTIVE_BLANK_DOC_ID_KEY)
-    }
-  }, [activeBlankDocId])
-
-  useEffect(() => {
-    if (activeBlankDocId && !blankWorkspaceDocs.some((d) => d.id === activeBlankDocId)) {
-      setActiveBlankDocId(null)
-    }
-  }, [activeBlankDocId, blankWorkspaceDocs])
-
-  useEffect(() => {
-    if (!activeWorkspaceFile) return
-    const folder = workspaceFolders.find((f) => f.id === activeWorkspaceFile.folderId)
-    const file = folder?.files.find((x) => x.id === activeWorkspaceFile.fileId)
-    if (!folder || !file) setActiveWorkspaceFile(null)
-  }, [activeWorkspaceFile, workspaceFolders])
-
-  useEffect(() => {
-    window.localStorage.setItem(STORAGE_ACTIVE_TAB_KEY, activeTab)
-  }, [activeTab])
-
-  useEffect(() => {
-    window.localStorage.setItem(STORAGE_ONE_PAGER_LAYOUT_KEY, onePagerLayoutId)
-  }, [onePagerLayoutId])
-
-  useEffect(() => {
-    window.localStorage.setItem(STORAGE_ONE_PAGER_SUMMARY_KEY, onePagerSummary)
-  }, [onePagerSummary])
-
-  useEffect(() => {
-    window.localStorage.setItem(STORAGE_ONE_PAGER_VIEW_TITLE_KEY, onePagerViewTitle)
-  }, [onePagerViewTitle])
-
-  useEffect(() => {
-    onePagerViewTitleRef.current = onePagerViewTitle
-  }, [onePagerViewTitle])
-
-  useEffect(() => {
-    embeddedDeckUrlRef.current = embeddedDeckUrl
-  }, [embeddedDeckUrl])
-
-  useEffect(() => {
-    productDemoUrlRef.current = productDemoUrl
-  }, [productDemoUrl])
-
-  useEffect(() => {
-    productShotsRef.current = productShots
-  }, [productShots])
-
-  useEffect(() => {
-    tractionLogosRef.current = tractionLogos
-  }, [tractionLogos])
-
-  useEffect(() => {
-    let cancelled = false
-    void (async () => {
-      try {
-        const demo = await loadProductDemoVideo()
-        if (cancelled || !demo) return
-        setProductDemoUrl((prev) => {
-          if (prev) URL.revokeObjectURL(prev)
-          return URL.createObjectURL(demo.blob)
-        })
-        setProductDemoName(demo.filename)
-      } catch {
-        if (!cancelled) setProductDemoError('Could not load saved demo video.')
-      }
-      try {
-        const shots = await loadProductScreenshots()
-        if (cancelled) return
-        setProductShots(
-          shots.map((s) => ({
-            id: s.id,
-            name: s.filename,
-            url: URL.createObjectURL(s.blob),
-          }))
-        )
-      } catch {
-        if (!cancelled) setProductShotsError('Could not load saved screenshots.')
-      }
-      try {
-        const logos = await loadTractionLogos()
-        if (cancelled) return
-        setTractionLogos(
-          logos.map((L) => ({
-            id: L.id,
-            name: L.filename,
-            url: URL.createObjectURL(L.blob),
-          }))
-        )
-      } catch {
-        if (!cancelled) setTractionLogosError('Could not load saved customer logos.')
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  useEffect(() => {
-    return () => {
-      const u = productDemoUrlRef.current
-      if (u) URL.revokeObjectURL(u)
-      productDemoUrlRef.current = null
-      for (const s of productShotsRef.current) URL.revokeObjectURL(s.url)
-      for (const s of tractionLogosRef.current) URL.revokeObjectURL(s.url)
-    }
-  }, [])
-
-  useEffect(() => {
-    return () => {
-      const u = embeddedDeckUrlRef.current
-      if (u) URL.revokeObjectURL(u)
-      embeddedDeckUrlRef.current = null
-    }
-  }, [])
-
-  useEffect(() => {
-    if (!isPresentingDeck) return
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setIsPresentingDeck(false)
-    }
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    window.addEventListener('keydown', onKeyDown)
-    return () => {
-      document.body.style.overflow = previousOverflow
-      window.removeEventListener('keydown', onKeyDown)
-    }
-  }, [isPresentingDeck])
-
-  useEffect(() => {
-    if (deckFileName) {
-      window.localStorage.setItem(STORAGE_ONE_PAGER_FILENAME_KEY, deckFileName)
-    } else {
-      window.localStorage.removeItem(STORAGE_ONE_PAGER_FILENAME_KEY)
-    }
-  }, [deckFileName])
-
-  useEffect(() => {
-    if (deckText.trim()) {
-      window.localStorage.setItem(STORAGE_ONE_PAGER_DECK_TEXT_KEY, deckText)
-    } else {
-      window.localStorage.removeItem(STORAGE_ONE_PAGER_DECK_TEXT_KEY)
-    }
-  }, [deckText])
-
-  useEffect(() => {
-    window.localStorage.setItem(STORAGE_FINANCIALS_KEY, JSON.stringify(financials))
-  }, [financials])
-
-  useEffect(() => {
-    window.localStorage.setItem(STORAGE_PRODUCT_ROADMAP_KEY, productRoadmap)
-  }, [productRoadmap])
-
-  useEffect(() => {
-    window.localStorage.setItem(STORAGE_TRACTION_KEY, JSON.stringify(traction))
-  }, [traction])
-
-  useEffect(() => {
-    window.localStorage.setItem(STORAGE_MARKET_SIZING_KEY, JSON.stringify(marketSizing))
-  }, [marketSizing])
-
-  useEffect(() => {
-    window.localStorage.setItem(STORAGE_MARKET_COMPETITIVE_KEY, marketCompetitive)
-  }, [marketCompetitive])
-
-  useEffect(() => {
-    window.localStorage.setItem(STORAGE_TEAM_WORKSPACE_KEY, JSON.stringify(teamWorkspace))
-  }, [teamWorkspace])
-
-  useEffect(() => {
-    if (!lineageHydrated) return
-    const fp = JSON.stringify(financials)
-    if (finFpRef.current === null) {
-      finFpRef.current = fp
-      finPrevSnapshotRef.current = { ...financials }
-      return
-    }
-    if (finFpRef.current === fp) return
-    finFpRef.current = fp
-    const t = window.setTimeout(() => {
-      const prev = finPrevSnapshotRef.current
-      if (!prev) return
-      const changes = describeFinancialDiff(prev, financials as FinancialLineageSnapshot, formatMoney)
-      finPrevSnapshotRef.current = { ...financials }
-      if (!changes.length) return
-      recordLineage({
-        kind: 'financials_saved',
-        summary: 'Financial inputs saved (this browser)',
-        detail: `MRR ${formatMoney(financials.mrr)} · cash ${formatMoney(financials.cashOnHand)}`,
-        changes,
-      })
-    }, 800)
-    return () => window.clearTimeout(t)
-  }, [financials, lineageHydrated, recordLineage])
-
-  useEffect(() => {
-    if (!lineageHydrated) return
-    const fp = JSON.stringify(traction)
-    if (tracFpRef.current === null) {
-      tracFpRef.current = fp
-      tracPrevSnapshotRef.current = { ...traction }
-      return
-    }
-    if (tracFpRef.current === fp) return
-    tracFpRef.current = fp
-    const t = window.setTimeout(() => {
-      const prev = tracPrevSnapshotRef.current
-      if (!prev) return
-      const changes = describeTractionDiff(prev, traction as TractionLineageSnapshot, formatMoney)
-      tracPrevSnapshotRef.current = { ...traction }
-      if (!changes.length) return
-      recordLineage({
-        kind: 'traction_saved',
-        summary: 'Traction inputs saved (this browser)',
-        detail: `MRR ${formatMoney(traction.mrr)} · ${traction.customers} customers`,
-        changes,
-      })
-    }, 800)
-    return () => window.clearTimeout(t)
-  }, [traction, lineageHydrated, recordLineage])
-
-  useEffect(() => {
-    if (!lineageHydrated) return
-    const fp = JSON.stringify(marketSizing)
-    if (marketSizingFpRef.current === null) {
-      marketSizingFpRef.current = fp
-      marketSizingPrevRef.current = { ...marketSizing }
-      return
-    }
-    if (marketSizingFpRef.current === fp) return
-    marketSizingFpRef.current = fp
-    const t = window.setTimeout(() => {
-      const prev = marketSizingPrevRef.current
-      if (!prev) return
-      const changes = describeMarketSizingDiff(prev, marketSizing as MarketSizingLineageSnapshot, formatMarketMoney)
-      marketSizingPrevRef.current = { ...marketSizing }
-      if (!changes.length) return
-      recordLineage({
-        kind: 'market_sizing_saved',
-        summary: 'Market sizing (TAM / SAM / SOM) saved',
-        detail: `TAM ${formatMarketMoney(marketSizing.tam)} · SAM ${formatMarketMoney(marketSizing.sam)} · SOM ${formatMarketMoney(marketSizing.som)}`,
-        changes,
-      })
-    }, 800)
-    return () => window.clearTimeout(t)
-  }, [marketSizing, lineageHydrated, recordLineage])
-
-  useEffect(() => {
-    if (!lineageHydrated) return
-    const fp = `${workspacePlainLen(marketCompetitive)}:${marketCompetitive.slice(0, 240)}`
-    if (marketCompFpRef.current === null) {
-      marketCompFpRef.current = fp
-      marketCompPrevHtmlRef.current = marketCompetitive
-      return
-    }
-    if (marketCompFpRef.current === fp) return
-    marketCompFpRef.current = fp
-    const t = window.setTimeout(() => {
-      const prevHtml = marketCompPrevHtmlRef.current
-      const changes = describeHtmlPlainShift(prevHtml, marketCompetitive, workspacePlainLen)
-      marketCompPrevHtmlRef.current = marketCompetitive
-      if (!changes.length) return
-      recordLineage({
-        kind: 'market_competitive_saved',
-        summary: 'Competitive landscape content saved',
-        detail: `${workspacePlainLen(marketCompetitive)} characters`,
-        changes,
-      })
-    }, 900)
-    return () => window.clearTimeout(t)
-  }, [marketCompetitive, lineageHydrated, recordLineage])
-
-  useEffect(() => {
-    if (!lineageHydrated) return
-    const fp = `${workspacePlainLen(productRoadmap)}:${productRoadmap.slice(0, 240)}`
-    if (productRoadFpRef.current === null) {
-      productRoadFpRef.current = fp
-      productRoadPrevHtmlRef.current = productRoadmap
-      return
-    }
-    if (productRoadFpRef.current === fp) return
-    productRoadFpRef.current = fp
-    const t = window.setTimeout(() => {
-      const prevHtml = productRoadPrevHtmlRef.current
-      const changes = describeHtmlPlainShift(prevHtml, productRoadmap, workspacePlainLen)
-      productRoadPrevHtmlRef.current = productRoadmap
-      if (!changes.length) return
-      recordLineage({
-        kind: 'product_roadmap_saved',
-        summary: 'Product roadmap saved',
-        detail: `${workspacePlainLen(productRoadmap)} characters`,
-        changes,
-      })
-    }, 900)
-    return () => window.clearTimeout(t)
-  }, [productRoadmap, lineageHydrated, recordLineage])
-
-  useEffect(() => {
-    if (!lineageHydrated) return
-    const fp = JSON.stringify(teamWorkspace)
-    if (teamFpRef.current === null) {
-      teamFpRef.current = fp
-      teamPrevMembersRef.current = teamWorkspace.map((m) => ({ ...m, experience: [...m.experience] }))
-      return
-    }
-    if (teamFpRef.current === fp) return
-    teamFpRef.current = fp
-    const t = window.setTimeout(() => {
-      const prev = teamPrevMembersRef.current ?? []
-      const changes = describeTeamRosterDiff(prev, teamWorkspace)
-      teamPrevMembersRef.current = teamWorkspace.map((m) => ({ ...m, experience: [...m.experience] }))
-      if (!changes.length) return
-      recordLineage({
-        kind: 'team_workspace_saved',
-        summary: 'Team workspace roster saved',
-        detail: `${teamWorkspace.length} member(s)`,
-        changes,
-      })
-    }, 800)
-    return () => window.clearTimeout(t)
-  }, [teamWorkspace, lineageHydrated, recordLineage])
-
-  useEffect(() => {
-    if (!lineageHydrated) return
-    const fp = `${workspacePlainLen(onePagerSummary)}:${onePagerSummary.slice(0, 320)}`
-    if (onePagerSummaryFpRef.current === null) {
-      onePagerSummaryFpRef.current = fp
-      onePagerSummaryPrevHtmlRef.current = onePagerSummary
-      return
-    }
-    if (onePagerSummaryFpRef.current === fp) return
-    onePagerSummaryFpRef.current = fp
-    const t = window.setTimeout(() => {
-      const prevHtml = onePagerSummaryPrevHtmlRef.current
-      const changes = describeHtmlPlainShift(prevHtml, onePagerSummary, workspacePlainLen)
-      onePagerSummaryPrevHtmlRef.current = onePagerSummary
-      if (!changes.length) return
-      recordLineage({
-        kind: 'one_pager_saved',
-        summary: 'One pager document saved (this browser)',
-        detail: `${workspacePlainLen(onePagerSummary)} characters`,
-        changes,
-      })
-    }, 1000)
-    return () => window.clearTimeout(t)
-  }, [onePagerSummary, lineageHydrated, recordLineage])
-
-  useEffect(() => {
-    if (!lineageHydrated) return
-    const fp = onePagerViewTitle.trim()
-    if (onePagerTitleFpRef.current === null) {
-      onePagerTitleFpRef.current = fp
-      return
-    }
-    if (onePagerTitleFpRef.current === fp) return
-    const previousTitle = onePagerTitleFpRef.current
-    onePagerTitleFpRef.current = fp
-    const t = window.setTimeout(() => {
-      recordLineage({
-        kind: 'one_pager_title',
-        summary: 'One pager title updated',
-        detail: fp || '(empty)',
-        changes: [`Title: “${previousTitle || '(empty)'}” → “${fp || '(empty)'}”`],
-      })
-    }, 700)
-    return () => window.clearTimeout(t)
-  }, [onePagerViewTitle, lineageHydrated, recordLineage])
-
-  useEffect(() => {
-    if (!lineageHydrated) return
-    const layout = ONE_PAGER_LAYOUTS.find((l) => l.id === onePagerLayoutId)
-    const label = layout?.label ?? onePagerLayoutId
-    if (onePagerLayoutFpRef.current === null) {
-      onePagerLayoutFpRef.current = onePagerLayoutId
-      return
-    }
-    if (onePagerLayoutFpRef.current === onePagerLayoutId) return
-    const prevId = onePagerLayoutFpRef.current
-    const prevLayout = ONE_PAGER_LAYOUTS.find((l) => l.id === prevId)
-    onePagerLayoutFpRef.current = onePagerLayoutId
-    recordLineage({
-      kind: 'one_pager_layout',
-      summary: `One pager layout: ${label}`,
-      changes: [`Layout: ${prevLayout?.label ?? prevId} → ${label}`],
-    })
-  }, [onePagerLayoutId, lineageHydrated, recordLineage])
-
-  useEffect(() => {
-    if (!lineageHydrated) return
-    const fp = `${deckFileName ?? ''}|${deckText.length}|${deckText.slice(0, 160)}`
-    if (deckFpRef.current === null) {
-      deckFpRef.current = fp
-      deckPrevNameRef.current = deckFileName
-      deckPrevLenRef.current = deckText.length
-      return
-    }
-    if (deckFpRef.current === fp) return
-    deckFpRef.current = fp
-    const t = window.setTimeout(() => {
-      const changes = describeDeckBlobChange(
-        deckPrevNameRef.current,
-        deckFileName,
-        deckPrevLenRef.current,
-        deckText.length
-      )
-      deckPrevNameRef.current = deckFileName
-      deckPrevLenRef.current = deckText.length
-      if (!changes.length) return
-      recordLineage({
-        kind: 'deck_text_saved',
-        summary: deckFileName ? `Deck text saved: ${deckFileName}` : 'Deck text cleared',
-        detail: deckText.trim() ? `${Math.round(deckText.length / 1024)} KB` : 'No extracted text',
-        changes,
-      })
-    }, 900)
-    return () => window.clearTimeout(t)
-  }, [deckText, deckFileName, lineageHydrated, recordLineage])
-
-  useEffect(() => {
-    if (!lineageHydrated) return
-    const nextSnaps: BlankDocLineageSnap[] = blankWorkspaceDocs.map((d) => ({
-      id: d.id,
-      title: d.title,
-      plainLen: workspacePlainLen(d.bodyHtml),
-    }))
-    const fp = nextSnaps.map((d) => `${d.id}:${d.title}:${d.plainLen}`).join('|')
-    if (blankDocsFpRef.current === null) {
-      blankDocsFpRef.current = fp
-      blankDocsPrevSnapRef.current = nextSnaps.map((s) => ({ ...s }))
-      return
-    }
-    if (blankDocsFpRef.current === fp) return
-    blankDocsFpRef.current = fp
-    const t = window.setTimeout(() => {
-      const prev = blankDocsPrevSnapRef.current
-      const changes = describeBlankDocsDiff(prev, nextSnaps)
-      blankDocsPrevSnapRef.current = nextSnaps.map((s) => ({ ...s }))
-      if (!changes.length) return
-      recordLineage({
-        kind: 'blank_docs_saved',
-        summary: 'Workspace documents updated',
-        detail: `${blankWorkspaceDocs.length} document(s)`,
-        changes,
-      })
-    }, 1100)
-    return () => window.clearTimeout(t)
-  }, [blankWorkspaceDocs, lineageHydrated, recordLineage])
-
-  async function onDeckSelected(files: FileList | null) {
-    const file = files?.[0]
-    if (!file) return
-
-    setOnePagerError(null)
-    setOnePagerSummary('')
-    setDeckFileName(file.name)
-    setIsExtractingPdf(true)
-    setDeckText('')
-
-    const lower = file.name.toLowerCase()
-    const isPdf = file.type === 'application/pdf' || lower.endsWith('.pdf')
-
-    if (!isPdf) {
-      setDeckText('')
-      setIsExtractingPdf(false)
-      if (deckFileInputRef.current) {
-        deckFileInputRef.current.value = ''
-      }
-      setOnePagerError(
-        'For now, pitch deck summarization works best with PDF exports. Please export your deck to PDF and upload that file.'
-      )
-      return
-    }
-
+    if (!hydratedRef.current) return
     try {
-      const text = await extractPdfTextOnServer(file)
-      const clipped = text.slice(0, MAX_PDF_TEXT_CHARS)
-      setDeckText(clipped)
-      recordLineage({
-        kind: 'pitch_pdf_uploaded',
-        summary: `Pitch deck PDF loaded for one-pager: ${file.name}`,
-        detail: clipped.trim() ? `${Math.round(clipped.length / 1024)} KB extracted text` : 'No extractable text',
-        changes: [
-          `File: ${file.name}`,
-          clipped.trim()
-            ? `Extracted ${clipped.length.toLocaleString()} characters for the one-pager pipeline.`
-            : 'No text extracted — check PDF is text-based.',
-        ],
-      })
-      if (!clipped.trim()) {
-        setOnePagerError(
-          'This PDF has no extractable text (common for image-only or “designer” templates). Add real copy in the slides, export again, or use Print → Save as PDF from the app that has the text.'
-        )
-      }
-    } catch (error) {
-      setDeckText('')
-      const detail = error instanceof Error ? error.message : String(error)
-      setOnePagerError(
-        `Could not read this PDF (${detail}). Try exporting again as a normal (non‑protected) PDF, or use “Print → Save as PDF”.`
-      )
-    } finally {
-      setIsExtractingPdf(false)
-      if (deckFileInputRef.current) {
-        deckFileInputRef.current.value = ''
-      }
+      window.localStorage.setItem(STORAGE_CLAIMS_GRAPH, JSON.stringify(claimsStore))
+    } catch {
+      console.warn('Could not persist claims graph.')
     }
-  }
+  }, [claimsStore])
 
-  async function onEmbeddedPitchDeckSelected(files: FileList | null) {
-    const file = files?.[0]
-    if (!file) return
-
-    setEmbeddedDeckError(null)
-    const lower = file.name.toLowerCase()
-    const isPdf = file.type === 'application/pdf' || lower.endsWith('.pdf')
-    if (!isPdf) {
-      setEmbeddedDeckError('Please upload a PDF file for embedding.')
-      if (pitchDeckEmbedInputRef.current) pitchDeckEmbedInputRef.current.value = ''
-      return
+  useEffect(() => {
+    if (activeDocId && !docs.some((d) => d.id === activeDocId)) {
+      setActiveDocId(docs[0]?.id ?? null)
     }
+  }, [activeDocId, docs])
 
-    setEmbeddedDeckBusy(true)
-    try {
-      await saveEmbeddedPitchDeckPdf(file)
-      setEmbeddedDeckUrl((prev) => {
-        if (prev) URL.revokeObjectURL(prev)
-        return URL.createObjectURL(file)
-      })
-      setEmbeddedDeckName(file.name)
-      recordLineage({
-        kind: 'embedded_deck_saved',
-        summary: `Embedded pitch deck saved: ${file.name}`,
-        detail: 'Stored in this browser for the Pitch deck tab.',
-        changes: [
-          `PDF stored locally (${(file.size / (1024 * 1024)).toFixed(2)} MB)`,
-          isSupabaseConfigured() ? 'Also syncing to your account when signed in.' : 'Sign in to sync this deck to the cloud.',
-        ],
-      })
+  useEffect(() => {
+    if (conflicts.length > 0) setConflictPanelOpen(true)
+  }, [conflicts.length])
 
-      if (isSupabaseConfigured()) {
-        const supabase = createClient()
-        const {
-          data: { user },
-        } = await supabase.auth.getUser()
-        if (user) {
-          const path = `${user.id}/embedded.pdf`
-          const { error: uploadError } = await supabase.storage.from('pitch-decks').upload(path, file, {
-            upsert: true,
-            contentType: file.type || 'application/pdf',
-          })
-          if (uploadError) {
-            throw new Error(uploadError.message)
-          }
-          const metaRes = await fetch('/api/platform/pitch-deck', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              filename: file.name,
-              mime: file.type || 'application/pdf',
-            }),
-          })
-          if (!metaRes.ok) {
-            const detail = await metaRes.text()
-            throw new Error(detail || 'Could not save deck to your account.')
-          }
-        }
-      }
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Could not save this PDF in the browser.'
-      setEmbeddedDeckError(msg)
-    } finally {
-      setEmbeddedDeckBusy(false)
-      if (pitchDeckEmbedInputRef.current) pitchDeckEmbedInputRef.current.value = ''
+  useEffect(() => {
+    if (!syncSourcePickerOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSyncSourcePickerOpen(false)
     }
-  }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [syncSourcePickerOpen])
 
-  async function clearEmbeddedPitchDeck() {
-    setEmbeddedDeckError(null)
-    setEmbeddedDeckBusy(true)
-    try {
-      await clearEmbeddedPitchDeckPdf()
-      if (isSupabaseConfigured()) {
-        await fetch('/api/platform/pitch-deck', { method: 'DELETE' })
-      }
-      setEmbeddedDeckUrl((prev) => {
-        if (prev) URL.revokeObjectURL(prev)
-        return null
-      })
-      setEmbeddedDeckName(null)
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Could not remove the saved deck.'
-      setEmbeddedDeckError(msg)
-    } finally {
-      setEmbeddedDeckBusy(false)
-    }
-  }
-
-  async function onProductDemoSelected(files: FileList | null) {
-    const file = files?.[0]
-    if (!file) return
-    setProductDemoError(null)
-    setProductDemoBusy(true)
-    try {
-      await saveProductDemoVideo(file)
-      setProductDemoUrl((prev) => {
-        if (prev) URL.revokeObjectURL(prev)
-        return URL.createObjectURL(file)
-      })
-      setProductDemoName(file.name)
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Could not save the demo video.'
-      setProductDemoError(msg)
-    } finally {
-      setProductDemoBusy(false)
-      if (productDemoInputRef.current) productDemoInputRef.current.value = ''
-    }
-  }
-
-  async function clearProductDemo() {
-    setProductDemoError(null)
-    setProductDemoBusy(true)
-    try {
-      await clearProductDemoVideo()
-      setProductDemoUrl((prev) => {
-        if (prev) URL.revokeObjectURL(prev)
-        return null
-      })
-      setProductDemoName(null)
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Could not remove the demo video.'
-      setProductDemoError(msg)
-    } finally {
-      setProductDemoBusy(false)
-    }
-  }
-
-  async function onProductScreenshotsSelected(files: FileList | null) {
-    if (!files?.length) return
-    setProductShotsError(null)
-    setProductShotsBusy(true)
-    try {
-      const existing = await loadProductScreenshotRows()
-      if (existing.length >= MAX_SCREENSHOTS) {
-        throw new Error(`You can store up to ${MAX_SCREENSHOTS} screenshots. Remove some first.`)
-      }
-      const toAdd: StoredScreenshotRow[] = []
-      for (let i = 0; i < files.length; i++) {
-        if (existing.length + toAdd.length >= MAX_SCREENSHOTS) break
-        const file = files[i]
-        if (!file.type.startsWith('image/')) continue
-        if (file.size > MAX_SHOT_BYTES) {
-          throw new Error(`Each image must be under ${Math.round(MAX_SHOT_BYTES / (1024 * 1024))} MB.`)
-        }
-        const data = await file.arrayBuffer()
-        toAdd.push({
-          id: crypto.randomUUID(),
-          filename: file.name || `screenshot-${existing.length + toAdd.length + 1}.png`,
-          mime: file.type || 'image/png',
-          updatedAt: Date.now(),
-          data,
-        })
-      }
-      if (toAdd.length === 0) {
-        throw new Error('No valid image files selected (PNG, JPG, WebP, etc.).')
-      }
-      await saveProductScreenshots([...existing, ...toAdd])
-      const merged = await loadProductScreenshots()
-      setProductShots((prev) => {
-        for (const p of prev) URL.revokeObjectURL(p.url)
-        return merged.map((L) => ({
-          id: L.id,
-          name: L.filename,
-          url: URL.createObjectURL(L.blob),
-        }))
-      })
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Could not save screenshots.'
-      setProductShotsError(msg)
-    } finally {
-      setProductShotsBusy(false)
-      if (productShotsInputRef.current) productShotsInputRef.current.value = ''
-    }
-  }
-
-  async function removeProductScreenshot(id: string) {
-    setProductShotsError(null)
-    setProductShotsBusy(true)
-    try {
-      const existing = await loadProductScreenshotRows()
-      const next = existing.filter((row) => row.id !== id)
-      await saveProductScreenshots(next)
-      const merged = await loadProductScreenshots()
-      setProductShots((prev) => {
-        for (const p of prev) URL.revokeObjectURL(p.url)
-        return merged.map((L) => ({
-          id: L.id,
-          name: L.filename,
-          url: URL.createObjectURL(L.blob),
-        }))
-      })
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Could not remove that screenshot.'
-      setProductShotsError(msg)
-    } finally {
-      setProductShotsBusy(false)
-    }
-  }
-
-  async function clearAllProductScreenshots() {
-    setProductShotsError(null)
-    setProductShotsBusy(true)
-    try {
-      await clearProductScreenshots()
-      setProductShots((prev) => {
-        for (const p of prev) URL.revokeObjectURL(p.url)
-        return []
-      })
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Could not clear screenshots.'
-      setProductShotsError(msg)
-    } finally {
-      setProductShotsBusy(false)
-    }
-  }
-
-  function updateTractionNumber<K extends keyof TractionInputs>(key: K, value: number) {
-    setTraction((prev) => ({ ...prev, [key]: value }))
-  }
-
-  async function onTractionLogosSelected(files: FileList | null) {
-    if (!files?.length) return
-    setTractionLogosError(null)
-    setTractionLogosBusy(true)
-    try {
-      const existing = await loadTractionLogoRows()
-      if (existing.length >= MAX_LOGOS) {
-        throw new Error(`You can store up to ${MAX_LOGOS} logos. Remove some first.`)
-      }
-      const toAdd: StoredScreenshotRow[] = []
-      for (let i = 0; i < files.length; i++) {
-        if (existing.length + toAdd.length >= MAX_LOGOS) break
-        const file = files[i]
-        if (!file.type.startsWith('image/')) continue
-        if (file.size > MAX_LOGO_BYTES) {
-          throw new Error(`Each logo must be under ${Math.round(MAX_LOGO_BYTES / (1024 * 1024))} MB.`)
-        }
-        const data = await file.arrayBuffer()
-        toAdd.push({
-          id: crypto.randomUUID(),
-          filename: file.name || `logo-${existing.length + toAdd.length + 1}.png`,
-          mime: file.type || 'image/png',
-          updatedAt: Date.now(),
-          data,
-        })
-      }
-      if (toAdd.length === 0) {
-        throw new Error('No valid image files selected (PNG, JPG, WebP, SVG as PNG, etc.).')
-      }
-      await saveTractionLogos([...existing, ...toAdd])
-      const merged = await loadTractionLogos()
-      setTractionLogos((prev) => {
-        for (const p of prev) URL.revokeObjectURL(p.url)
-        return merged.map((L) => ({
-          id: L.id,
-          name: L.filename,
-          url: URL.createObjectURL(L.blob),
-        }))
-      })
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Could not save logos.'
-      setTractionLogosError(msg)
-    } finally {
-      setTractionLogosBusy(false)
-      if (tractionLogoInputRef.current) tractionLogoInputRef.current.value = ''
-    }
-  }
-
-  async function removeTractionLogo(id: string) {
-    setTractionLogosError(null)
-    setTractionLogosBusy(true)
-    try {
-      const existing = await loadTractionLogoRows()
-      const next = existing.filter((row) => row.id !== id)
-      await saveTractionLogos(next)
-      const merged = await loadTractionLogos()
-      setTractionLogos((prev) => {
-        for (const p of prev) URL.revokeObjectURL(p.url)
-        return merged.map((L) => ({
-          id: L.id,
-          name: L.filename,
-          url: URL.createObjectURL(L.blob),
-        }))
-      })
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Could not remove that logo.'
-      setTractionLogosError(msg)
-    } finally {
-      setTractionLogosBusy(false)
-    }
-  }
-
-  async function clearAllTractionLogos() {
-    setTractionLogosError(null)
-    setTractionLogosBusy(true)
-    try {
-      await clearTractionLogos()
-      setTractionLogos((prev) => {
-        for (const p of prev) URL.revokeObjectURL(p.url)
-        return []
-      })
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Could not clear logos.'
-      setTractionLogosError(msg)
-    } finally {
-      setTractionLogosBusy(false)
-    }
-  }
-
-  async function generateOnePager() {
-    if (!deckText.trim()) {
-      setOnePagerError(
-        deckFileName
-          ? 'No deck text is available yet. Wait for extraction to finish, re-select the PDF, or use a PDF where you can select/copy text from the slides.'
-          : 'Choose a pitch deck PDF first. After upload, you should see “N KB text extracted” below the filename.'
-      )
-      return
-    }
-
-    setIsGeneratingOnePager(true)
-    setOnePagerError(null)
-
-    const structured = layoutUsesStructuredGenerate(onePagerLayoutId)
-
-    const generalStructuredPrompt = [
-      'You are filling a fixed print-style one-pager layout from a pitch deck (hero + headline row, two columns, benefits list, next steps, CTA strip, footer).',
-      'Your job is to supply ONLY the copy fields as JSON — no HTML, no Markdown body.',
-      '',
-      'Reply with a single JSON object only (no markdown code fences, no commentary before or after). Use straight double quotes for JSON strings.',
-      '',
-      'Required keys (all string values except "benefits" and optional "heroImageUrl"):',
-      '- "pageTitle": short document title, max 12 words (company or product + "One pager" if helpful).',
-      '- "headline": one compelling headline for the top of the page, max 14 words.',
-      '- "whoWeAre": 2–4 sentences: what the company is and does.',
-      '- "problem": 2–4 sentences: pain / urgency from the deck.',
-      '- "solution": 2–4 sentences: how the product solves it.',
-      '- "benefits": array of 3–5 objects, each { "boldLabel": "2–4 words", "detail": "one short sentence" } — concrete, tied to the deck, not generic slogans.',
-      '- "whatsNext": 1–3 sentences: roadmap, milestones, or near-term plans if present.',
-      '- "ctaBold": 2–5 words for the CTA emphasis (e.g. "Request a demo").',
-      '- "ctaRest": one sentence continuing after the bold CTA.',
-      '- "footerEmail": email if clearly stated in deck, otherwise "contact@company.com".',
-      '- "footerPhone": phone if clearly stated, otherwise "Not stated in deck".',
-      '',
-      'Optional key:',
-      '- "heroImageUrl": a public https image URL ONLY if explicitly present in the deck text; otherwise null.',
-      '',
-      'Rules:',
-      '- Do not invent traction, customers, revenue, or investors. If missing, say "Not stated in deck" in the relevant string fields.',
-      '- Keep sentences concise; this must read well on a single printed page.',
-      '',
-      'DECK TEXT:',
-      deckText,
-    ].join('\n')
-
-    const strategicStructuredPrompt = [
-      'You are filling a "Strategic plan" one-pager layout from a pitch deck: top banner image, centered main title + subtitle, two equal columns (mission, budget, allocation + CTA on the left; numbered strategic goals and key metrics on the right), then a horizontal timeline with three milestones at the bottom.',
-      'Supply ONLY copy as JSON — no HTML, no Markdown body.',
-      '',
-      'Reply with a single JSON object only (no markdown code fences, no commentary). Use straight double quotes.',
-      '',
-      'Keys:',
-      '- "pageTitle": short document title for the tab (max 12 words).',
-      '- "title": large centered headline (max 14 words), e.g. direction or company name + theme.',
-      '- "subtitle": short centered line under the title (e.g. "— Our strategic plan —").',
-      '- "missionStatement": 2–4 sentences from the deck.',
-      '- "totalBudget": one line — raise amount or budget if stated, else "Not stated in deck."',
-      '- "allocations": array of 3–6 strings, each one line (e.g. "70% program implementation") — infer splits only if the deck implies them; else use "Not stated in deck." as a single item.',
-      '- "strategicGoals": array of 3–5 objects { "title": "short goal name", "description": "one sentence" } from deck priorities.',
-      '- "keyMetrics": array of 3–6 bullet strings (traction, milestones, KPIs) — only if in deck.',
-      '- "footerCtaText": one sentence inviting readers to learn more or contribute (no URL inside this string).',
-      '- "footerLinkUrl": https URL if clearly in deck, else null.',
-      '- "footerLinkLabel": short link text (e.g. company site domain).',
-      '- "timeline": array of exactly 3 objects { "year": "YYYY or range", "description": "2–3 lines max", "accent": "red" | "yellow" | "blue" } — order left to right; use milestones from deck or "Not stated in deck." if missing.',
-      '',
-      'Optional:',
-      '- "bannerImageUrl": public https image URL ONLY if explicitly in deck text; else null.',
-      '',
-      'Rules: do not invent revenue, investors, or customers. If missing, say "Not stated in deck."',
-      '',
-      'DECK TEXT:',
-      deckText,
-    ].join('\n')
-
-    const prompt = structured
-      ? onePagerLayoutId === 'strategic'
-        ? strategicStructuredPrompt
-        : generalStructuredPrompt
-      : [
-          'You are helping a founder turn a pitch deck into a crisp 1-pager.',
-          '',
-          'Using ONLY the deck text below, produce:',
-          '1) Company Overview (1-pager): problem, solution, who it is for, traction (only if present), business model (only if present), differentiation, and what you are raising (only if present).',
-          '2) Elevator pitch: 2-3 sentences, confident, specific, no buzzword soup.',
-          '',
-          'Rules:',
-          '- If something is missing, say "Not stated in deck" instead of inventing.',
-          '- Keep it tight and readable.',
-          '',
-          'Formatting (required):',
-          '- First line of your reply (exact pattern): TITLE: <short page title, max 12 words — usually company or product name, e.g. TITLE: Acme Robotics — One pager>',
-          '- Second line: blank.',
-          '- Then write the rest as Markdown (the editor will convert it to rich text).',
-          '- Use ## for each major section (e.g. ## Company overview, ## Elevator pitch).',
-          '- Use **Label:** for short inline labels when helpful (e.g. **Who it is for:** mid-market …).',
-          '- Use normal Markdown bullet lists (- item) for enumerations.',
-          '- Use a short intro line, then sections—no code fences around the answer.',
-          '',
-          'DECK TEXT:',
-          deckText,
-        ].join('\n')
-
-    try {
-      const response = await fetch('/api/platform/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: prompt,
-          history: [],
-          context: deckText,
-          documents: deckFileName ? [{ name: deckFileName }] : [],
-        }),
-      })
-
-      const payload = (await response.json()) as { answer?: string; error?: string } | undefined
-      if (!response.ok || !payload?.answer) {
-        throw new Error(payload?.error || 'Failed to generate one pager.')
-      }
-
-      const prevViewTitle = onePagerViewTitleRef.current
-
-      if (structured) {
-        if (onePagerLayoutId === 'strategic') {
-          const strategicPayload = parseStrategicAiJson(payload.answer)
-          if (!strategicPayload) {
-            throw new Error(
-              'The model did not return valid JSON for this layout. Close the + menu and try Generate again.'
-            )
-          }
-          const generatedTitle = strategicPageTitleFromPayload(strategicPayload, payload.answer)
-          const nextViewTitle =
-            generatedTitle ?? (prevViewTitle.trim() ? prevViewTitle : titleFromDeckFilename(deckFileName))
-          setOnePagerViewTitle(nextViewTitle)
-          setOnePagerSummary(coerceStoredEditorHtml(buildStrategicHtmlFromAi(strategicPayload)))
-        } else if (onePagerLayoutId === 'general') {
-          const zenPayload = parseProjectZenAiJson(payload.answer)
-          if (!zenPayload) {
-            throw new Error(
-              'The model did not return valid JSON for this layout. Close the + menu and try Generate again.'
-            )
-          }
-          const generatedTitle = projectZenPageTitleFromPayload(zenPayload, payload.answer)
-          const nextViewTitle =
-            generatedTitle ?? (prevViewTitle.trim() ? prevViewTitle : titleFromDeckFilename(deckFileName))
-          setOnePagerViewTitle(nextViewTitle)
-          const filledHtml = buildProjectZenHtmlFromAi(zenPayload)
-          setOnePagerSummary(coerceStoredEditorHtml(filledHtml))
-        } else {
-          throw new Error('This layout is not available for AI generate yet. Pick Normal or General.')
-        }
-      } else {
-        const { title: generatedTitle, bodyMarkdown } = splitGeneratedTitleBlock(payload.answer)
-        const nextViewTitle =
-          generatedTitle ?? (prevViewTitle.trim() ? prevViewTitle : titleFromDeckFilename(deckFileName))
-        setOnePagerViewTitle(nextViewTitle)
-        setOnePagerSummary(aiMarkdownToEditorHtml(bodyMarkdown))
-      }
-      recordLineage({
-        kind: 'one_pager_generated',
-        summary: 'One pager generated from deck',
-        detail: structured ? `Layout: ${onePagerLayoutId}` : 'Classic Markdown layout',
-        changes: [
-          structured
-            ? `Structured layout: ${ONE_PAGER_LAYOUTS.find((l) => l.id === onePagerLayoutId)?.label ?? onePagerLayoutId}`
-            : 'Classic flow: Markdown → rich HTML in the one-pager editor.',
-          `Deck context: ${deckFileName ?? 'unknown file'} (${deckText.length.toLocaleString()} chars in workspace).`,
-        ],
-      })
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to generate one pager.'
-      setOnePagerError(message)
-    } finally {
-      setIsGeneratingOnePager(false)
-    }
-  }
-
-  async function runSmartFill() {
-    if (!deckText.trim()) {
-      setSmartFillError(
-        deckFileName
-          ? 'No deck text yet. Wait for extraction or re-upload a PDF with selectable text.'
-          : 'Upload a pitch deck PDF and wait until you see extracted text below the filename.'
-      )
-      return
-    }
-
-    setSmartFillError(null)
-    setIsSmartFilling(true)
-    try {
-      const response = await fetch('/api/platform/smart-fill', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deckText, deckFileName }),
-      })
-      const payload = (await response.json()) as { data?: SmartFillData; error?: string }
-      if (!response.ok || !payload.data) {
-        throw new Error(payload.error || 'Smart fill failed.')
-      }
-      const data = mergeSmartFillWithDeckInference(payload.data, deckText)
-
-      if (data.tamUsd != null || data.samUsd != null || data.somUsd != null) {
-        blockCloudMarketSizingHydrateRef.current = true
-      }
-      if (Boolean(data.competitiveLandscapeMd?.trim())) {
-        blockCloudMarketCompetitiveHydrateRef.current = true
-      }
-
-      const narrativeMd = buildSmartFillNarrativeMd(data)
-      if (narrativeMd) {
-        const narrativeHtml = aiMarkdownToEditorHtml(narrativeMd)
-        setOnePagerSummary((prev) => {
-          if (workspacePlainLen(prev) < 120) return narrativeHtml
-          return `${prev}<hr /><h2>Draft from deck (AI)</h2>${narrativeHtml}`
-        })
-      }
-
-      setOnePagerViewTitle((prev) => {
-        const t = prev.trim()
-        if (t) return t
-        const s = data.suggestedPageTitle?.trim()
-        if (s) return s
-        return titleFromDeckFilename(deckFileName)
-      })
-
-      setMarketSizing((prev) => ({
+  const runClaimsExtract = useCallback(async (docId: string, html: string) => {
+    const plain = htmlToPlain(html)
+    if (!plain) {
+      setClaimsStore((prev) => ({
         ...prev,
-        ...(data.tamUsd != null ? { tam: data.tamUsd } : {}),
-        ...(data.samUsd != null ? { sam: data.samUsd } : {}),
-        ...(data.somUsd != null ? { som: data.somUsd } : {}),
+        [docId]: {
+          claims: emptyClaimsRecord(),
+          evidence: emptyClaimEvidenceRecord(),
+          updatedAt: new Date().toISOString(),
+        },
       }))
-
-      if (data.competitiveLandscapeMd) {
-        const compHtml = aiMarkdownToEditorHtml(data.competitiveLandscapeMd)
-        setMarketCompetitive((prev) => {
-          if (workspacePlainLen(prev) < 40) return compHtml
-          return `${prev}<hr />${compHtml}`
-        })
-      }
-
-      if (data.teamMembers.length > 0) {
-        setTeamWorkspace(data.teamMembers)
-      }
-      const smartChanges: string[] = []
-      if (data.tamUsd != null || data.samUsd != null || data.somUsd != null) {
-        smartChanges.push('Market sizing (TAM / SAM / SOM) updated from deck signals.')
-      }
-      if (data.competitiveLandscapeMd?.trim()) {
-        smartChanges.push('Competitive landscape section merged or appended.')
-      }
-      if (data.teamMembers.length > 0) {
-        smartChanges.push(`Team roster set (${data.teamMembers.length} people from deck).`)
-      }
-      if (narrativeMd?.trim()) {
-        smartChanges.push('One-pager narrative block added or replaced (short deck story).')
-      }
-      if (data.suggestedPageTitle?.trim()) {
-        smartChanges.push(`Suggested title available: “${data.suggestedPageTitle.trim()}”.`)
-      }
-      if (!smartChanges.length) {
-        smartChanges.push('Ran Smart fill; no high-confidence field updates returned for this deck.')
-      }
-      recordLineage({
-        kind: 'smart_fill_applied',
-        summary: 'Smart fill applied from deck',
-        detail: 'Updated fields where the model found confident matches.',
-        changes: smartChanges,
-      })
-    } catch (error) {
-      setSmartFillError(error instanceof Error ? error.message : 'Smart fill failed.')
-    } finally {
-      setIsSmartFilling(false)
+      setExtractStatus(null)
+      return
     }
-  }
+    setExtractStatus('Extracting figures…')
+    try {
+      const res = await fetch('/api/platform/extract-claims', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: plain }),
+      })
+      const data = (await res.json()) as { claims?: ClaimsRecord; evidence?: unknown; error?: string }
+      if (!res.ok) throw new Error(data.error || `Extract failed (${res.status})`)
+      const claims = data.claims ?? emptyClaimsRecord()
+      const evidence = normalizeClaimEvidence(data.evidence)
+      setClaimsStore((prev) => ({
+        ...prev,
+        [docId]: { claims, evidence, updatedAt: new Date().toISOString() },
+      }))
+      setExtractStatus(null)
+    } catch (e) {
+      setExtractStatus(e instanceof Error ? e.message : 'Extract failed.')
+    }
+  }, [])
 
-  function presentDocument(viewTitle: string, html: string) {
-    const popup = window.open('', '_blank', 'noopener,noreferrer')
-    if (!popup) return
-    const safeTitle = (viewTitle || 'Document').trim() || 'Document'
-    const content = html.trim() || '<p></p>'
-    popup.document.write(`<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>${safeTitle}</title>
-    <style>
-      body { margin: 0; background: #ffffff; color: #111827; font-family: Inter, system-ui, -apple-system, Segoe UI, sans-serif; }
-      .wrap { max-width: 72rem; margin: 0 auto; padding: 3rem 2.5rem 4rem; }
-      h1 { font-size: clamp(2rem, 5vw, 3rem); margin: 0 0 1.25rem; letter-spacing: -0.03em; line-height: 1.1; }
-      .doc { font-size: 1.18rem; line-height: 1.75; }
-      .doc h2, .doc h3 { line-height: 1.25; margin-top: 1.25rem; margin-bottom: 0.5rem; color: #0f172a; }
-      .doc ul, .doc ol { padding-left: 1.4rem; }
-      .doc blockquote { border-left: 3px solid #e5e7eb; padding-left: 1rem; color: #475569; margin-left: 0; }
-      @media (max-width: 900px) { .wrap { padding: 1.5rem 1rem 2rem; } .doc { font-size: 1.02rem; } }
-      @media print { .wrap { max-width: 100%; padding: 0; } }
-    </style>
-  </head>
-  <body>
-    <main class="wrap">
-      <h1>${safeTitle}</h1>
-      <article class="doc">${content}</article>
-    </main>
-  </body>
-</html>`)
-    popup.document.close()
-  }
-
-  function updateFinancialNumber<K extends keyof FinancialInputs>(key: K, value: number) {
-    setFinancials((prev) => ({ ...prev, [key]: value }))
-  }
-
-  function updateMarketSizing<K extends keyof MarketSizing>(key: K, value: number) {
-    blockCloudMarketSizingHydrateRef.current = true
-    setMarketSizing((prev) => ({ ...prev, [key]: value }))
-  }
-
-  const grossMarginPct = 100 - financials.cogsPct
-  const variableCost = financials.mrr * (financials.cogsPct / 100)
-  const grossProfit = financials.mrr - variableCost
-  const totalMonthlyCosts = financials.monthlyOpex + financials.monthlyDebt
-  const netBurn = totalMonthlyCosts - grossProfit
-  const arr = financials.mrr * 12
-  const runwayMonths = netBurn > 0 ? financials.cashOnHand / netBurn : Number.POSITIVE_INFINITY
-
-  let cumulativeBurn = 0
-  const projectionRows = Array.from({ length: Math.max(1, Math.round(financials.projectionMonths)) }, (_, i) => {
-    const month = i + 1
-    const mrrAtMonth =
-      financials.mrr * Math.pow(1 + financials.monthlyRevenueGrowthPct / 100, i) + financials.newMrrPerMonth * i
-    const variableAtMonth = mrrAtMonth * (financials.cogsPct / 100)
-    const fixedCostsAtMonth = totalMonthlyCosts * Math.pow(1 + financials.monthlyExpenseGrowthPct / 100, i)
-    const netBurnAtMonth = fixedCostsAtMonth - (mrrAtMonth - variableAtMonth)
-    cumulativeBurn += netBurnAtMonth
-    const cashRemaining = financials.cashOnHand - cumulativeBurn
-
-    return { month, mrrAtMonth, fixedCostsAtMonth, netBurnAtMonth, cashRemaining }
-  })
-
-  const displayTeam = teamWorkspace.length > 0 ? teamWorkspace : HOME_TEAM
-
-  const shadowContextBundle = useMemo(
-    () =>
-      buildPlatformShadowContext({
-        activeTab,
-        activeBlankDocTitle:
-          activeBlankDoc?.title ??
-          (activeWorkspaceView
-            ? `${activeWorkspaceView.folder.label} / ${activeWorkspaceView.file.displayName}`
-            : null),
-        onePagerViewTitle,
-        embeddedPitchDeckName: embeddedDeckName,
-        deckText,
-        deckFileName,
-        financials,
-        traction,
-        marketSizing,
-        teamMembers: displayTeam,
-        onePagerSummaryHtml: onePagerSummary,
-        marketCompetitiveHtml: marketCompetitive,
-        productRoadmapHtml: productRoadmap,
-        blankWorkspaceDocs,
-      }),
-    [
-      activeTab,
-      activeBlankDoc?.title,
-      activeWorkspaceView,
-      onePagerViewTitle,
-      embeddedDeckName,
-      deckText,
-      deckFileName,
-      financials,
-      traction,
-      marketSizing,
-      displayTeam,
-      onePagerSummary,
-      marketCompetitive,
-      productRoadmap,
-      blankWorkspaceDocs,
-    ]
+  const scheduleClaimsExtract = useCallback(
+    (docId: string, html: string) => {
+      if (extractTimerRef.current) window.clearTimeout(extractTimerRef.current)
+      extractTimerRef.current = window.setTimeout(() => {
+        extractTimerRef.current = null
+        void runClaimsExtract(docId, html)
+      }, 2000)
+    },
+    [runClaimsExtract]
   )
 
+  /** Keep `claimsStore` aligned with the editor immediately; debounced API extract still refines. */
+  const applyLiveHeuristicClaims = useCallback((docId: string, html: string) => {
+    const plain = htmlToPlain(html)
+    setClaimsStore((prev) => {
+      if (!plain.trim()) {
+        return {
+          ...prev,
+          [docId]: {
+            claims: emptyClaimsRecord(),
+            evidence: emptyClaimEvidenceRecord(),
+            updatedAt: new Date().toISOString(),
+          },
+        }
+      }
+      const h = heuristicExtractClaimsWithEvidence(plain)
+      const e = prev[docId]
+      const baseClaims = e?.claims ?? emptyClaimsRecord()
+      const baseEv = e?.evidence ?? emptyClaimEvidenceRecord()
+      const mergedClaims = mergeClaimRecords(baseClaims, h.claims as Record<string, unknown>)
+      const mergedEv = mergeClaimEvidence(baseEv, h.evidence)
+      const g = groundedClaimsAndEvidence(plain, mergedClaims, mergedEv)
+      return {
+        ...prev,
+        [docId]: {
+          claims: g.claims,
+          evidence: g.evidence,
+          updatedAt: new Date().toISOString(),
+        },
+      }
+    })
+  }, [])
+
+  const extractIntoDoc = useCallback(
+    async (docId: string, file: File, kind: WorkspaceFolderFileKind) => {
+      const result = await extractFileToHtml(file, kind)
+      setDocs((prev) =>
+        prev.map((d) => {
+          if (d.id !== docId) return d
+          if (d.originalPreviewUrl) {
+            try {
+              URL.revokeObjectURL(d.originalPreviewUrl)
+            } catch {
+              /* ignore */
+            }
+          }
+          if ('error' in result) {
+            return {
+              ...d,
+              status: 'error' as const,
+              error: result.error,
+              bodyHtml: '',
+              sourceKind: kind,
+              originalPreviewUrl: undefined,
+            }
+          }
+          const originalPreviewUrl = kind === 'pdf' ? URL.createObjectURL(file) : undefined
+          return {
+            ...d,
+            status: 'ready' as const,
+            bodyHtml: result.html,
+            error: undefined,
+            sourceKind: kind,
+            originalPreviewUrl,
+          }
+        })
+      )
+      if ('html' in result) {
+        void runClaimsExtract(docId, result.html)
+      }
+    },
+    [runClaimsExtract]
+  )
+
+  function openFilePicker() {
+    const el = fileInputRef.current
+    if (!el) return
+    el.value = ''
+    el.click()
+  }
+
+  function onFilesSelected(event: ChangeEvent<HTMLInputElement>) {
+    const input = event.currentTarget
+    const list = input.files
+    if (!list?.length) return
+    /** Snapshot before clearing `value` — some browsers empty `FileList` after reset. */
+    const files = Array.from(list)
+    input.value = ''
+
+    const prev = docsRef.current
+    const room = MAX_PLATFORM_DOCS - prev.length
+    if (room <= 0) {
+      window.alert(`You can have at most ${MAX_PLATFORM_DOCS} documents. Remove one to add more.`)
+      return
+    }
+
+    const picked: PendingExtraction[] = []
+    for (const file of files) {
+      if (picked.length >= room) break
+      const kind = classifyWorkspaceFile(file)
+      if (!kind) continue
+      picked.push({
+        id: crypto.randomUUID(),
+        file,
+        kind,
+      })
+    }
+    if (!picked.length) {
+      window.alert(
+        'No supported files in that selection. Use PDF, Word (.docx), PowerPoint (.pptx), Markdown, or plain text. Legacy .ppt is not supported — save as .pptx in PowerPoint first.'
+      )
+      return
+    }
+
+    const newRows: PlatformDoc[] = picked.map((p) => ({
+      id: p.id,
+      title: p.file.name || 'Untitled',
+      bodyHtml: '',
+      status: 'loading',
+    }))
+
+    const nextDocs = [...prev, ...newRows]
+    flushSync(() => {
+      setDocs(nextDocs)
+    })
+    docsRef.current = nextDocs
+    setActiveDocId(picked[0]!.id)
+    /** Defer extraction until after React commits the new doc rows (flushSync already committed). */
+    window.setTimeout(() => {
+      for (const p of picked) {
+        void extractIntoDoc(p.id, p.file, p.kind)
+      }
+    }, 0)
+  }
+
+  function removeDoc(docId: string) {
+    const victim = docsRef.current.find((d) => d.id === docId)
+    if (victim?.originalPreviewUrl) {
+      try {
+        URL.revokeObjectURL(victim.originalPreviewUrl)
+      } catch {
+        /* ignore */
+      }
+    }
+    setDocs((prev) => prev.filter((d) => d.id !== docId))
+    setClaimsStore((prev) => {
+      const next = { ...prev }
+      delete next[docId]
+      return next
+    })
+    if (activeDocId === docId) {
+      setActiveDocId(null)
+    }
+  }
+
+  async function signOut() {
+    if (!isSupabaseConfigured()) return
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push('/login')
+    router.refresh()
+  }
+
+  function syncEverywhereFromDoc(sourceDocId: string) {
+    const truthEntry = claimsStore[sourceDocId]
+    if (!truthEntry) return
+    const truth = truthEntry.claims
+    const truthEv = truthEntry.evidence ?? emptyClaimEvidenceRecord()
+
+    const nextBodies: Record<string, string> = Object.fromEntries(docs.map((d) => [d.id, d.bodyHtml]))
+    const nextClaims: ClaimsStore = { ...claimsStore }
+    const lineageChanges: string[] = []
+    const affectedTitles = new Set<string>()
+    const updatedBodyIds = new Set<string>()
+
+    for (const doc of docs) {
+      if (doc.id === sourceDocId || doc.status !== 'ready') continue
+      let html = nextBodies[doc.id] ?? doc.bodyHtml
+      const prevEntry: StoredDocClaims = nextClaims[doc.id] ?? {
+        claims: emptyClaimsRecord(),
+        evidence: emptyClaimEvidenceRecord(),
+        updatedAt: new Date().toISOString(),
+      }
+      const merged = { ...prevEntry.claims }
+      const mergedEv: ClaimEvidenceRecord = {
+        ...(prevEntry.evidence ?? emptyClaimEvidenceRecord()),
+      }
+      const foot: { label: string; from: string; to: string }[] = []
+
+      for (const key of CLAIM_KEYS) {
+        const t = truth[key]
+        const v = merged[key]
+        if (t === null || v === null) continue
+        if (!claimValuesDiffer(key, t, v)) continue
+        html = patchClaimInHtml(html, key, v, t)
+        merged[key] = t
+        const evT = truthEv[key]
+        if (evT) mergedEv[key] = evT
+        foot.push({
+          label: CLAIM_LABEL[key],
+          from: formatClaimValue(key, v),
+          to: formatClaimValue(key, t),
+        })
+      }
+
+      if (foot.length) {
+        nextBodies[doc.id] = coerceStoredEditorHtml(appendSyncFootnote(html, foot))
+        nextClaims[doc.id] = { claims: merged, evidence: mergedEv, updatedAt: new Date().toISOString() }
+        updatedBodyIds.add(doc.id)
+        affectedTitles.add(doc.title)
+        for (const row of foot) {
+          lineageChanges.push(`${row.label} synced: ${row.from} → ${row.to}`)
+        }
+      }
+    }
+
+    if (affectedTitles.size === 0) return
+
+    setDocs((prev) =>
+      prev.map((d) =>
+        updatedBodyIds.has(d.id) ? { ...d, bodyHtml: nextBodies[d.id]!, status: 'ready' as const } : d
+      )
+    )
+    setClaimsStore(nextClaims)
+
+    appendDataLineageEvent({
+      kind: 'cross_doc_claim_synced',
+      summary: `Cross-doc sync applied to ${[...affectedTitles].join(', ')}`,
+      detail: `Source: Cross-doc sync · numbers taken from ${docTitle(sourceDocId)}`,
+      changes: [
+        ...lineageChanges.slice(0, 12),
+        `Source document: ${docTitle(sourceDocId)}`,
+        `Affected: ${[...affectedTitles].join(', ')}`,
+      ],
+    })
+    refreshLineage()
+    setSyncSourcePickerOpen(false)
+  }
+
+  const readyDocs = useMemo(() => docs.filter((d) => d.status === 'ready'), [docs])
+
   return (
-    <main className="notion-page">
-      <div className="notion-shell">
+    <main className="notion-page notion-page--claims-demo">
+      <div className="notion-shell notion-shell--with-conflict-dock">
         <aside className="notion-sidebar" aria-label="Sidebar">
           <div className="notion-sidebar-brand-row">
             <div className="notion-sidebar-brand">Workspace</div>
@@ -2523,91 +870,17 @@ export default function PlatformPage() {
               </div>
             )}
           </div>
-          <nav className="notion-sidebar-nav">
-            <button
-              type="button"
-              className={`notion-sidebar-item ${
-                !activeBlankDocId && !activeWorkspaceFile && activeTab === 'onepager' ? 'is-active' : ''
-              }`}
-              onClick={() => goToTab('onepager')}
-            >
-              One pager
-            </button>
-            <button
-              type="button"
-              className={`notion-sidebar-item ${
-                !activeBlankDocId && !activeWorkspaceFile && activeTab === 'pitchdeck' ? 'is-active' : ''
-              }`}
-              onClick={() => goToTab('pitchdeck')}
-            >
-              Pitch deck
-            </button>
-            <button
-              type="button"
-              className={`notion-sidebar-item ${
-                !activeBlankDocId && !activeWorkspaceFile && activeTab === 'market' ? 'is-active' : ''
-              }`}
-              onClick={() => goToTab('market')}
-            >
-              Market
-            </button>
-            <button
-              type="button"
-              className={`notion-sidebar-item ${
-                !activeBlankDocId && !activeWorkspaceFile && activeTab === 'product' ? 'is-active' : ''
-              }`}
-              onClick={() => goToTab('product')}
-            >
-              Product
-            </button>
-            <button
-              type="button"
-              className={`notion-sidebar-item ${
-                !activeBlankDocId && !activeWorkspaceFile && activeTab === 'traction' ? 'is-active' : ''
-              }`}
-              onClick={() => goToTab('traction')}
-            >
-              Traction
-            </button>
-            <button
-              type="button"
-              className={`notion-sidebar-item ${
-                !activeBlankDocId && !activeWorkspaceFile && activeTab === 'team' ? 'is-active' : ''
-              }`}
-              onClick={() => goToTab('team')}
-            >
-              Team
-            </button>
-            <button
-              type="button"
-              className={`notion-sidebar-item ${
-                !activeBlankDocId && !activeWorkspaceFile && activeTab === 'financials' ? 'is-active' : ''
-              }`}
-              onClick={() => goToTab('financials')}
-            >
-              Financials
-            </button>
-            <button
-              type="button"
-              className={`notion-sidebar-item ${
-                !activeBlankDocId && !activeWorkspaceFile && activeTab === 'lineage' ? 'is-active' : ''
-              }`}
-              onClick={() => goToTab('lineage')}
-            >
-              Data lineage
-            </button>
-          </nav>
 
           <div className="notion-sidebar-docs">
             <input
-              ref={workspaceWebkitDirectoryInputRef}
+              ref={fileInputRef}
               type="file"
               className="notion-sidebar-folder-input-hidden"
               tabIndex={-1}
               aria-hidden
               multiple
-              {...({ webkitdirectory: '', directory: '' } as Record<string, string>)}
-              onChange={onWorkspaceWebkitDirectoryChange}
+              accept=".pdf,.docx,.dotx,.pptx,.txt,.text,.md,.markdown,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/plain,text/markdown"
+              onChange={onFilesSelected}
             />
             <div className="notion-sidebar-docs-head">
               <span className="notion-sidebar-docs-label">Documents</span>
@@ -2615,997 +888,288 @@ export default function PlatformPage() {
                 <button
                   type="button"
                   className="notion-sidebar-add-doc"
-                  onClick={addBlankWorkspaceDocument}
-                  title="New blank document"
-                  aria-label="New blank document"
+                  onClick={openFilePicker}
+                  title="Upload documents (PDF, Word, PowerPoint .pptx, Markdown, or plain text). You can add many at once."
+                  aria-label="Upload documents"
                 >
                   +
                 </button>
-                <button
-                  type="button"
-                  className="notion-sidebar-add-folder"
-                  onClick={() => void onWorkspaceFolderButtonClick()}
-                  title="Choose a folder — all supported files inside (including subfolders) are imported. If your browser opens an older file dialog, select the folder row once, then Open."
-                  aria-label="Upload folder"
-                >
-                  <svg
-                    className="notion-sidebar-add-folder-icon"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden
-                  >
-                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-                  </svg>
-                </button>
               </div>
             </div>
-            {blankWorkspaceDocs.map((doc) => (
-              <button
-                key={doc.id}
-                type="button"
-                className={`notion-sidebar-item notion-sidebar-doc-item ${
-                  activeBlankDocId === doc.id && !activeWorkspaceFile ? 'is-active' : ''
-                }`}
-                onClick={() => {
-                  setActiveWorkspaceFile(null)
-                  setActiveBlankDocId(doc.id)
-                  recordLineage({
-                    kind: 'document_opened',
-                    summary: `Opened document: ${doc.title}`,
-                    detail: 'Workspace document (sidebar)',
-                    changes: ['Editor switched to this document (sidebar).'],
-                  })
-                }}
-              >
-                {doc.title}
-              </button>
-            ))}
-            {workspaceFolders.map((folder) => (
-              <div key={folder.id} className="notion-sidebar-folder">
-                <div className="notion-sidebar-folder-head">
-                  <span className="notion-sidebar-folder-label" title={folder.label}>
-                    {folder.label}
-                  </span>
-                  <button
-                    type="button"
-                    className="notion-sidebar-folder-remove"
-                    onClick={() => removeWorkspaceFolder(folder.id)}
-                    aria-label={`Remove folder ${folder.label}`}
-                    title="Remove folder from sidebar"
-                  >
-                    ×
-                  </button>
-                </div>
-                <ul className="notion-sidebar-folder-files">
-                  {folder.files.map((f) => (
-                    <li key={f.id}>
-                      <button
-                        type="button"
-                        className={`notion-sidebar-folder-file ${
-                          activeWorkspaceFile?.folderId === folder.id && activeWorkspaceFile?.fileId === f.id
-                            ? 'is-active'
-                            : ''
-                        }`}
-                        onClick={() => openWorkspaceFolderFile(folder.id, f.id)}
-                        title={f.relPath}
-                      >
-                        <span className="notion-sidebar-folder-file-name">{f.displayName}</span>
-                        {f.status === 'pending' || f.status === 'loading' ? (
-                          <span className="notion-sidebar-folder-file-badge" aria-hidden>
-                            …
-                          </span>
-                        ) : null}
-                        {f.status === 'error' ? (
-                          <span className="notion-sidebar-folder-file-badge notion-sidebar-folder-file-badge--err" title={f.error}>
-                            !
-                          </span>
-                        ) : null}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
+            {docs.length === 0 ? (
+              <p className="notion-sidebar-upload-hint">Use + to upload one or more files.</p>
+            ) : (
+              docs.map((doc) => {
+                const n = conflictCountForDoc(conflicts, doc.id)
+                return (
+                  <div key={doc.id} className="notion-sidebar-doc-row">
+                    <button
+                      type="button"
+                      className={`notion-sidebar-item notion-sidebar-doc-item ${
+                        activeDocId === doc.id ? 'is-active' : ''
+                      }`}
+                      onClick={() => setActiveDocId(doc.id)}
+                    >
+                      <span className="notion-sidebar-doc-item-label" title={doc.title}>
+                        {doc.title}
+                        {doc.status === 'loading' ? ' …' : ''}
+                      </span>
+                      {n > 0 ? (
+                        <span className="notion-conflict-badge" aria-label={`${n} conflicts`}>
+                          {n}
+                        </span>
+                      ) : null}
+                    </button>
+                    <button
+                      type="button"
+                      className="notion-sidebar-doc-remove"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        removeDoc(doc.id)
+                      }}
+                      aria-label={`Remove ${doc.title}`}
+                      title="Remove from workspace"
+                    >
+                      ×
+                    </button>
+                  </div>
+                )
+              })
+            )}
           </div>
         </aside>
 
-        <div className="notion-main">
-          {activeWorkspaceView ? (
-            <article className="notion-doc notion-doc--uploaded" aria-label={activeWorkspaceView.file.displayName}>
-              <p className="notion-uploaded-source">
-                {activeWorkspaceView.folder.label}
-                <span className="notion-uploaded-source-sep">·</span>
-                <span className="notion-uploaded-source-path">{activeWorkspaceView.file.relPath}</span>
-              </p>
-              <input
-                className="notion-title"
-                readOnly
-                value={activeWorkspaceView.file.displayName}
-                aria-label="File name"
-              />
-              {activeWorkspaceView.file.status === 'pending' || activeWorkspaceView.file.status === 'loading' ? (
-                <p className="notion-uploaded-status">Extracting text…</p>
-              ) : null}
-              {activeWorkspaceView.file.status === 'error' ? (
-                <p className="notion-uploaded-error" role="alert">
-                  {activeWorkspaceView.file.error || 'Could not read this file.'}
+        <div className="notion-main notion-main--demo">
+          <header className="notion-demo-hero">
+            <p className="notion-demo-hero-line">
+              Your financial numbers lie to investors because they&apos;re inconsistent across documents. We fix that
+              automatically.
+            </p>
+          </header>
+
+          {!activeDoc || docs.length === 0 ? (
+            <article className="notion-doc notion-doc--empty-upload" aria-label="Getting started">
+              <div className="notion-deck-empty">
+                <p>Upload your documents (as many as you need — up to {MAX_PLATFORM_DOCS}).</p>
+                <p className="notion-deck-empty-sub">
+                  PDF, Word (.docx), and PowerPoint (.pptx) are supported. Legacy .ppt is not — save as .pptx first. We
+                  extract text, detect figure conflicts, and sync from the doc you trust.
                 </p>
-              ) : null}
-              {activeWorkspaceView.file.status === 'ready' ? (
-                <RichDocEditor
-                  value={coerceStoredEditorHtml(activeWorkspaceView.file.bodyHtml)}
-                  onChange={(html) => {
-                    const fid = activeWorkspaceView.file.id
-                    const foid = activeWorkspaceView.folder.id
-                    const displayName = activeWorkspaceView.file.displayName
-                    const relPath = activeWorkspaceView.file.relPath
-                    latestWorkspacePlainLenRef.current = workspacePlainLen(html)
-                    setWorkspaceFolders((prev) =>
-                      prev.map((folder) => {
-                        if (folder.id !== foid) return folder
-                        return {
-                          ...folder,
-                          files: folder.files.map((file) =>
-                            file.id === fid ? { ...file, bodyHtml: html } : file
-                          ),
-                        }
-                      })
-                    )
-                    if (workspaceFileEditTimerRef.current != null) window.clearTimeout(workspaceFileEditTimerRef.current)
-                    workspaceFileEditTimerRef.current = window.setTimeout(() => {
-                      const latest = latestWorkspacePlainLenRef.current
-                      const prevLen = workspacePlainLastLoggedRef.current
-                      if (latest === prevLen) return
-                      const delta = latest - prevLen
-                      workspacePlainLastLoggedRef.current = latest
-                      recordLineage({
-                        kind: 'workspace_file_edited',
-                        summary: `Edited workspace file: ${displayName}`,
-                        detail: relPath,
-                        changes: [
-                          `Approx. readable text in file: ${prevLen} → ${latest} characters (${delta >= 0 ? '+' : ''}${delta})`,
-                        ],
-                      })
-                    }, 1400) as unknown as number
-                  }}
-                  placeholder="Extracted text appears here — edit freely."
-                  shadowContext={shadowContextBundle}
-                />
-              ) : null}
-            </article>
-          ) : activeBlankDoc ? (
-            <article className="notion-doc" aria-label={activeBlankDoc.title}>
-              <input
-                className="notion-title"
-                placeholder="Untitled"
-                value={activeBlankDoc.title}
-                onChange={(event) => {
-                  const title = event.target.value
-                  setBlankWorkspaceDocs((prev) =>
-                    prev.map((d) => (d.id === activeBlankDoc.id ? { ...d, title } : d))
-                  )
-                }}
-              />
-              <RichDocEditor
-                value={activeBlankDoc.bodyHtml}
-                onChange={(html) =>
-                  setBlankWorkspaceDocs((prev) =>
-                    prev.map((d) => (d.id === activeBlankDoc.id ? { ...d, bodyHtml: html } : d))
-                  )
-                }
-                placeholder="Blank page — write notes, memos, or drafts here."
-                shadowContext={shadowContextBundle}
-              />
-            </article>
-          ) : activeTab === 'onepager' ? (
-            <article className="notion-doc notion-doc--onepager" aria-label="One pager from pitch deck">
-              <input
-                ref={deckFileInputRef}
-                type="file"
-                accept="application/pdf,.pdf,.ppt,.pptx"
-                className="notion-onepager-file-hidden"
-                tabIndex={-1}
-                aria-hidden
-                onChange={(event) => void onDeckSelected(event.target.files)}
-              />
-              <div className="notion-onepager-topbar">
-                <button
-                  type="button"
-                  className={`notion-onepager-fab${deckText.trim() ? ' notion-onepager-fab--ready' : ''}`}
-                  aria-label="One pager actions"
-                  aria-expanded={onePagerMenuOpen}
-                  aria-haspopup="dialog"
-                  onClick={() => setOnePagerMenuOpen((open) => !open)}
-                >
-                  <span aria-hidden>+</span>
+                <button type="button" className="notion-empty-upload-cta" onClick={openFilePicker}>
+                  Choose files
                 </button>
               </div>
-
-              <div className="notion-onepager-layout-row" role="group" aria-label="One pager layout">
-                <span className="notion-onepager-layout-label">Layout</span>
-                <div className="notion-onepager-layout-pills">
-                  {ONE_PAGER_LAYOUTS.map((layout) => (
-                    <button
-                      key={layout.id}
-                      type="button"
-                      disabled={!layout.enabled}
-                      className={`notion-onepager-layout-pill${
-                        onePagerLayoutId === layout.id ? ' is-active' : ''
-                      }${!layout.enabled ? ' is-disabled' : ''}`}
-                      aria-pressed={onePagerLayoutId === layout.id}
-                      onClick={() => {
-                        if (!layout.enabled) return
-                        setOnePagerLayoutId(layout.id)
-                      }}
-                    >
-                      <span className="notion-onepager-layout-pill-label">{layout.label}</span>
-                      {!layout.enabled ? (
-                        <span className="notion-onepager-layout-pill-soon">Soon</span>
-                      ) : null}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {onePagerMenuOpen ? (
-                <div
-                  className="notion-onepager-overlay"
-                  role="presentation"
-                  onClick={() => setOnePagerMenuOpen(false)}
-                >
-                  <div
-                    className="notion-onepager-overlay-card"
-                    role="dialog"
-                    aria-modal="true"
-                    aria-labelledby="one-pager-actions-title"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <h2 id="one-pager-actions-title" className="notion-onepager-overlay-title">
-                      One pager
-                    </h2>
-
-                    <div className="notion-onepager-overlay-upload">
-                      <span className="notion-onepager-overlay-label">Pitch deck (PDF)</span>
-                      <button
-                        type="button"
-                        className="notion-onepager-overlay-file-btn"
-                        onClick={() => deckFileInputRef.current?.click()}
-                      >
-                        Choose file…
-                      </button>
-                      {deckFileName ? (
-                        <p className="notion-onepager-overlay-meta">
-                          Selected: {deckFileName}
-                          {isExtractingPdf
-                            ? ' · Extracting text…'
-                            : deckText
-                              ? ` · ${Math.round(deckText.length / 1024)} KB text extracted`
-                              : ' · No text extracted yet'}
-                        </p>
-                      ) : (
-                        <p className="notion-onepager-overlay-meta notion-onepager-overlay-meta--muted">
-                          No file selected
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="notion-doc-tools-actions notion-onepager-overlay-actions">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          presentDocument(onePagerViewTitle || 'One pager', onePagerSummary)
-                          setOnePagerMenuOpen(false)
-                        }}
-                      >
-                        Present
-                      </button>
-                      <button
-                        type="button"
-                        className="notion-doc-tool-secondary"
-                        onClick={() => void runSmartFill()}
-                        disabled={
-                          isSmartFilling ||
-                          isGeneratingOnePager ||
-                          isExtractingPdf ||
-                          !deckText.trim()
-                        }
-                      >
-                        {isSmartFilling ? 'Smart fill…' : 'Smart fill with AI'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void generateOnePager()}
-                        disabled={
-                          isSmartFilling ||
-                          isGeneratingOnePager ||
-                          isExtractingPdf ||
-                          !deckText.trim()
-                        }
-                      >
-                        {isGeneratingOnePager ? 'Generating…' : 'Generate 1-pager'}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ) : null}
-
-              {smartFillError && <p className="notion-doc-error">{smartFillError}</p>}
-              {onePagerError && <p className="notion-doc-error">{onePagerError}</p>}
-
-              <input
-                className="notion-title"
-                placeholder="One pager"
-                value={onePagerViewTitle}
-                onChange={(event) => setOnePagerViewTitle(event.target.value)}
-              />
-
-              <RichDocEditor
-                key={`onepager-${onePagerLayoutId}`}
-                value={onePagerSummary}
-                onChange={setOnePagerSummary}
-                placeholder={
-                  onePagerLayoutId === 'default'
-                    ? 'Rich text one-pager — use + to upload a deck and generate, or write and format here.'
-                    : onePagerLayoutId === 'strategic'
-                      ? 'Strategic plan — use + to generate from your deck or edit here.'
-                      : 'Designed canvas — use + to upload a deck and generate, or write and format here.'
-                }
-                shadowContext={shadowContextBundle}
-                surfaceClass={editorSurfaceClassForLayout(onePagerLayoutId)}
-              />
             </article>
-          ) : activeTab === 'pitchdeck' ? (
-            <article className="notion-doc notion-deck-tab" aria-label="Embedded pitch deck">
-              <header className="notion-deck-head">
-                <h1 className="notion-deck-title">Pitch deck</h1>
-              </header>
-
-              <div className="notion-deck-toolbar">
-                <label className="notion-upload">
-                  <span className="notion-upload-label">Deck (PDF)</span>
-                  <input
-                    ref={pitchDeckEmbedInputRef}
-                    type="file"
-                    accept="application/pdf,.pdf"
-                    disabled={embeddedDeckBusy}
-                    onChange={(event) => void onEmbeddedPitchDeckSelected(event.target.files)}
-                  />
-                  {embeddedDeckName && (
-                    <span className="notion-upload-meta">Saved: {embeddedDeckName}</span>
-                  )}
-                </label>
-                <div className="notion-deck-toolbar-actions">
-                  {embeddedDeckUrl && (
-                    <button
-                      type="button"
-                      className="notion-deck-present"
-                      disabled={embeddedDeckBusy}
-                      onClick={() => setIsPresentingDeck(true)}
-                    >
-                      Present
-                    </button>
-                  )}
-                  {embeddedDeckUrl && (
-                    <button
-                      type="button"
-                      className="notion-deck-clear"
-                      disabled={embeddedDeckBusy}
-                      onClick={() => void clearEmbeddedPitchDeck()}
-                    >
-                      Remove from app
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {embeddedDeckError && <p className="notion-doc-error">{embeddedDeckError}</p>}
-
-              {embeddedDeckBusy && !embeddedDeckUrl && (
-                <p className="notion-deck-hint">Saving deck in your browser…</p>
-              )}
-
-              {embeddedDeckUrl ? (
-                <div className="notion-deck-viewer">
-                  <iframe
-                    title={embeddedDeckName ? `Pitch deck: ${embeddedDeckName}` : 'Pitch deck PDF'}
-                    src={`${embeddedDeckUrl}#toolbar=1`}
-                    className="notion-deck-iframe"
-                  />
-                </div>
-              ) : (
-                !embeddedDeckBusy && (
-                  <div className="notion-deck-empty">
-                    <p>No deck embedded yet. Choose a PDF above to preview it here whenever you return.</p>
-                  </div>
-                )
-              )}
+          ) : activeDoc.status === 'loading' ? (
+            <article className="notion-doc" aria-label={activeDoc.title}>
+              <h1 className="notion-demo-doc-title">{activeDoc.title}</h1>
+              <p className="notion-uploaded-status">Extracting text…</p>
             </article>
-          ) : activeTab === 'market' ? (
-            <article className="notion-doc notion-market-tab" aria-label="Market">
-              <header className="notion-market-head">
-                <h1 className="notion-market-title">Market</h1>
-                <p className="notion-market-sub">
-                  Total addressable, serviceable, and obtainable revenue — plus how you fit against alternatives.
-                </p>
-              </header>
-
-              <section className="notion-market-kpis" aria-label="TAM SAM SOM">
-                <article>
-                  <h3>TAM</h3>
-                  <p>{formatMarketMoney(marketSizing.tam)}</p>
-                  <p className="notion-market-kpi-def">Total addressable market</p>
-                </article>
-                <article>
-                  <h3>SAM</h3>
-                  <p>{formatMarketMoney(marketSizing.sam)}</p>
-                  <p className="notion-market-kpi-def">Serviceable addressable market</p>
-                </article>
-                <article>
-                  <h3>SOM</h3>
-                  <p>{formatMarketMoney(marketSizing.som)}</p>
-                  <p className="notion-market-kpi-def">Serviceable obtainable (near-term)</p>
-                </article>
-              </section>
-
-              <div className="notion-market-funnel" aria-label="Market sizing funnel (relative to TAM)">
-                <div className="notion-market-funnel-row notion-market-funnel-tam">
-                  <span>TAM</span>
-                  <div
-                    className="notion-market-funnel-bar"
-                    style={{
-                      width: marketSizing.tam > 0 ? '100%' : '0%',
-                    }}
-                  />
-                </div>
-                <div className="notion-market-funnel-row notion-market-funnel-sam">
-                  <span>SAM</span>
-                  <div
-                    className="notion-market-funnel-bar"
-                    style={{
-                      width:
-                        marketSizing.tam > 0
-                          ? `${clamp((marketSizing.sam / marketSizing.tam) * 100, 0, 100)}%`
-                          : '0%',
-                    }}
-                  />
-                </div>
-                <div className="notion-market-funnel-row notion-market-funnel-som">
-                  <span>SOM</span>
-                  <div
-                    className="notion-market-funnel-bar"
-                    style={{
-                      width:
-                        marketSizing.tam > 0
-                          ? `${clamp((marketSizing.som / marketSizing.tam) * 100, 0, 100)}%`
-                          : '0%',
-                    }}
-                  />
-                </div>
-              </div>
-
-              <section className="notion-market-grid" aria-label="Market sizing inputs">
-                <label className="notion-market-field">
-                  <span>TAM ($)</span>
-                  <input
-                    type="number"
-                    min={0}
-                    value={marketSizing.tam}
-                    onChange={(e) => updateMarketSizing('tam', Math.max(0, Number(e.target.value) || 0))}
-                  />
-                </label>
-                <label className="notion-market-field">
-                  <span>SAM ($)</span>
-                  <input
-                    type="number"
-                    min={0}
-                    value={marketSizing.sam}
-                    onChange={(e) => updateMarketSizing('sam', Math.max(0, Number(e.target.value) || 0))}
-                  />
-                </label>
-                <label className="notion-market-field">
-                  <span>SOM ($)</span>
-                  <input
-                    type="number"
-                    min={0}
-                    value={marketSizing.som}
-                    onChange={(e) => updateMarketSizing('som', Math.max(0, Number(e.target.value) || 0))}
-                  />
-                </label>
-              </section>
-
-              <section className="notion-market-competitive" aria-label="Competitive landscape">
-                <h2 className="notion-market-h2">Competitive landscape</h2>
-                <p className="notion-market-competitive-hint">
-                  Competitors, category alternatives, positioning, and why you win — tables and bullets work well here.
-                </p>
-                <RichDocEditor
-                  value={marketCompetitive}
-                  onChange={(html) => {
-                    blockCloudMarketCompetitiveHydrateRef.current = true
-                    setMarketCompetitive(html)
-                  }}
-                  shadowContext={shadowContextBundle}
-                  placeholder={`## Direct competitors
-- **Acme** — enterprise incumbents, slow innovation…
-
-## Indirect / status quo
-- Spreadsheets, agencies, in-house tools…
-
-## Differentiation
-What only you can claim (with proof).`}
-                />
-              </section>
-            </article>
-          ) : activeTab === 'product' ? (
-            <article className="notion-doc notion-product-tab" aria-label="Product workspace">
-              <header className="notion-product-head">
-                <h1 className="notion-product-title">Product</h1>
-              </header>
-
-              <section className="notion-product-section" aria-label="Demo video">
-                <h2 className="notion-product-h2">Demo video</h2>
-                <div className="notion-product-toolbar">
-                  <label className="notion-upload">
-                    <span className="notion-upload-label">Upload video</span>
-                    <input
-                      ref={productDemoInputRef}
-                      type="file"
-                      accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov"
-                      disabled={productDemoBusy}
-                      onChange={(event) => void onProductDemoSelected(event.target.files)}
-                    />
-                    {productDemoName && (
-                      <span className="notion-upload-meta">Saved: {productDemoName}</span>
-                    )}
-                  </label>
-                  {productDemoUrl && (
-                    <button
-                      type="button"
-                      className="notion-product-secondary"
-                      disabled={productDemoBusy}
-                      onClick={() => void clearProductDemo()}
-                    >
-                      Remove video
-                    </button>
-                  )}
-                </div>
-                {productDemoError && <p className="notion-doc-error">{productDemoError}</p>}
-                {productDemoBusy && <p className="notion-product-hint">Saving video…</p>}
-                {productDemoUrl ? (
-                  <video className="notion-product-video" controls playsInline src={productDemoUrl} />
-                ) : (
-                  !productDemoBusy && (
-                    <p className="notion-product-empty">Add a short product walkthrough or demo reel. Stored in this browser only.</p>
-                  )
-                )}
-              </section>
-
-              <section className="notion-product-section" aria-label="Screenshots">
-                <h2 className="notion-product-h2">Screenshots</h2>
-                <div className="notion-product-toolbar">
-                  <label className="notion-upload">
-                    <span className="notion-upload-label">Add images</span>
-                    <input
-                      ref={productShotsInputRef}
-                      type="file"
-                      accept="image/png,image/jpeg,image/webp,image/gif,.png,.jpg,.jpeg,.webp,.gif"
-                      multiple
-                      disabled={productShotsBusy}
-                      onChange={(event) => void onProductScreenshotsSelected(event.target.files)}
-                    />
-                    <span className="notion-upload-meta">
-                      {productShots.length} / {MAX_SCREENSHOTS} · max {Math.round(MAX_SHOT_BYTES / (1024 * 1024))} MB each
-                    </span>
-                  </label>
-                  {productShots.length > 0 && (
-                    <button
-                      type="button"
-                      className="notion-product-secondary"
-                      disabled={productShotsBusy}
-                      onClick={() => void clearAllProductScreenshots()}
-                    >
-                      Clear all
-                    </button>
-                  )}
-                </div>
-                {productShotsError && <p className="notion-doc-error">{productShotsError}</p>}
-                {productShotsBusy && <p className="notion-product-hint">Updating gallery…</p>}
-                {productShots.length > 0 ? (
-                  <ul className="notion-product-gallery">
-                    {productShots.map((shot) => (
-                      <li key={shot.id} className="notion-product-gallery-item">
-                        {/* eslint-disable-next-line @next/next/no-img-element -- blob URLs from IndexedDB */}
-                        <img src={shot.url} alt={shot.name} loading="lazy" />
-                        <div className="notion-product-gallery-meta">
-                          <span className="notion-product-gallery-name">{shot.name}</span>
-                          <button
-                            type="button"
-                            className="notion-product-gallery-remove"
-                            disabled={productShotsBusy}
-                            onClick={() => void removeProductScreenshot(shot.id)}
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  !productShotsBusy && (
-                    <p className="notion-product-empty">Drop UI captures, marketing shots, or release notes visuals here.</p>
-                  )
-                )}
-              </section>
-
-              <section className="notion-product-section notion-product-roadmap" aria-label="Roadmap">
-                <h2 className="notion-product-h2">Roadmap</h2>
-                <RichDocEditor
-                  value={productRoadmap}
-                  onChange={setProductRoadmap}
-                  shadowContext={shadowContextBundle}
-                  placeholder="Ship timeline, milestones, themes (Now / Next / Later), links to tickets—whatever helps you tell the product story."
-                />
-              </section>
-            </article>
-          ) : activeTab === 'traction' ? (
-            <article className="notion-doc notion-traction-tab" aria-label="Traction">
-              <header className="notion-traction-head">
-                <h1 className="notion-traction-title">Traction</h1>
-                <p className="notion-traction-sub">
-                  Key metrics, an MRR trajectory you control, and customer logos for your narrative. Stored in this
-                  browser only.
-                </p>
-              </header>
-
-              <section className="notion-traction-kpis" aria-label="Key metrics">
-                <article>
-                  <h3>MRR</h3>
-                  <p>{formatMoney(traction.mrr)}</p>
-                </article>
-                <article>
-                  <h3>ARR</h3>
-                  <p>{formatMoney(traction.mrr * 12)}</p>
-                </article>
-                <article>
-                  <h3>Customers</h3>
-                  <p>{traction.customers.toLocaleString('en-US')}</p>
-                </article>
-                <article>
-                  <h3>NRR</h3>
-                  <p>{traction.nrrPct.toFixed(0)}%</p>
-                </article>
-              </section>
-
-              <section className="notion-traction-grid" aria-label="Traction inputs">
-                <label className="notion-traction-field">
-                  <span>Latest MRR ($)</span>
-                  <input
-                    type="number"
-                    min={0}
-                    value={traction.mrr}
-                    onChange={(e) => updateTractionNumber('mrr', Math.max(0, Number(e.target.value) || 0))}
-                  />
-                </label>
-                <label className="notion-traction-field">
-                  <span>Paying customers</span>
-                  <input
-                    type="number"
-                    min={0}
-                    value={traction.customers}
-                    onChange={(e) => updateTractionNumber('customers', Math.max(0, Number(e.target.value) || 0))}
-                  />
-                </label>
-                <label className="notion-traction-field">
-                  <span>Implied MoM growth %</span>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={traction.momGrowthPct}
-                    onChange={(e) => updateTractionNumber('momGrowthPct', Number(e.target.value) || 0)}
-                  />
-                </label>
-                <label className="notion-traction-field">
-                  <span>NRR %</span>
-                  <input
-                    type="number"
-                    min={0}
-                    max={300}
-                    value={traction.nrrPct}
-                    onChange={(e) =>
-                      updateTractionNumber('nrrPct', clamp(Number(e.target.value) || 0, 0, 300))
-                    }
-                  />
-                </label>
-                <label className="notion-traction-field notion-traction-field-span">
-                  <span>Chart length (months)</span>
-                  <input
-                    type="number"
-                    min={3}
-                    max={24}
-                    value={traction.chartMonths}
-                    onChange={(e) =>
-                      updateTractionNumber('chartMonths', clamp(Number(e.target.value) || 12, 3, 24))
-                    }
-                  />
-                </label>
-              </section>
-
-              <section className="notion-traction-chart" aria-label="MRR growth chart">
-                <h2 className="notion-traction-h2">MRR trajectory</h2>
-                <p className="notion-traction-chart-hint">
-                  Curve is implied from latest MRR and MoM % — useful for slides; replace with real cohort data when you
-                  have it.
-                </p>
-                <TractionMrrChart series={buildMrrSeries(traction.mrr, traction.momGrowthPct, traction.chartMonths)} />
-              </section>
-
-              <section className="notion-traction-logos" aria-label="Customer logos">
-                <h2 className="notion-traction-h2">Customer logos</h2>
-                <div className="notion-traction-toolbar">
-                  <label className="notion-upload">
-                    <span className="notion-upload-label">Add logos</span>
-                    <input
-                      ref={tractionLogoInputRef}
-                      type="file"
-                      accept="image/png,image/jpeg,image/webp,image/gif,.png,.jpg,.jpeg,.webp,.gif"
-                      multiple
-                      disabled={tractionLogosBusy}
-                      onChange={(event) => void onTractionLogosSelected(event.target.files)}
-                    />
-                    <span className="notion-upload-meta">
-                      {tractionLogos.length} / {MAX_LOGOS} · max {Math.round(MAX_LOGO_BYTES / (1024 * 1024))} MB each
-                    </span>
-                  </label>
-                  {tractionLogos.length > 0 && (
-                    <button
-                      type="button"
-                      className="notion-product-secondary"
-                      disabled={tractionLogosBusy}
-                      onClick={() => void clearAllTractionLogos()}
-                    >
-                      Clear all
-                    </button>
-                  )}
-                </div>
-                {tractionLogosError && <p className="notion-doc-error">{tractionLogosError}</p>}
-                {tractionLogosBusy && <p className="notion-traction-hint">Updating logos…</p>}
-                {tractionLogos.length > 0 ? (
-                  <ul className="notion-traction-logo-grid">
-                    {tractionLogos.map((logo) => (
-                      <li key={logo.id} className="notion-traction-logo-cell">
-                        {/* eslint-disable-next-line @next/next/no-img-element -- blob URLs from IndexedDB */}
-                        <img src={logo.url} alt={logo.name} loading="lazy" />
-                        <div className="notion-traction-logo-meta">
-                          <span className="notion-traction-logo-name">{logo.name}</span>
-                          <button
-                            type="button"
-                            className="notion-traction-logo-remove"
-                            disabled={tractionLogosBusy}
-                            onClick={() => void removeTractionLogo(logo.id)}
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  !tractionLogosBusy && (
-                    <p className="notion-traction-empty">
-                      Upload PNG or SVG exports of customer marks. Shown in a neutral tile so light and dark logos both
-                      read well.
-                    </p>
-                  )
-                )}
-              </section>
-            </article>
-          ) : activeTab === 'lineage' ? (
-            <DataLineagePanel
-              events={lineageEvents}
-              onEventsCleared={() => setLineageEvents(loadDataLineageEvents())}
-            />
-          ) : activeTab === 'team' ? (
-            <article className="notion-doc notion-team-tab" aria-label="Team">
-              <header className="notion-team-head">
-                <h1 className="notion-team-title">Team</h1>
-                <p className="notion-team-sub">
-                  Who is building this — bios, LinkedIn, and relevant experience.
-                </p>
-                {teamWorkspace.length > 0 && (
-                  <p className="notion-team-smartfill-note">
-                    Showing roster from Smart fill (your deck).
-                    <button type="button" className="notion-team-smartfill-reset" onClick={() => setTeamWorkspace([])}>
-                      Restore template team
-                    </button>
-                  </p>
-                )}
-              </header>
-              <ul className="notion-team-grid">
-                {displayTeam.map((member, memberIdx) => (
-                  <li key={`${member.name}-${memberIdx}`} className="notion-team-card">
-                    <div className="notion-team-card-head">
-                      <h2 className="notion-team-name">{member.name}</h2>
-                      <p className="notion-team-role">{member.role}</p>
-                    </div>
-                    <p className="notion-team-bio">{member.bio}</p>
-                    <a
-                      className="notion-team-linkedin"
-                      href={member.linkedinUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label={`${member.name} on LinkedIn (opens in a new tab)`}
-                    >
-                      LinkedIn profile
-                    </a>
-                    <div className="notion-team-exp">
-                      <h3 className="notion-team-exp-title">Relevant experience</h3>
-                      <ul>
-                        {member.experience.map((line) => (
-                          <li key={line}>{line}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+          ) : activeDoc.status === 'error' ? (
+            <article className="notion-doc" aria-label={activeDoc.title}>
+              <h1 className="notion-demo-doc-title">{activeDoc.title}</h1>
+              <p className="notion-uploaded-error" role="alert">
+                {activeDoc.error || 'Could not read this file.'}
+              </p>
             </article>
           ) : (
-            <article className="notion-doc notion-financials-tab" aria-label="Financials dashboard">
-              <header className="notion-financials-head">
-                <h1 className="notion-financials-title">Financials</h1>
-                <p className="notion-financials-sub">Track MRR, burn rate, runway, and your forward cash plan.</p>
-              </header>
-
-              <section className="notion-financials-grid">
-                <label className="notion-financials-field">
-                  <span>Cash on hand</span>
-                  <input
-                    type="number"
-                    value={financials.cashOnHand}
-                    onChange={(e) => updateFinancialNumber('cashOnHand', Number(e.target.value) || 0)}
-                  />
-                </label>
-                <label className="notion-financials-field">
-                  <span>MRR</span>
-                  <input
-                    type="number"
-                    value={financials.mrr}
-                    onChange={(e) => updateFinancialNumber('mrr', Number(e.target.value) || 0)}
-                  />
-                </label>
-                <label className="notion-financials-field">
-                  <span>COGS %</span>
-                  <input
-                    type="number"
-                    value={financials.cogsPct}
-                    onChange={(e) => updateFinancialNumber('cogsPct', clamp(Number(e.target.value) || 0, 0, 100))}
-                  />
-                </label>
-                <label className="notion-financials-field">
-                  <span>Monthly OPEX</span>
-                  <input
-                    type="number"
-                    value={financials.monthlyOpex}
-                    onChange={(e) => updateFinancialNumber('monthlyOpex', Number(e.target.value) || 0)}
-                  />
-                </label>
-                <label className="notion-financials-field">
-                  <span>Monthly debt payments</span>
-                  <input
-                    type="number"
-                    value={financials.monthlyDebt}
-                    onChange={(e) => updateFinancialNumber('monthlyDebt', Number(e.target.value) || 0)}
-                  />
-                </label>
-                <label className="notion-financials-field">
-                  <span>Revenue growth % / month</span>
-                  <input
-                    type="number"
-                    value={financials.monthlyRevenueGrowthPct}
-                    onChange={(e) => updateFinancialNumber('monthlyRevenueGrowthPct', Number(e.target.value) || 0)}
-                  />
-                </label>
-                <label className="notion-financials-field">
-                  <span>Expense growth % / month</span>
-                  <input
-                    type="number"
-                    value={financials.monthlyExpenseGrowthPct}
-                    onChange={(e) => updateFinancialNumber('monthlyExpenseGrowthPct', Number(e.target.value) || 0)}
-                  />
-                </label>
-                <label className="notion-financials-field">
-                  <span>New MRR added / month</span>
-                  <input
-                    type="number"
-                    value={financials.newMrrPerMonth}
-                    onChange={(e) => updateFinancialNumber('newMrrPerMonth', Number(e.target.value) || 0)}
-                  />
-                </label>
-                <label className="notion-financials-field">
-                  <span>Projection months</span>
-                  <input
-                    type="number"
-                    min={3}
-                    max={60}
-                    value={financials.projectionMonths}
-                    onChange={(e) =>
-                      updateFinancialNumber('projectionMonths', clamp(Number(e.target.value) || 12, 3, 60))
-                    }
-                  />
-                </label>
-              </section>
-
-              <section className="notion-financials-kpis">
-                <article>
-                  <h3>ARR</h3>
-                  <p>{formatMoney(arr)}</p>
-                </article>
-                <article>
-                  <h3>Gross margin</h3>
-                  <p>{grossMarginPct.toFixed(1)}%</p>
-                </article>
-                <article>
-                  <h3>Net burn / month</h3>
-                  <p>{formatMoney(netBurn)}</p>
-                </article>
-                <article>
-                  <h3>Runway</h3>
-                  <p>{Number.isFinite(runwayMonths) ? `${runwayMonths.toFixed(1)} months` : 'Profitable / infinite'}</p>
-                </article>
-              </section>
-
-              <section className="notion-financials-table-wrap">
-                <h2>Projection</h2>
-                <div className="notion-financials-table-scroll">
-                  <table className="notion-financials-table">
-                    <thead>
-                      <tr>
-                        <th>Month</th>
-                        <th>MRR</th>
-                        <th>Fixed costs</th>
-                        <th>Net burn</th>
-                        <th>Cash remaining</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {projectionRows.map((row) => (
-                        <tr key={row.month}>
-                          <td>M{row.month}</td>
-                          <td>{formatMoney(row.mrrAtMonth)}</td>
-                          <td>{formatMoney(row.fixedCostsAtMonth)}</td>
-                          <td>{formatMoney(row.netBurnAtMonth)}</td>
-                          <td className={row.cashRemaining < 0 ? 'is-negative' : ''}>{formatMoney(row.cashRemaining)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </section>
+            <article
+              className={[
+                'notion-doc',
+                activeDoc.sourceKind === 'docx' ? 'notion-doc--imported-docx' : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+              aria-label={activeDoc.title}
+            >
+              <h1 className="notion-demo-doc-title">{activeDoc.title}</h1>
+              {extractStatus ? <p className="notion-demo-extract-status">{extractStatus}</p> : null}
+              {activeDoc.originalPreviewUrl ? (
+                <OriginalPdfPreview url={activeDoc.originalPreviewUrl} docTitle={activeDoc.title} />
+              ) : activeDoc.sourceKind === 'pdf' ? (
+                <p className="notion-original-preview-reload-hint">
+                  Original PDF layout is available right after upload in a new session. Reload cleared the preview;
+                  re-upload the file to see it again alongside extracted text.
+                </p>
+              ) : null}
+              <RichDocEditor
+                value={activeDoc.bodyHtml}
+                onChange={(html) => {
+                  setDocs((prev) => prev.map((d) => (d.id === activeDoc.id ? { ...d, bodyHtml: html } : d)))
+                  applyLiveHeuristicClaims(activeDoc.id, html)
+                  scheduleClaimsExtract(activeDoc.id, html)
+                }}
+                placeholder="Edit extracted text. Figures are compared across all uploaded documents after a short pause."
+                conflictHighlightPhrases={conflictHighlightPhrases}
+                scrollToConflict={
+                  scrollConflict && activeDocId === scrollConflict.docId
+                    ? { phrase: scrollConflict.phrase, token: scrollConflict.token }
+                    : null
+                }
+                onScrollToConflictComplete={clearScrollConflict}
+              />
             </article>
           )}
+
+          {lineageEvents.length > 0 ? (
+            <section className="notion-demo-lineage" aria-label="Sync activity">
+              <h2 className="notion-demo-lineage-title">Accountability trail</h2>
+              <ol className="notion-demo-lineage-list">
+                {lineageEvents.map((ev) => (
+                  <li key={ev.id} className="notion-demo-lineage-row">
+                    <span className="notion-demo-lineage-badge">{LINEAGE_KIND_LABEL[ev.kind]}</span>
+                    <time className="notion-demo-lineage-time" dateTime={ev.ts}>
+                      {formatLineageDisplayTime(ev.ts)}
+                    </time>
+                    <p className="notion-demo-lineage-summary">{ev.summary}</p>
+                    {ev.detail ? <p className="notion-demo-lineage-detail">{ev.detail}</p> : null}
+                    {ev.changes?.length ? (
+                      <ul className="notion-demo-lineage-changes">
+                        {ev.changes.map((c, i) => (
+                          <li key={i}>{c}</li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </li>
+                ))}
+              </ol>
+            </section>
+          ) : null}
         </div>
-      </div>
-      {isPresentingDeck && embeddedDeckUrl && (
-        <div className="notion-deck-present-overlay" role="dialog" aria-modal="true" aria-label="Pitch deck presentation">
-          <div className="notion-deck-present-topbar">
-            <div className="notion-deck-present-title">{embeddedDeckName || 'Pitch deck'}</div>
-            <button type="button" className="notion-deck-present-exit" onClick={() => setIsPresentingDeck(false)}>
-              Exit presentation
+
+        <aside
+          className={`notion-conflict-dock ${conflictPanelOpen ? 'is-open' : ''}`}
+          aria-hidden={!conflictPanelOpen}
+        >
+          <div className="notion-conflict-dock-head">
+            <h2 className="notion-conflict-dock-title">Live conflicts</h2>
+            <button
+              type="button"
+              className="notion-conflict-dock-close"
+              onClick={() => setConflictPanelOpen(false)}
+              aria-label="Close conflict panel"
+            >
+              ×
             </button>
           </div>
-          <iframe
-            title={embeddedDeckName ? `Pitch deck presentation: ${embeddedDeckName}` : 'Pitch deck presentation'}
-            src={`${embeddedDeckUrl}#toolbar=0&navpanes=0`}
-            className="notion-deck-present-iframe"
-          />
-        </div>
-      )}
+          {docs.length < 2 ? (
+            <p className="notion-conflict-dock-empty">Upload at least two documents to compare figures across files.</p>
+          ) : conflicts.length === 0 ? (
+            <p className="notion-conflict-dock-empty">
+              {rawConflictGroups.length > 0
+                ? `No conflicts shown (${rawConflictGroups.length} raw cluster${rawConflictGroups.length === 1 ? '' : 's'} filtered by stable rules — likely different metrics or bad extractions).`
+                : 'No figure conflicts across your uploaded documents.'}
+            </p>
+          ) : (
+            <>
+              <p className="notion-conflict-dock-lead">
+                ⚠️ {conflicts.length} mismatch{conflicts.length === 1 ? '' : 'es'} after stable checks (same result on
+                refresh).{' '}
+                {rawConflictGroups.length > conflicts.length ? (
+                  <>
+                    {rawConflictGroups.length - conflicts.length} raw cluster
+                    {rawConflictGroups.length - conflicts.length === 1 ? '' : 's'} hidden as likely false positives.
+                  </>
+                ) : null}{' '}
+                Sync picks one document you trust, then aligns the others.
+              </p>
+              <ul className="notion-conflict-dock-list">
+                {conflicts.map((g, idx) => {
+                  const rowId = `${g.key}-${g.docs.map((d) => d.docId).sort().join('+')}-${idx}`
+                  const expanded = expandedConflictId === rowId
+                  const summary = g.docs
+                    .map((d) => `${docTitle(d.docId)} ${formatClaimValue(g.key, d.value)}`)
+                    .join(' · ')
+                  return (
+                    <li key={rowId} className="notion-conflict-dock-row">
+                      <button
+                        type="button"
+                        className="notion-conflict-dock-row-toggle"
+                        aria-expanded={expanded}
+                        onClick={() => setExpandedConflictId((cur) => (cur === rowId ? null : rowId))}
+                      >
+                        <strong>{CLAIM_LABEL[g.key]}</strong>
+                        <span className="notion-conflict-dock-values">
+                          {g.docs.length} files disagree — {summary}
+                        </span>
+                        <span className="notion-conflict-dock-row-hint">{expanded ? 'Hide' : 'Show'} files</span>
+                      </button>
+                      {expanded ? (
+                        <ul className="notion-conflict-dock-file-list" aria-label="Open location in document">
+                          {g.docs.map((d) => (
+                            <li key={d.docId}>
+                              <button
+                                type="button"
+                                className="notion-conflict-dock-file-btn"
+                                onClick={() => openConflictInDoc(d.docId, g.key, d.value)}
+                              >
+                                <span className="notion-conflict-dock-file-name">{docTitle(d.docId)}</span>
+                                <span className="notion-conflict-dock-file-val">{formatClaimValue(g.key, d.value)}</span>
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : null}
+                    </li>
+                  )
+                })}
+              </ul>
+              <button type="button" className="notion-conflict-sync-all" onClick={() => setSyncSourcePickerOpen(true)}>
+                Sync everywhere
+              </button>
+            </>
+          )}
+        </aside>
+
+        {conflicts.length > 0 && !conflictPanelOpen ? (
+          <button
+            type="button"
+            className="notion-conflict-fab"
+            onClick={() => setConflictPanelOpen(true)}
+            aria-label="Show conflicts"
+          >
+            {conflicts.length} conflict{conflicts.length === 1 ? '' : 's'}
+          </button>
+        ) : null}
+
+        {syncSourcePickerOpen ? (
+          <div
+            className="notion-sync-source-overlay"
+            role="presentation"
+            onClick={() => setSyncSourcePickerOpen(false)}
+          >
+            <div
+              className="notion-sync-source-dialog"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="sync-source-title"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2 id="sync-source-title" className="notion-sync-source-title">
+                Which document has the right numbers?
+              </h2>
+              <p className="notion-sync-source-sub">
+                We&apos;ll copy matching figures from that doc into the others and log it in the accountability trail.
+              </p>
+              <div className="notion-sync-source-actions" role="group" aria-label="Choose source document">
+                {readyDocs.map((doc) => (
+                  <button
+                    key={doc.id}
+                    type="button"
+                    className="notion-sync-source-choice"
+                    onClick={() => syncEverywhereFromDoc(doc.id)}
+                  >
+                    {doc.title}
+                  </button>
+                ))}
+              </div>
+              <button type="button" className="notion-sync-source-cancel" onClick={() => setSyncSourcePickerOpen(false)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </div>
     </main>
   )
 }

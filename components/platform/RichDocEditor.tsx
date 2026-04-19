@@ -3,22 +3,47 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { EditorContent, useEditor } from '@tiptap/react'
 import type { Editor } from '@tiptap/core'
+import { TextSelection } from '@tiptap/pm/state'
+import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import Image from '@tiptap/extension-image'
 import { Table, TableRow, TableCell, TableHeader } from '@tiptap/extension-table'
 import Link from '@tiptap/extension-link'
-import { InlineAiAtCursor } from '@/components/platform/InlineAiAtCursor'
-import { ShadowCompleter } from '@/components/platform/shadowCompleterExtension'
+import {
+  ConflictUnderline,
+  conflictUnderlineRefreshKey,
+} from '@/components/platform/conflictUnderlineExtension'
 
 type RichDocEditorProps = {
   value: string
   onChange: (html: string) => void
   placeholder?: string
-  /** Workspace text used to ground ghost completions (financial / ownership / boilerplate). Omit to disable. */
-  shadowContext?: string
   /** Optional class on the editor shell (e.g. one-pager print template theme). */
   surfaceClass?: string
+  /** Substrings to underline in red when they appear in the doc (e.g. conflicting figures). */
+  conflictHighlightPhrases?: string[]
+  /** When `token` changes, scroll to the first case-insensitive match of `phrase` in the document. */
+  scrollToConflict?: { phrase: string; token: number } | null
+  onScrollToConflictComplete?: () => void
+}
+
+function findPhraseRangeCaseInsensitive(
+  doc: ProseMirrorNode,
+  phrase: string
+): { from: number; to: number } | null {
+  if (!phrase) return null
+  const needle = phrase.toLowerCase()
+  let found: { from: number; to: number } | null = null
+  doc.descendants((node, pos) => {
+    if (found || !node.isText || !node.text) return
+    const text = node.text
+    const tl = text.toLowerCase()
+    const idx = tl.indexOf(needle)
+    if (idx === -1) return
+    found = { from: pos + idx, to: pos + idx + phrase.length }
+  })
+  return found
 }
 
 function toStoredHtml(editor: Editor): string {
@@ -32,19 +57,11 @@ function fromStoredHtml(value: string): string {
   return value.trim() === '' ? '<p></p>' : value
 }
 
-function Toolbar({ editor, shadowEnabled }: { editor: Editor | null; shadowEnabled: boolean }) {
+function Toolbar({ editor }: { editor: Editor | null }) {
   if (!editor) return null
 
   return (
     <div className="notion-rte-toolbar" role="toolbar" aria-label="Text formatting">
-      {shadowEnabled ? (
-        <span
-          className="notion-rte-shadow-hint"
-          title="Workspace hints show immediately where available. A local LLM (Ollama) can refine the ghost after a short pause. Tab inserts, Esc dismisses."
-        >
-          Shadow
-        </span>
-      ) : null}
       <button
         type="button"
         className={editor.isActive('bold') ? 'is-active' : ''}
@@ -64,58 +81,6 @@ function Toolbar({ editor, shadowEnabled }: { editor: Editor | null; shadowEnabl
         aria-label="Italic"
       >
         I
-      </button>
-      <span className="notion-rte-toolbar-sep" aria-hidden />
-      <button
-        type="button"
-        className={editor.isActive('heading', { level: 2 }) ? 'is-active' : ''}
-        onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-        aria-pressed={editor.isActive('heading', { level: 2 })}
-        title="Heading 2"
-        aria-label="Heading 2"
-      >
-        H2
-      </button>
-      <button
-        type="button"
-        className={editor.isActive('heading', { level: 3 }) ? 'is-active' : ''}
-        onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-        aria-pressed={editor.isActive('heading', { level: 3 })}
-        title="Heading 3"
-        aria-label="Heading 3"
-      >
-        H3
-      </button>
-      <span className="notion-rte-toolbar-sep" aria-hidden />
-      <button
-        type="button"
-        className={editor.isActive('bulletList') ? 'is-active' : ''}
-        onClick={() => editor.chain().focus().toggleBulletList().run()}
-        aria-pressed={editor.isActive('bulletList')}
-        title="Bullet list"
-        aria-label="Bullet list"
-      >
-        •
-      </button>
-      <button
-        type="button"
-        className={editor.isActive('orderedList') ? 'is-active' : ''}
-        onClick={() => editor.chain().focus().toggleOrderedList().run()}
-        aria-pressed={editor.isActive('orderedList')}
-        title="Numbered list"
-        aria-label="Numbered list"
-      >
-        1.
-      </button>
-      <button
-        type="button"
-        className={editor.isActive('blockquote') ? 'is-active' : ''}
-        onClick={() => editor.chain().focus().toggleBlockquote().run()}
-        aria-pressed={editor.isActive('blockquote')}
-        title="Quote"
-        aria-label="Quote"
-      >
-        “
       </button>
       <span className="notion-rte-toolbar-sep" aria-hidden />
       <button
@@ -140,13 +105,20 @@ function Toolbar({ editor, shadowEnabled }: { editor: Editor | null; shadowEnabl
   )
 }
 
-export function RichDocEditor({ value, onChange, placeholder, shadowContext, surfaceClass }: RichDocEditorProps) {
-  const shadowEnabled = shadowContext !== undefined
-  const contextRef = useRef(shadowContext ?? '')
-  contextRef.current = shadowContext ?? ''
+export function RichDocEditor({
+  value,
+  onChange,
+  placeholder,
+  surfaceClass,
+  conflictHighlightPhrases = [],
+  scrollToConflict = null,
+  onScrollToConflictComplete,
+}: RichDocEditorProps) {
+  const conflictPhrasesRef = useRef<string[]>([])
+  conflictPhrasesRef.current = conflictHighlightPhrases
 
-  const extensions = useMemo(() => {
-    const docExtensions = [
+  const extensions = useMemo(
+    () => [
       StarterKit,
       Placeholder.configure({
         placeholder: placeholder ?? '',
@@ -171,17 +143,12 @@ export function RichDocEditor({ value, onChange, placeholder, shadowContext, sur
           rel: 'noopener noreferrer',
         },
       }),
-    ]
-    const base = shadowEnabled
-      ? [
-          ...docExtensions,
-          ShadowCompleter.configure({
-            getContext: () => contextRef.current,
-          }),
-        ]
-      : docExtensions
-    return base
-  }, [placeholder, shadowEnabled])
+      ConflictUnderline.configure({
+        getPhrases: () => conflictPhrasesRef.current,
+      }),
+    ],
+    [placeholder]
+  )
 
   const editor = useEditor(
     {
@@ -213,15 +180,59 @@ export function RichDocEditor({ value, onChange, placeholder, shadowContext, sur
     }
   }, [editor, value])
 
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return
+    const tr = editor.state.tr.setMeta(conflictUnderlineRefreshKey, true)
+    editor.view.dispatch(tr)
+  }, [editor, conflictHighlightPhrases])
+
+  useEffect(() => {
+    if (!editor || editor.isDestroyed || !scrollToConflict?.phrase) return
+    const phrase = scrollToConflict.phrase
+    const want = fromStoredHtml(value)
+    let cancelled = false
+    let attempts = 0
+    const maxAttempts = 20
+
+    const run = () => {
+      if (cancelled || !editor || editor.isDestroyed) return
+      attempts += 1
+      if (editor.getHTML() !== want) {
+        if (attempts < maxAttempts) requestAnimationFrame(run)
+        else onScrollToConflictComplete?.()
+        return
+      }
+      const range = findPhraseRangeCaseInsensitive(editor.state.doc, phrase)
+      if (!range) {
+        onScrollToConflictComplete?.()
+        return
+      }
+      const tr = editor.state.tr
+        .setSelection(TextSelection.create(editor.state.doc, range.from, range.to))
+        .scrollIntoView()
+      editor.view.dispatch(tr)
+      requestAnimationFrame(() => {
+        if (cancelled || !editor || editor.isDestroyed) return
+        const anchor = editor.view.domAtPos(range.from)
+        const raw = anchor.node
+        const scrollEl: HTMLElement | null =
+          raw.nodeType === Node.TEXT_NODE ? (raw.parentElement as HTMLElement | null) : (raw as HTMLElement)
+        scrollEl?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' })
+        onScrollToConflictComplete?.()
+      })
+    }
+    requestAnimationFrame(() => requestAnimationFrame(run))
+    return () => {
+      cancelled = true
+    }
+  }, [editor, value, scrollToConflict, onScrollToConflictComplete])
+
   const shellClass = ['notion-rte', surfaceClass].filter(Boolean).join(' ')
 
   return (
     <div className={shellClass}>
-      <Toolbar editor={editor} shadowEnabled={shadowEnabled} />
+      <Toolbar editor={editor} />
       <EditorContent editor={editor} className="notion-rte-content" />
-      {shadowEnabled && editor ? (
-        <InlineAiAtCursor editor={editor} getWorkspaceContext={() => contextRef.current} />
-      ) : null}
     </div>
   )
 }
