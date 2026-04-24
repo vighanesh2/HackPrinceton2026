@@ -23,6 +23,40 @@ export function getOllamaEmbedModel(): string {
   return process.env.OLLAMA_EMBED_MODEL || 'nomic-embed-text'
 }
 
+/**
+ * Node's fetch often throws `TypeError: fetch failed` with a nested `cause` (e.g. ECONNREFUSED).
+ * Surface a message the UI can show instead of the opaque default.
+ */
+function explainOllamaNetworkError(err: unknown, baseUrl: string): Error {
+  if (!(err instanceof Error)) {
+    return new Error(String(err))
+  }
+  const cause = err.cause
+  const code =
+    cause && typeof cause === 'object' && 'code' in cause
+      ? String((cause as { code?: unknown }).code)
+      : ''
+  const causeMsg =
+    cause && typeof cause === 'object' && 'message' in cause
+      ? String((cause as { message?: unknown }).message)
+      : ''
+  const isNetFail =
+    err.message === 'fetch failed' ||
+    code === 'ECONNREFUSED' ||
+    code === 'ENOTFOUND' ||
+    code === 'ETIMEDOUT' ||
+    code === 'EAI_AGAIN'
+  if (isNetFail) {
+    return new Error(
+      `Cannot reach Ollama at ${baseUrl} (${code || causeMsg || 'network error'}). ` +
+        `Start the Ollama app (or run \`ollama serve\`). ` +
+        `Confirm \`${baseUrl}/api/tags\` loads. ` +
+        `If Ollama runs on another host/port, set LLAMA_BASE_URL in .env.local and restart Next.js.`
+    )
+  }
+  return err
+}
+
 export type OllamaChatMessage = {
   role: 'system' | 'user' | 'assistant'
   content: string
@@ -89,13 +123,23 @@ export async function ollamaChat(opts: OllamaChatOptions): Promise<{ content: st
     body.options = { temperature: opts.temperature }
   }
 
-  const res = await fetch(`${baseUrl}/api/chat`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  })
+  let res: Response
+  try {
+    res = await fetch(`${baseUrl}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+  } catch (e) {
+    throw explainOllamaNetworkError(e, baseUrl)
+  }
 
-  const raw = (await res.json()) as OllamaChatResponse & { error?: string }
+  let raw: OllamaChatResponse & { error?: string }
+  try {
+    raw = (await res.json()) as OllamaChatResponse & { error?: string }
+  } catch {
+    throw new Error(`Ollama returned a non-JSON body (${res.status}) at ${baseUrl}/api/chat`)
+  }
 
   if (!res.ok) {
     throw new Error(raw.error || `Ollama chat failed (${res.status})`)
@@ -116,12 +160,23 @@ type OllamaEmbedResponse = {
  */
 export async function ollamaEmbed(input: string, model = getOllamaEmbedModel()): Promise<number[]> {
   const baseUrl = getOllamaBaseUrl()
-  const res = await fetch(`${baseUrl}/api/embeddings`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model, prompt: input }),
-  })
-  const raw = (await res.json()) as OllamaEmbedResponse
+  let res: Response
+  try {
+    res = await fetch(`${baseUrl}/api/embeddings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model, prompt: input }),
+    })
+  } catch (e) {
+    throw explainOllamaNetworkError(e, baseUrl)
+  }
+
+  let raw: OllamaEmbedResponse
+  try {
+    raw = (await res.json()) as OllamaEmbedResponse
+  } catch {
+    throw new Error(`Ollama returned a non-JSON body (${res.status}) at ${baseUrl}/api/embeddings`)
+  }
   if (!res.ok) {
     throw new Error(raw.error || `Ollama embed failed (${res.status})`)
   }

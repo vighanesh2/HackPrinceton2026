@@ -28,6 +28,8 @@ type RichDocEditorProps = {
   onScrollToConflictComplete?: () => void
 }
 
+const EMPTY_CONFLICT_PHRASES: string[] = []
+
 function findPhraseRangeCaseInsensitive(
   doc: ProseMirrorNode,
   phrase: string
@@ -110,12 +112,16 @@ export function RichDocEditor({
   onChange,
   placeholder,
   surfaceClass,
-  conflictHighlightPhrases = [],
+  conflictHighlightPhrases = EMPTY_CONFLICT_PHRASES,
   scrollToConflict = null,
   onScrollToConflictComplete,
 }: RichDocEditorProps) {
   const conflictPhrasesRef = useRef<string[]>([])
   conflictPhrasesRef.current = conflictHighlightPhrases
+  const conflictPhrasesKey = useMemo(
+    () => conflictHighlightPhrases.map((p) => p.trim()).filter(Boolean).join('\u0000'),
+    [conflictHighlightPhrases]
+  )
 
   const extensions = useMemo(
     () => [
@@ -184,7 +190,7 @@ export function RichDocEditor({
     if (!editor || editor.isDestroyed) return
     const tr = editor.state.tr.setMeta(conflictUnderlineRefreshKey, true)
     editor.view.dispatch(tr)
-  }, [editor, conflictHighlightPhrases])
+  }, [editor, conflictPhrasesKey])
 
   useEffect(() => {
     if (!editor || editor.isDestroyed || !scrollToConflict?.phrase) return
