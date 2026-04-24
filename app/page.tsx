@@ -1,5 +1,4 @@
 import SiteHeader from '@/components/SiteHeader'
-import { HOME_TEAM } from '@/components/homeTeam'
 import Link from 'next/link'
 
 export default function Home() {
@@ -44,45 +43,6 @@ export default function Home() {
               </svg>
             </span>
           </Link>
-        </div>
-      </section>
-
-      <section className="home-team" aria-labelledby="home-team-heading">
-        <div className="home-team-inner">
-          <h2 id="home-team-heading" className="home-team-title">
-            Team
-          </h2>
-          <p className="home-team-lead">
-            Who is building this — short bios, LinkedIn, and the experience that matters for what we ship next.
-          </p>
-          <ul className="home-team-grid">
-            {HOME_TEAM.map((member) => (
-              <li key={member.name} className="home-team-card">
-                <div className="home-team-card-head">
-                  <h3 className="home-team-name">{member.name}</h3>
-                  <p className="home-team-role">{member.role}</p>
-                </div>
-                <p className="home-team-bio">{member.bio}</p>
-                <a
-                  className="home-team-linkedin"
-                  href={member.linkedinUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label={`${member.name} on LinkedIn (opens in a new tab)`}
-                >
-                  LinkedIn profile
-                </a>
-                <div className="home-team-exp">
-                  <h4 className="home-team-exp-title">Relevant experience</h4>
-                  <ul>
-                    {member.experience.map((line) => (
-                      <li key={line}>{line}</li>
-                    ))}
-                  </ul>
-                </div>
-              </li>
-            ))}
-          </ul>
         </div>
       </section>
     </main>

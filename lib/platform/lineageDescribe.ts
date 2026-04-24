@@ -1,4 +1,4 @@
-import type { TeamMember } from '@/components/homeTeam'
+import type { TeamMember } from '@/lib/teamMember'
 
 export type FinancialLineageSnapshot = {
   cashOnHand: number
