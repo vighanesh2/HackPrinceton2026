@@ -19,6 +19,7 @@ export async function runRontzenAgentTurn(input: {
   docId: string | null
   supabase: SupabaseClient
   userId: string
+  systemAddendum?: string
 }): Promise<{ assistantReply: string; rag: AgentRagPayload }> {
   const graph = getRontzenAgentGraph()
   const result = await graph.invoke(
@@ -31,6 +32,7 @@ export async function runRontzenAgentTurn(input: {
       fallbackExcerptApplied: false,
       ragSources: [],
       assistantReply: '',
+      systemAddendum: input.systemAddendum ?? '',
     },
     {
       configurable: {

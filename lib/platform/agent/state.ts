@@ -23,6 +23,8 @@ export const RontzenAgentState = Annotation.Root({
   >(),
   /** Model output for this turn. */
   assistantReply: Annotation<string>(),
+  /** Extra system lines for this turn (e.g. empty-workspace onboarding). */
+  systemAddendum: Annotation<string>(),
 })
 
 export type RontzenAgentStateType = typeof RontzenAgentState.State

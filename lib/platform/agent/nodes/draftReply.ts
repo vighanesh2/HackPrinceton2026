@@ -18,6 +18,7 @@ export async function draftReplyNode(
   const baseUrl = getOllamaBaseUrl()
   const model = await resolveChatModel(preferred, ['qwen3:4b', 'qwen3:8b', 'qwen3:14b', 'llama3.2'], baseUrl)
 
+  const addendum = (state.systemAddendum || '').trim()
   const system = [
     'You are Rontzen, a senior analyst for Series A/B companies.',
     'You reply in a product chat sidebar: short, direct, conversational.',
@@ -27,7 +28,10 @@ export async function draftReplyNode(
     'Do not reference internal source labels like [S1] or [S2] in your reply; the UI already shows sources. Prefer "your deck", "the focused doc", or no citation when a fact is obvious from context.',
     'Use light Markdown (bold, short lists, `code` for field names) when it improves scanability.',
     'The user may switch files in the workspace; the ACTIVE FOCUSED DOCUMENT line (if present) is the file they have open for this turn—prioritize that file when they ask for edits or drafts for "this doc".',
-  ].join('\n')
+    addendum ? `\n${addendum}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n')
 
   const userPrompt = [
     'CONTEXT (company profile + retrieved doc excerpts):',

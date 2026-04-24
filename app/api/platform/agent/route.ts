@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { runRontzenAgentTurn } from '@/lib/platform/agent'
+import { runAgentOrchestratedTurn } from '@/lib/platform/agent/orchestratedTurn'
 import {
   ensureAgentConversation,
   insertAgentTurnMessages,
@@ -36,9 +36,34 @@ export async function POST(request: Request) {
     const docId = body.docId?.trim() || null
     const conversationIdIn = body.conversationId?.trim() || null
 
-    const { assistantReply, rag } = await runRontzenAgentTurn({
+    const { count: docCountRaw } = await supabase
+      .from('documents')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+    const workspaceDocCount = docCountRaw ?? 0
+
+    let focusedDoc: { id: string; title: string; body_html: string } | null = null
+    if (docId) {
+      const { data: row } = await supabase
+        .from('documents')
+        .select('id, title, body_html')
+        .eq('id', docId)
+        .eq('user_id', user.id)
+        .maybeSingle()
+      if (row) {
+        focusedDoc = {
+          id: row.id,
+          title: row.title ?? '',
+          body_html: row.body_html ?? '',
+        }
+      }
+    }
+
+    const { assistantReply, rag, fileAction } = await runAgentOrchestratedTurn({
       userMessage: message,
       docId,
+      workspaceDocCount,
+      focusedDoc,
       supabase,
       userId: user.id,
     })
@@ -58,6 +83,7 @@ export async function POST(request: Request) {
       return NextResponse.json({
         answer: assistantReply,
         rag,
+        fileAction,
         conversationId: null as string | null,
         conversationError: ensured.error,
       })
@@ -71,12 +97,14 @@ export async function POST(request: Request) {
       assistantContent: assistantReply,
       rag,
       contextDocId: docId,
+      fileAction,
     })
 
     if (persist.error) {
       return NextResponse.json({
         answer: assistantReply,
         rag,
+        fileAction,
         conversationId: ensured.conversationId,
         persistError: persist.error,
       })
@@ -85,6 +113,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       answer: assistantReply,
       rag,
+      fileAction,
       conversationId: ensured.conversationId,
     })
   } catch (e) {

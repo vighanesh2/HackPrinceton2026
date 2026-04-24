@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { AgentRagPayload } from '@/lib/platform/agent'
+import type { AgentFileAction } from '@/lib/platform/agent/fileAction'
 
 export function titleFromFirstMessage(message: string): string {
   const one = message.replace(/\s+/g, ' ').trim()
@@ -70,8 +71,10 @@ export async function insertAgentTurnMessages(params: {
   rag: AgentRagPayload
   /** Focused file for this turn (RAG scope); stored on the user message for context. */
   contextDocId?: string | null
+  fileAction?: AgentFileAction
 }): Promise<{ error?: string }> {
-  const { supabase, userId, conversationId, userContent, assistantContent, rag, contextDocId } = params
+  const { supabase, userId, conversationId, userContent, assistantContent, rag, contextDocId, fileAction } =
+    params
   const t0 = new Date().toISOString()
   const t1 = new Date(Date.now() + 2).toISOString()
 
@@ -97,12 +100,17 @@ export async function insertAgentTurnMessages(params: {
     return { error: uErr.message }
   }
 
+  const assistantMeta: Record<string, unknown> = { rag }
+  if (fileAction && fileAction.type !== 'none') {
+    assistantMeta.fileAction = fileAction
+  }
+
   const { error: aErr } = await supabase.from('agent_messages').insert({
     user_id: userId,
     conversation_id: conversationId,
     role: 'assistant',
     content: assistantContent,
-    metadata: { rag } as unknown as Record<string, unknown>,
+    metadata: assistantMeta as Record<string, unknown>,
     created_at: t1,
   })
   if (aErr) {
