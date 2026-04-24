@@ -1,10 +1,11 @@
 'use client'
 
+import { useCallback, useState } from 'react'
 import { RichDocEditor } from '@/components/platform/RichDocEditor'
 import { AgentChatPanel } from '@/components/platform/AgentChatPanel'
-import { aiMarkdownToEditorHtml } from '@/components/platform/editorHtml'
 import type { CloudWorkspaceApi } from '@/components/platform/useCloudWorkspaceDocs'
 import type { WorkspaceDocInsight } from '@/lib/platform/workspaceDocInsights'
+import type { AgentFileAction } from '@/lib/platform/agent/fileAction'
 
 function defaultInsight(): WorkspaceDocInsight {
   return {
@@ -63,26 +64,49 @@ export function CloudWorkspaceSidebar({
   cloud,
   insightsByDoc,
   onOpenDoc,
+  onUploadClick,
+  uploading = false,
+  uploadError,
 }: {
   cloud: CloudWorkspaceApi
   insightsByDoc: Record<string, WorkspaceDocInsight>
   onOpenDoc: () => void
+  onUploadClick?: () => void
+  uploading?: boolean
+  uploadError?: string | null
 }) {
   return (
     <div className="notion-sidebar-docs">
       <div className="notion-sidebar-docs-head">
         <span className="notion-sidebar-docs-label">Cloud docs</span>
-        <button
-          type="button"
-          className="notion-sidebar-add-doc"
-          onClick={() => void cloud.addDocument()}
-          title="New cloud document"
-          aria-label="New cloud document"
-        >
-          +
-        </button>
+        <div className="notion-sidebar-docs-actions">
+          {onUploadClick ? (
+            <button
+              type="button"
+              className="notion-sidebar-add-doc"
+              onClick={onUploadClick}
+              title="Upload PDF, Word, PowerPoint, Markdown, or text"
+              aria-label="Upload documents"
+              disabled={uploading}
+            >
+              ↑
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className="notion-sidebar-add-doc"
+            onClick={() => void cloud.addDocument()}
+            title="New cloud document"
+            aria-label="New cloud document"
+            disabled={uploading}
+          >
+            +
+          </button>
+        </div>
       </div>
       {cloud.loading && <p className="notion-sidebar-docs-hint">Loading…</p>}
+      {uploading && <p className="notion-sidebar-docs-hint">Uploading and extracting…</p>}
+      {uploadError ? <p className="notion-doc-error">{uploadError}</p> : null}
       {cloud.error && <p className="notion-doc-error">{cloud.error}</p>}
       {cloud.documents.map((doc) => {
         const ins = insightsByDoc[doc.id] ?? defaultInsight()
@@ -126,6 +150,11 @@ function issueSeverityClass(sev: string): string {
   return 'notion-issues-item--info'
 }
 
+type AgentPending =
+  | null
+  | { kind: 'edit'; docId: string; baselineTitle: string; baselineBodyHtml: string }
+  | { kind: 'create'; docId: string }
+
 export function CloudWorkspaceEditor({
   cloud,
   insightsByDoc,
@@ -136,12 +165,85 @@ export function CloudWorkspaceEditor({
   workspaceDocCount?: number
 }) {
   const doc = cloud.activeDoc
+  const [agentPending, setAgentPending] = useState<AgentPending>(null)
+
+  const onAgentFileAction = useCallback(
+    async (action: AgentFileAction) => {
+      if (action.type === 'none') return
+      if (action.type === 'replace_body') {
+        setAgentPending({
+          kind: 'edit',
+          docId: action.docId,
+          baselineTitle: action.baselineTitle,
+          baselineBodyHtml: action.baselineBodyHtml,
+        })
+        cloud.updateLocalDoc(action.docId, {
+          ...(action.proposedTitle != null && action.proposedTitle.trim()
+            ? { title: action.proposedTitle.trim() }
+            : {}),
+          body_html: action.proposedBodyHtml,
+        })
+        return
+      }
+      if (action.type === 'create_document') {
+        const row = await cloud.addDocument({
+          title: action.proposedTitle,
+          body_html: action.proposedBodyHtml,
+        })
+        if (row) {
+          setAgentPending({ kind: 'create', docId: row.id })
+        }
+      }
+    },
+    [cloud]
+  )
+
+  const onKeepAgent = useCallback(() => {
+    if (!agentPending) return
+    const d = cloud.documents.find((x) => x.id === agentPending.docId)
+    if (d) {
+      cloud.queueSave(agentPending.docId, { title: d.title, body_html: d.body_html })
+    }
+    setAgentPending(null)
+  }, [agentPending, cloud])
+
+  const onUndoAgent = useCallback(() => {
+    if (!agentPending) return
+    if (agentPending.kind === 'edit') {
+      cloud.updateLocalDoc(agentPending.docId, {
+        title: agentPending.baselineTitle,
+        body_html: agentPending.baselineBodyHtml,
+      })
+      setAgentPending(null)
+      return
+    }
+    void cloud.deleteDocument(agentPending.docId)
+    setAgentPending(null)
+  }, [agentPending, cloud])
+
+  const agentAside = (
+    <aside className="notion-cloud-rail notion-cloud-rail--agent-only" aria-label="Workspace agent">
+      <div className="notion-cloud-rail-inner notion-cloud-rail-inner--chat">
+        <AgentChatPanel
+          contextDocId={doc?.id ?? null}
+          focusedDocTitle={doc?.title || 'Untitled'}
+          onAgentFileAction={onAgentFileAction}
+        />
+      </div>
+    </aside>
+  )
 
   if (!doc) {
     return (
-      <article className="notion-doc" aria-label="Cloud workspace">
-        <p className="notion-sidebar-docs-hint">Create a document with + in the sidebar, or open one from the list.</p>
-      </article>
+      <div className="notion-cloud-workspace">
+        <article className="notion-cloud-editor-pane notion-doc" aria-label="Cloud workspace">
+          <p className="notion-sidebar-docs-hint">
+            No cloud document open. Use <strong>+</strong> to start blank, <strong>↑</strong> to upload, or ask the
+            agent to draft one (pitch outline, board memo, model assumptions, etc.).
+          </p>
+        </article>
+        {agentAside}
+      </div>
     )
   }
 
@@ -151,6 +253,18 @@ export function CloudWorkspaceEditor({
     insight: activeInsight,
   })
 
+  const pendingLabel =
+    agentPending?.kind === 'create'
+      ? 'New document from agent — keep it or undo to delete the draft.'
+      : agentPending?.kind === 'edit'
+        ? 'Agent revised this file — keep or restore the previous version.'
+        : null
+
+  const skipAutosaveForAgent =
+    !!agentPending &&
+    agentPending.docId === doc.id &&
+    (agentPending.kind === 'edit' || agentPending.kind === 'create')
+
   return (
     <div className="notion-cloud-workspace">
       <article className="notion-cloud-editor-pane notion-doc" aria-label={doc.title}>
@@ -158,7 +272,7 @@ export function CloudWorkspaceEditor({
           <div className="notion-cloud-doc-tools-copy">
             <span className="notion-blank-doc-hint">
               Cross-doc intelligence: hover the folder on the editor (background extract + scan after save). Right:
-              workspace agent chat.
+              workspace agent.
             </span>
           </div>
           <button
@@ -181,7 +295,9 @@ export function CloudWorkspaceEditor({
           onChange={(e) => {
             const title = e.target.value
             cloud.updateLocalDoc(doc.id, { title })
-            cloud.queueSave(doc.id, { title })
+            if (!skipAutosaveForAgent) {
+              cloud.queueSave(doc.id, { title })
+            }
           }}
         />
 
@@ -190,7 +306,9 @@ export function CloudWorkspaceEditor({
             value={cloud.coerceHtml(doc.body_html)}
             onChange={(html) => {
               cloud.updateLocalDoc(doc.id, { body_html: html })
-              cloud.queueSave(doc.id, { body_html: html })
+              if (!skipAutosaveForAgent) {
+                cloud.queueSave(doc.id, { body_html: html })
+              }
             }}
             placeholder="Write here — saves to Supabase; chunks index for retrieval, agent, and analysis."
           />
@@ -252,24 +370,23 @@ export function CloudWorkspaceEditor({
             </div>
           </div>
         </div>
+
+        {pendingLabel ? (
+          <div className="notion-agent-pending-bar" role="status">
+            <span className="notion-agent-pending-bar-label">{pendingLabel}</span>
+            <div className="notion-agent-pending-bar-actions">
+              <button type="button" className="notion-agent-pending-keep" onClick={onKeepAgent}>
+                Keep
+              </button>
+              <button type="button" className="notion-agent-pending-undo" onClick={onUndoAgent}>
+                Undo
+              </button>
+            </div>
+          </div>
+        ) : null}
       </article>
 
-      <aside className="notion-cloud-rail notion-cloud-rail--agent-only" aria-label="Workspace agent">
-        <div className="notion-cloud-rail-inner notion-cloud-rail-inner--chat">
-          <AgentChatPanel
-            contextDocId={doc.id}
-            focusedDocTitle={doc.title || 'Untitled'}
-            onApplyToDocument={(markdown) => {
-              const fragment = aiMarkdownToEditorHtml(markdown)
-              const banner = `<hr data-rontzen-agent="1" /><p class="rontzen-agent-banner"><em>From agent — ${(doc.title || 'Untitled').replace(/</g, '')}</em></p>`
-              const base = cloud.coerceHtml(doc.body_html)
-              const next = base ? `${base}${banner}${fragment}` : `${banner}${fragment}`
-              cloud.updateLocalDoc(doc.id, { body_html: next })
-              cloud.queueSave(doc.id, { body_html: next })
-            }}
-          />
-        </div>
-      </aside>
+      {agentAside}
     </div>
   )
 }

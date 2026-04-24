@@ -255,6 +255,31 @@ body {
   outline-offset: 3px;
 }
 
+.hero-cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.hero-cta-row .hero-cta {
+  margin-top: 0;
+}
+
+.hero-cta--secondary {
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: none;
+}
+
+.hero-cta--secondary:hover {
+  background: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+}
+
 .home-team {
   background: #f8fafc;
   color: #0f172a;
@@ -6067,6 +6092,69 @@ body {
 
 .notion-agent-chat-apply-btn:hover {
   background: #1e293b;
+}
+
+.notion-agent-chat-fileaction-hint {
+  margin: 0.5rem 0 0;
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.notion-agent-pending-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-top: 0.75rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 0.4rem;
+  border: 1px solid #c7d2fe;
+  background: linear-gradient(135deg, #eef2ff 0%, #f8fafc 100%);
+}
+
+.notion-agent-pending-bar-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #312e81;
+  flex: 1;
+  min-width: 8rem;
+}
+
+.notion-agent-pending-bar-actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.notion-agent-pending-keep {
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.35rem 0.75rem;
+  border-radius: 0.35rem;
+  border: 1px solid #15803d;
+  background: #15803d;
+  color: #fff;
+  cursor: pointer;
+}
+
+.notion-agent-pending-keep:hover {
+  background: #166534;
+}
+
+.notion-agent-pending-undo {
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.35rem 0.75rem;
+  border-radius: 0.35rem;
+  border: 1px solid #94a3b8;
+  background: #fff;
+  color: #334155;
+  cursor: pointer;
+}
+
+.notion-agent-pending-undo:hover {
+  background: #f1f5f9;
 }
 
 .notion-agent-chat-toolbar {

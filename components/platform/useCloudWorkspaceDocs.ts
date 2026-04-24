@@ -172,15 +172,15 @@ export function useCloudWorkspaceDocs(enabled: boolean) {
     [flushSave]
   )
 
-  const addDocument = useCallback(async () => {
+  const addDocument = useCallback(async (opts?: { title?: string; body_html?: string }) => {
     setError(null)
     try {
       const res = await fetch('/api/platform/documents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title: 'Untitled',
-          body_html: '',
+          title: (opts?.title?.trim() || 'Untitled').slice(0, 500),
+          body_html: typeof opts?.body_html === 'string' ? opts.body_html : '',
         }),
       })
       const raw = await res.text()
@@ -194,13 +194,20 @@ export function useCloudWorkspaceDocs(enabled: boolean) {
         throw new Error(payload.error || `HTTP ${res.status}`)
       }
       if (payload.document) {
-        setDocuments((prev) => [payload.document!, ...prev])
-        setActiveId(payload.document.id)
+        const row = payload.document
+        setDocuments((prev) => [row, ...prev])
+        setActiveId(row.id)
+        if (row.body_html?.trim()) {
+          scheduleIndex(row.id)
+        }
+        return row
       }
+      return null
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not create document.')
+      return null
     }
-  }, [])
+  }, [scheduleIndex])
 
   const deleteDocument = useCallback(
     async (id: string) => {

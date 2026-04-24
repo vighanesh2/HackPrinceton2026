@@ -4,6 +4,7 @@ import DOMPurify from 'isomorphic-dompurify'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { aiMarkdownToEditorHtml } from '@/components/platform/editorHtml'
 import type { AgentConversationRow, AgentMessageRow } from '@/lib/platform/agentChatTypes'
+import type { AgentFileAction } from '@/lib/platform/agent/fileAction'
 
 function assistantMarkdownToSafeHtml(md: string): string {
   const raw = aiMarkdownToEditorHtml(md)
@@ -27,14 +28,25 @@ function tabLabel(title: string | undefined, max = 22): string {
  * Workspace-wide agent (Cursor-style): threads persist when you switch files.
  * `contextDocId` / `focusedDocTitle` are the open file for RAG + Apply for this moment.
  */
+function fileActionFromPayload(raw: unknown): AgentFileAction | undefined {
+  if (!raw || typeof raw !== 'object') return undefined
+  const a = raw as AgentFileAction
+  if (a.type === 'none') return a
+  if (a.type === 'replace_body' && typeof (a as { docId?: string }).docId === 'string') return a
+  if (a.type === 'create_document' && typeof (a as { proposedTitle?: string }).proposedTitle === 'string') return a
+  return undefined
+}
+
 export function AgentChatPanel({
   contextDocId,
   focusedDocTitle,
   onApplyToDocument,
+  onAgentFileAction,
 }: {
   contextDocId: string | null
   focusedDocTitle: string
   onApplyToDocument?: (markdownFromAssistant: string) => void
+  onAgentFileAction?: (action: AgentFileAction) => void | Promise<void>
 }) {
   const [conversations, setConversations] = useState<AgentConversationRow[]>([])
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
@@ -196,6 +208,7 @@ export function AgentChatPanel({
         answer?: string
         error?: string
         rag?: AgentRagPayload
+        fileAction?: unknown
         conversationId?: string | null
         conversationError?: string
         persistError?: string
@@ -211,6 +224,10 @@ export function AgentChatPanel({
       }
       if (payload.conversationId && payload.conversationId !== activeConversationId) {
         setActiveConversationId(payload.conversationId)
+      }
+      const fa = fileActionFromPayload(payload.fileAction)
+      if (fa && fa.type !== 'none' && onAgentFileAction) {
+        await onAgentFileAction(fa)
       }
       setComposer('')
       if (payload.conversationId) {
@@ -231,10 +248,12 @@ export function AgentChatPanel({
     <section className="notion-agent-chat" aria-label="Workspace agent">
       <p
         className="notion-agent-chat-doc-scope"
-        title="Same chat across files. Retrieval and Apply use whichever file is open here."
+        title="Same chat across files. Edits target whichever file is open here."
       >
         <span className="notion-agent-chat-doc-scope-label">Focused file</span>
-        <span className="notion-agent-chat-doc-scope-name">{focusedDocTitle || 'Untitled'}</span>
+        <span className="notion-agent-chat-doc-scope-name">
+          {contextDocId ? focusedDocTitle || 'Untitled' : 'No document open'}
+        </span>
       </p>
 
       <div className="notion-agent-chat-tabbar" role="tablist" aria-label="Agent chat threads">
@@ -288,9 +307,9 @@ export function AgentChatPanel({
       </div>
 
       <p className="notion-agent-dock-hint notion-agent-chat-hint">
-        Chat persists when you switch cloud docs (like Cursor). Each message uses the <strong>focused file</strong> for
-        context; name another doc in your prompt if you need it. <strong>Apply to document</strong> inserts into the
-        focused file.
+        Like Cursor: ask anything in chat, or say <strong>fix / rewrite / add a section</strong> to edit the open file.
+        New drafts get <strong>Keep</strong> or <strong>Undo</strong> under the editor. With no docs yet, describe what
+        to create (deck outline, memo, model assumptions).
       </p>
 
       <div className="notion-agent-chat-thread" role="log" aria-live="polite">
@@ -299,8 +318,7 @@ export function AgentChatPanel({
         ) : null}
         {!loadingMessages && messages.length === 0 && !busy ? (
           <p className="notion-agent-chat-empty">
-            Ask a question or request a draft. Open the file you want to edit so retrieval and Apply target the right
-            document.
+            Ask a question, request an edit on the open file, or describe a new financial doc to add to the workspace.
           </p>
         ) : null}
         {messages.map((m) => (
@@ -315,6 +333,7 @@ export function AgentChatPanel({
                 <AssistantBlock
                   content={m.content}
                   rag={m.metadata.rag as AgentRagPayload | undefined}
+                  fileAction={fileActionFromPayload((m.metadata as { fileAction?: unknown }).fileAction)}
                   onApplyToDocument={onApplyToDocument}
                 />
               ) : m.role === 'assistant' ? (
@@ -365,12 +384,16 @@ export function AgentChatPanel({
 function AssistantBlock({
   content,
   rag,
+  fileAction,
   onApplyToDocument,
 }: {
   content: string
   rag?: AgentRagPayload
+  fileAction?: AgentFileAction
   onApplyToDocument?: (markdownFromAssistant: string) => void
 }) {
+  const hideApply =
+    !!fileAction && (fileAction.type === 'replace_body' || fileAction.type === 'create_document')
   const html = useMemo(() => assistantMarkdownToSafeHtml(content), [content])
   return (
     <>
@@ -397,14 +420,17 @@ function AssistantBlock({
         className="notion-agent-chat-text notion-agent-chat-md"
         dangerouslySetInnerHTML={{ __html: html }}
       />
-      {onApplyToDocument && content.trim() ? (
+      {hideApply ? (
+        <p className="notion-agent-chat-fileaction-hint">Use <strong>Keep</strong> or <strong>Undo</strong> under the editor.</p>
+      ) : null}
+      {onApplyToDocument && content.trim() && !hideApply ? (
         <div className="notion-agent-chat-apply-wrap">
           <button
             type="button"
             className="notion-agent-chat-apply-btn"
             onClick={() => onApplyToDocument(content)}
           >
-            Apply to document
+            Insert into document
           </button>
         </div>
       ) : null}
