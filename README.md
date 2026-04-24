@@ -13,7 +13,7 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## OpenClaw (this branch)
 
-- **`openclaw/skills/makeitmakesense/`** — OpenClaw skill that calls platform APIs (`/api/platform/agent`, consistency, decision log).
+- **`openclaw/skills/docfin/`** — OpenClaw skill that calls platform APIs (`/api/platform/agent`, consistency, decision log).
 - **`docs/OPENCLAW.md`** — setup: env vars, gateway, Discord (no secrets in-repo).
 - **`docs/GIT-WORKFLOW-OPENCLAW.md`** — how to push **`Open-Claw`**.
 

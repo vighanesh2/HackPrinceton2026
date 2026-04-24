@@ -61,8 +61,8 @@ function buildDecoSet(doc: ProseMirrorNode, marks: CrossDocEditorMark[]): Decora
     return Decoration.inline(m.start, m.end, {
       class: 'notion-crossdoc-flag',
       'data-crossdoc-tip': tip,
-      title: tip,
-      'aria-label': `Workspace flag: ${tip}`,
+      /** Avoid native `title` + CSS `::after` showing duplicate tooltips. */
+      'aria-label': `Workspace flag: ${tip.slice(0, 200)}`,
     })
   })
   return DecorationSet.create(doc, decos)

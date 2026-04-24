@@ -1,9 +1,9 @@
 ---
-name: makeitmakesense
-description: Make It Make Sense — business document workspace for Series A/B teams; draft board/investor docs from workspace context, run cross-doc consistency scans, read the decision log.
+name: docfin
+description: DocFin — business document workspace for Series A/B teams; draft board/investor docs from workspace context, run cross-doc consistency scans, read the decision log.
 ---
 
-# Make It Make Sense
+# DocFin
 
 Business document workspace for Series A/B teams. Drafts board memos, financial narratives, and SOPs grounded in real company metrics. Detects cross-doc metric conflicts and patches them.
 
@@ -15,7 +15,7 @@ Business document workspace for Series A/B teams. Drafts board memos, financial 
 
 ## Tools (app integration)
 
-These map to the **Make It Make Sense** Next.js API (local dev default `http://localhost:3000`). Calls require a **logged-in Supabase session** (cookie) unless you use a dev bridge.
+These map to the **DocFin** Next.js API (local dev default `http://localhost:3000`). Calls require a **logged-in Supabase session** (cookie) unless you use a dev bridge.
 
 | Intent | Method | Path |
 |--------|--------|------|

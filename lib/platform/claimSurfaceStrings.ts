@@ -46,6 +46,12 @@ export function usdDisplayVariants(usd: number): string[] {
     const k = usd / 1_000
     s.add(`$${k.toFixed(0)}k`)
     s.add(`$${k.toFixed(1)}k`)
+    /** Deck copy often writes "50k MRR" without a leading $. Grounding must accept it. */
+    if (Math.abs(k - Math.round(k)) < 1e-6) {
+      s.add(`${Math.round(k)}k`)
+    } else {
+      s.add(`${k.toFixed(1)}k`)
+    }
   }
   return [...s].sort((a, b) => b.length - a.length)
 }

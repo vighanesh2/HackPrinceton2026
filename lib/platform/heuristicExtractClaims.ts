@@ -93,6 +93,30 @@ export function heuristicExtractClaimsWithEvidence(plain: string): HeuristicExtr
       evidence.mrr_usd = snippetAround(t, mrrM.index, mrrM.index + mrrM[0].length)
     }
   }
+  if (out.mrr_usd == null) {
+    const mrrBefore = /(\$?\s*[\d,.]+\s*[KMBkmb]?)[^A-Za-z0-9]{0,28}\bMRR\b/gi
+    const mrrB = mrrBefore.exec(t)
+    if (mrrB?.[1]) {
+      const n = parseMoneyToken(mrrB[1].replace(/^\$\s*/, ''))
+      if (n != null) {
+        out.mrr_usd = n
+        evidence.mrr_usd = snippetAround(t, mrrB.index, mrrB.index + mrrB[0].length)
+      }
+    }
+  }
+  /** "50k as MRR" / "$120k is our mrr" — amount before the label phrase. */
+  if (out.mrr_usd == null) {
+    const mrrAsPhrase =
+      /\b(\$?\s*[\d,.]+\s*[KMBkmb]?)\s+(?:as|is|for|=)\s+(?:our\s+|the\s+)?mrr\b/gi
+    const mrrP = mrrAsPhrase.exec(t)
+    if (mrrP?.[1]) {
+      const n = parseMoneyToken(mrrP[1].replace(/^\$\s*/, ''))
+      if (n != null) {
+        out.mrr_usd = n
+        evidence.mrr_usd = snippetAround(t, mrrP.index, mrrP.index + mrrP[0].length)
+      }
+    }
+  }
 
   const burnRe =
     /(?:monthly\s+)?burn[^$0-9]{0,48}(\$\s*[\d,.]+\s*[KMBkmb]?|[\d,.]+\s*[KMBkmb]|\d{1,3}(?:,\d{3})+(?:\.\d+)?)/gi

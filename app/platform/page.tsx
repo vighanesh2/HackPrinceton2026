@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { flushSync } from 'react-dom'
 import { OriginalPdfPreview } from '@/components/platform/OriginalPdfPreview'
+import { PlatformTopBar } from '@/components/platform/PlatformTopBar'
+import { AgentOpenFab } from '@/components/platform/AgentOpenFab'
 import { PlatformAgentPanel } from '@/components/platform/PlatformAgentPanel'
 import { RichDocEditor } from '@/components/platform/RichDocEditor'
 import { aiMarkdownToEditorHtml, coerceStoredEditorHtml } from '@/components/platform/editorHtml'
@@ -62,12 +64,40 @@ type PlatformDoc = {
   sourceKind?: WorkspaceFolderFileKind
   /** Session-only blob URL for native PDF layout (not saved to localStorage). */
   originalPreviewUrl?: string
+  /** Auto-created empty doc when the workspace has no files yet (persisted). */
+  blankStarter?: boolean
 }
 
 type PendingExtraction = { id: string; file: File; kind: WorkspaceFolderFileKind }
 
 function htmlToPlain(html: string): string {
   return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+}
+
+function makeBlankStarterDoc(): PlatformDoc {
+  return {
+    id: crypto.randomUUID(),
+    title: 'Untitled',
+    bodyHtml: '',
+    status: 'ready',
+    blankStarter: true,
+  }
+}
+
+/** User-created blank doc (not the initial workspace starter). */
+function makeBlankDocument(): PlatformDoc {
+  return {
+    id: crypto.randomUUID(),
+    title: 'Untitled',
+    bodyHtml: '',
+    status: 'ready',
+  }
+}
+
+function isEmptyStarterOnly(docs: PlatformDoc[]): boolean {
+  if (docs.length !== 1) return false
+  const d = docs[0]
+  return Boolean(d?.blankStarter && !htmlToPlain(d.bodyHtml).trim())
 }
 
 function parsePlatformDocs(raw: string): PlatformDoc[] {
@@ -111,7 +141,15 @@ function parsePlatformDocs(raw: string): PlatformDoc[] {
         })
         continue
       }
-      out.push({ id, title, bodyHtml, status: 'ready', ...(sourceKind ? { sourceKind } : {}) })
+      const blankStarter = r.blankStarter === true
+      out.push({
+        id,
+        title,
+        bodyHtml,
+        status: 'ready',
+        ...(sourceKind ? { sourceKind } : {}),
+        ...(blankStarter ? { blankStarter: true } : {}),
+      })
     }
     return out
   } catch {
@@ -316,7 +354,7 @@ export default function PlatformPage() {
   const [activeDocId, setActiveDocId] = useState<string | null>(null)
   const [claimsStore, setClaimsStore] = useState<ClaimsStore>({})
   const [crossDocPrefs, setCrossDocPrefs] = useState<CrossDocPrefsV1>(DEFAULT_CROSS_DOC_PREFS)
-  const [agentPanelCollapsed, setAgentPanelCollapsed] = useState(false)
+  const [agentPanelCollapsed, setAgentPanelCollapsed] = useState(true)
   const [extractStatus, setExtractStatus] = useState<string | null>(null)
   const hydratedRef = useRef(false)
   const extractTimerRef = useRef<number | null>(null)
@@ -390,8 +428,12 @@ export default function PlatformPage() {
   const crossDocIssueCountByDocId = useMemo(() => {
     const m: Record<string, number> = {}
     for (const i of crossDocIssues) {
-      m[i.sourceDocId] = (m[i.sourceDocId] ?? 0) + 1
-      m[i.targetDocId] = (m[i.targetDocId] ?? 0) + 1
+      if (i.sourceDocId === i.targetDocId) {
+        m[i.sourceDocId] = (m[i.sourceDocId] ?? 0) + 1
+      } else {
+        m[i.sourceDocId] = (m[i.sourceDocId] ?? 0) + 1
+        m[i.targetDocId] = (m[i.targetDocId] ?? 0) + 1
+      }
     }
     return m
   }, [crossDocIssues])
@@ -429,16 +471,18 @@ export default function PlatformPage() {
   useEffect(() => {
     if (hydratedRef.current) return
     hydratedRef.current = true
-    const initialDocs = loadDocsFromStorage()
+    let initialDocs = loadDocsFromStorage()
+    if (initialDocs.length === 0) {
+      initialDocs = [makeBlankStarterDoc()]
+    }
     let initialClaims = loadClaimsFromStorage()
     initialClaims = pruneClaimsStore(initialClaims, new Set(initialDocs.map((d) => d.id)))
     setDocs(initialDocs)
+    docsRef.current = initialDocs
     setClaimsStore(initialClaims)
     setCrossDocPrefs(loadCrossDocPrefs())
-    if (initialDocs.length) {
-      const first = initialDocs.find((d) => d.status === 'ready') ?? initialDocs[0]
-      setActiveDocId(first.id)
-    }
+    const first = initialDocs.find((d) => d.status === 'ready') ?? initialDocs[0]
+    if (first) setActiveDocId(first.id)
 
     void (async () => {
       for (const doc of initialDocs) {
@@ -659,6 +703,27 @@ export default function PlatformPage() {
     el.click()
   }
 
+  function addBlankDocument() {
+    if (docsRef.current.length >= MAX_PLATFORM_DOCS) {
+      window.alert(`You can have at most ${MAX_PLATFORM_DOCS} documents. Remove one to add more.`)
+      return
+    }
+    const doc = makeBlankDocument()
+    const next = [...docsRef.current, doc]
+    setDocs(next)
+    docsRef.current = next
+    setActiveDocId(doc.id)
+    const now = new Date().toISOString()
+    setClaimsStore((prev) => ({
+      ...prev,
+      [doc.id]: {
+        claims: emptyClaimsRecord(),
+        evidence: emptyClaimEvidenceRecord(),
+        updatedAt: now,
+      },
+    }))
+  }
+
   function onFilesSelected(event: ChangeEvent<HTMLInputElement>) {
     const input = event.currentTarget
     const list = input.files
@@ -667,8 +732,9 @@ export default function PlatformPage() {
     const files = Array.from(list)
     input.value = ''
 
-    const prev = docsRef.current
-    const room = MAX_PLATFORM_DOCS - prev.length
+    const prevRaw = docsRef.current
+    const base = isEmptyStarterOnly(prevRaw) ? [] : prevRaw
+    const room = MAX_PLATFORM_DOCS - base.length
     if (room <= 0) {
       window.alert(`You can have at most ${MAX_PLATFORM_DOCS} documents. Remove one to add more.`)
       return
@@ -699,7 +765,7 @@ export default function PlatformPage() {
       status: 'loading',
     }))
 
-    const nextDocs = [...prev, ...newRows]
+    const nextDocs = [...base, ...newRows]
     flushSync(() => {
       setDocs(nextDocs)
     })
@@ -722,14 +788,24 @@ export default function PlatformPage() {
         /* ignore */
       }
     }
-    setDocs((prev) => prev.filter((d) => d.id !== docId))
+    const next = docsRef.current.filter((d) => d.id !== docId)
     setClaimsStore((prev) => {
-      const next = { ...prev }
-      delete next[docId]
-      return next
+      const out = { ...prev }
+      delete out[docId]
+      return out
     })
+    if (next.length === 0) {
+      const starter = makeBlankStarterDoc()
+      setDocs([starter])
+      setActiveDocId(starter.id)
+      docsRef.current = [starter]
+      return
+    }
+    setDocs(next)
+    docsRef.current = next
     if (activeDocId === docId) {
-      setActiveDocId(null)
+      const pick = next.find((d) => d.status === 'ready') ?? next[0]
+      setActiveDocId(pick?.id ?? null)
     }
   }
 
@@ -761,45 +837,17 @@ export default function PlatformPage() {
 
   return (
     <main className="notion-page notion-page--claims-demo">
+      <PlatformTopBar
+        supabaseConfigured={isSupabaseConfigured()}
+        accountEmail={accountEmail}
+        onSignOut={signOut}
+      />
       <div
         className={['notion-shell', !agentPanelCollapsed ? 'notion-shell--with-agent' : ''].filter(Boolean).join(' ')}
       >
         <aside className="notion-sidebar" aria-label="Sidebar">
           <div className="notion-sidebar-brand-row">
             <div className="notion-sidebar-brand">Workspace</div>
-            {isSupabaseConfigured() && (
-              <div className="notion-sidebar-account">
-                {accountEmail ? (
-                  <span className="notion-sidebar-account-email" title={accountEmail}>
-                    {accountEmail}
-                  </span>
-                ) : null}
-                <button
-                  type="button"
-                  className="notion-sidebar-sign-out"
-                  onClick={() => void signOut()}
-                  aria-label="Sign out"
-                >
-                  <svg
-                    className="notion-sidebar-sign-out-icon"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden
-                  >
-                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                    <polyline points="16 17 21 12 16 7" />
-                    <line x1="21" y1="12" x2="9" y2="12" />
-                  </svg>
-                  Sign out
-                </button>
-              </div>
-            )}
           </div>
 
           <div className="notion-sidebar-docs">
@@ -819,16 +867,57 @@ export default function PlatformPage() {
                 <button
                   type="button"
                   className="notion-sidebar-add-doc"
-                  onClick={openFilePicker}
-                  title="Upload documents (PDF, Word, PowerPoint .pptx, Markdown, or plain text). You can add many at once."
-                  aria-label="Upload documents"
+                  onClick={addBlankDocument}
+                  title="New blank document"
+                  aria-label="New blank document"
                 >
                   +
+                </button>
+                <button
+                  type="button"
+                  className="notion-sidebar-upload-files"
+                  onClick={openFilePicker}
+                  title="Upload files (PDF, Word, PowerPoint .pptx, Markdown, or plain text). You can add many at once."
+                  aria-label="Upload files"
+                >
+                  <svg
+                    className="notion-sidebar-upload-files-icon"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                    aria-hidden
+                  >
+                    <path
+                      d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <polyline
+                      points="17 8 12 3 7 8"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <line
+                      x1="12"
+                      y1="3"
+                      x2="12"
+                      y2="15"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    />
+                  </svg>
                 </button>
               </div>
             </div>
             {docs.length === 0 ? (
-              <p className="notion-sidebar-upload-hint">Use + to upload one or more files.</p>
+              <p className="notion-sidebar-upload-hint">Loading workspace…</p>
             ) : (
               docs.map((doc) => {
                 return (
@@ -873,25 +962,9 @@ export default function PlatformPage() {
         </aside>
 
         <div className="notion-main notion-main--demo">
-          <header className="notion-demo-hero notion-demo-hero--muted">
-            <p className="notion-demo-hero-line">
-              With two or more documents, disagreements show as amber highlights in the text — hover for the full
-              explanation. Use Flags in the editor toolbar to dismiss or restore.
-            </p>
-          </header>
-
-          {!activeDoc || docs.length === 0 ? (
-            <article className="notion-doc notion-doc--empty-upload" aria-label="Getting started">
-              <div className="notion-deck-empty">
-                <p>Upload your documents (as many as you need — up to {MAX_PLATFORM_DOCS}).</p>
-                <p className="notion-deck-empty-sub">
-                  PDF, Word (.docx), and PowerPoint (.pptx) are supported. Legacy .ppt is not — save as .pptx first. We
-                  extract text, refresh figures per file, and run cross-document checks when you have two or more docs.
-                </p>
-                <button type="button" className="notion-empty-upload-cta" onClick={openFilePicker}>
-                  Choose files
-                </button>
-              </div>
+          {!activeDoc ? (
+            <article className="notion-doc notion-doc--boot" aria-busy="true">
+              <p className="notion-uploaded-status">Loading workspace…</p>
             </article>
           ) : activeDoc.status === 'loading' ? (
             <article className="notion-doc" aria-label={activeDoc.title}>
@@ -915,7 +988,23 @@ export default function PlatformPage() {
                 .join(' ')}
               aria-label={activeDoc.title}
             >
-              <h1 className="notion-demo-doc-title">{activeDoc.title}</h1>
+              <input
+                type="text"
+                className="notion-demo-doc-title notion-demo-doc-title-input"
+                value={activeDoc.title}
+                aria-label="Document name"
+                onChange={(e) => {
+                  const v = e.target.value
+                  setDocs((prev) => prev.map((d) => (d.id === activeDoc.id ? { ...d, title: v } : d)))
+                }}
+                onBlur={(e) => {
+                  const t = e.target.value.trim() || 'Untitled'
+                  setDocs((prev) => prev.map((d) => (d.id === activeDoc.id ? { ...d, title: t } : d)))
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+                }}
+              />
               {extractStatus ? <p className="notion-demo-extract-status">{extractStatus}</p> : null}
               {activeDoc.originalPreviewUrl ? (
                 <OriginalPdfPreview url={activeDoc.originalPreviewUrl} docTitle={activeDoc.title} />
@@ -928,13 +1017,30 @@ export default function PlatformPage() {
               <RichDocEditor
                 value={activeDoc.bodyHtml}
                 onChange={(html) => {
-                  setDocs((prev) => prev.map((d) => (d.id === activeDoc.id ? { ...d, bodyHtml: html } : d)))
+                  setDocs((prev) =>
+                    prev.map((d) => {
+                      if (d.id !== activeDoc.id) return d
+                      const hasText = Boolean(htmlToPlain(html).trim())
+                      return {
+                        ...d,
+                        bodyHtml: html,
+                        ...(d.blankStarter && hasText ? { blankStarter: false } : {}),
+                      }
+                    })
+                  )
                   applyLiveHeuristicClaims(activeDoc.id, html)
                   scheduleClaimsExtract(activeDoc.id, html)
                 }}
-                placeholder="Edit extracted text. Figures refresh per document after a short pause."
+                placeholder={
+                  activeDoc.blankStarter && !htmlToPlain(activeDoc.bodyHtml).trim()
+                    ? 'Or start typing here — uploads from + in the sidebar add extracted documents alongside this note.'
+                    : 'Edit extracted text. Figures refresh per document after a short pause.'
+                }
                 crossDocMarks={crossDocMarksForActive}
                 crossDocIssuesInDoc={issuesTouchingActiveDoc}
+                viewerDocId={activeDoc.id}
+                docTitleById={docTitleById}
+                onOpenWorkspaceDoc={(id) => setActiveDocId(id)}
                 onDismissCrossDocIssue={dismissCrossDocIssue}
                 onRestoreDismissedCrossDoc={clearDismissedCrossDoc}
                 crossDocDismissedCount={crossDocPrefs.dismissedIssueIds.length}
@@ -943,15 +1049,17 @@ export default function PlatformPage() {
           )}
         </div>
 
-        <PlatformAgentPanel
-          context={agentChatContext}
-          documents={agentDocuments}
-          activeDocId={activeDocId}
-          ragEnabled={isSupabaseConfigured() && !!accountEmail}
-          collapsed={agentPanelCollapsed}
-          onToggleCollapsed={() => setAgentPanelCollapsed((c) => !c)}
-        />
+        {!agentPanelCollapsed ? (
+          <PlatformAgentPanel
+            context={agentChatContext}
+            documents={agentDocuments}
+            activeDocId={activeDocId}
+            ragEnabled={isSupabaseConfigured() && !!accountEmail}
+            onClose={() => setAgentPanelCollapsed(true)}
+          />
+        ) : null}
       </div>
+      {agentPanelCollapsed ? <AgentOpenFab onOpen={() => setAgentPanelCollapsed(false)} /> : null}
     </main>
   )
 }

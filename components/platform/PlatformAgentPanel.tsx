@@ -14,8 +14,7 @@ type PlatformAgentPanelProps = {
   activeDocId: string | null
   /** When true, chat uses RAG (requires signed-in Supabase user). */
   ragEnabled: boolean
-  collapsed: boolean
-  onToggleCollapsed: () => void
+  onClose: () => void
 }
 
 export function PlatformAgentPanel({
@@ -23,8 +22,7 @@ export function PlatformAgentPanel({
   documents,
   activeDocId,
   ragEnabled,
-  collapsed,
-  onToggleCollapsed,
+  onClose,
 }: PlatformAgentPanelProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -92,22 +90,6 @@ export function PlatformAgentPanel({
     [send]
   )
 
-  if (collapsed) {
-    return (
-      <aside className="notion-agent-panel notion-agent-panel--collapsed" aria-label="AI agent">
-        <button
-          type="button"
-          className="notion-agent-panel-expand"
-          onClick={onToggleCollapsed}
-          title="Open AI agent"
-          aria-expanded={false}
-        >
-          <span className="notion-agent-panel-expand-label">Agent</span>
-        </button>
-      </aside>
-    )
-  }
-
   return (
     <aside className="notion-agent-panel" aria-label="AI agent">
       <div className="notion-agent-panel-head">
@@ -115,9 +97,9 @@ export function PlatformAgentPanel({
         <button
           type="button"
           className="notion-agent-panel-collapse"
-          onClick={onToggleCollapsed}
-          title="Collapse panel"
-          aria-expanded
+          onClick={onClose}
+          title="Close agent"
+          aria-label="Close agent"
         >
           →
         </button>
@@ -128,10 +110,7 @@ export function PlatformAgentPanel({
       </p>
       <div className="notion-agent-panel-messages" role="log" aria-live="polite">
         {messages.map((m, i) => (
-          <div
-            key={i}
-            className={`notion-agent-msg notion-agent-msg--${m.role}`}
-          >
+          <div key={i} className={`notion-agent-msg notion-agent-msg--${m.role}`}>
             <span className="notion-agent-msg-role">{m.role === 'user' ? 'You' : 'Agent'}</span>
             <div className="notion-agent-msg-body">{m.content}</div>
           </div>

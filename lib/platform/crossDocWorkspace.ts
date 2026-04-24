@@ -132,6 +132,58 @@ function evidenceOverlapsEnough(evA: string | null | undefined, evB: string | nu
   return inter / den >= 0.1 || inter >= 2
 }
 
+/** Relative gap between stated ARR and annualized MRR (12×); outside this range we flag. */
+const ARR_MRR_COHERENCE_SOFT = 0.14
+const ARR_MRR_COHERENCE_HARD = 0.32
+
+function arrMrrRelativeGap(arrUsd: number, mrrUsd: number): number {
+  const implied = mrrUsd * 12
+  const denom = Math.max(Math.abs(arrUsd), Math.abs(implied), 1)
+  return Math.abs(arrUsd - implied) / denom
+}
+
+/**
+ * When both ARR and MRR are extracted for the same document, check that annualized MRR
+ * roughly matches stated ARR (common deck inconsistency).
+ */
+function collectArrMrrCoherenceIssues(
+  store: ClaimsStore,
+  titles: Record<string, string> | undefined,
+  now: string
+): WorkspaceCrossDocIssue[] {
+  const out: WorkspaceCrossDocIssue[] = []
+  for (const [docId, row] of Object.entries(store)) {
+    const arr = row?.claims?.arr_usd
+    const mrr = row?.claims?.mrr_usd
+    if (arr == null || mrr == null) continue
+    if (!Number.isFinite(arr) || !Number.isFinite(mrr) || arr <= 0 || mrr <= 0) continue
+    const gap = arrMrrRelativeGap(arr, mrr)
+    if (gap <= ARR_MRR_COHERENCE_SOFT) continue
+
+    const implied = mrr * 12
+    const severity = gap >= ARR_MRR_COHERENCE_HARD ? 'hard' : 'soft'
+    out.push({
+      id: `metric:arr_mrr_coherence:${docId}`,
+      severity,
+      issueType: 'metric',
+      /** Short machine line; UI uses `details` + `formatCrossDocIssuePresentation`. */
+      summary: `${CLAIM_LABEL.arr_usd} and ${CLAIM_LABEL.mrr_usd} read inconsistently in this document.`,
+      sourceDocId: docId,
+      targetDocId: docId,
+      details: {
+        kind: 'arr_mrr_coherence',
+        arrUsd: arr,
+        mrrUsd: mrr,
+        impliedArrFromMrrUsd: implied,
+        relativeGap: gap,
+      },
+      status: 'open',
+      detectedAt: now,
+    })
+  }
+  return out
+}
+
 function collectMetricIssues(
   store: ClaimsStore,
   titles: Record<string, string> | undefined,
@@ -163,7 +215,7 @@ function collectMetricIssues(
           id: `metric:${key}:${src}:${tgt}`,
           severity: 'hard',
           issueType: 'metric',
-          summary: `${CLAIM_LABEL[key]}: “${docTitle(src, titles)}” has ${formatClaimValue(key, vSrc)} vs “${docTitle(tgt, titles)}” has ${formatClaimValue(key, vTgt)}.`,
+          summary: `${CLAIM_LABEL[key]} differs between workspace documents.`,
           sourceDocId: src,
           targetDocId: tgt,
           details: {
@@ -329,7 +381,7 @@ function collectNarrativeIssues(
         if ((aLeft && bRight) || (aRight && bLeft)) {
           usedRuleKeys.add(key)
           const [src, tgt] = sortPair(A.id, B.id)
-          const summary = `${rule.summary} (“${docTitle(src, titles)}” ↔ “${docTitle(tgt, titles)}”).`
+          const summary = rule.summary
           const phrasesByDocId: Record<string, string> = {}
           if (aLeft && bRight) {
             phrasesByDocId[A.id] = A.plain.match(rule.left)?.[0]?.trim() ?? ''
@@ -407,9 +459,10 @@ export function computeWorkspaceCrossDocIssues(
 ): WorkspaceCrossDocIssue[] {
   const now = new Date().toISOString()
   const metric = collectMetricIssues(store, opts.docTitleById, now)
+  const arrMrr = collectArrMrrCoherenceIssues(store, opts.docTitleById, now)
   const narrative = collectNarrativeIssues(opts.plainTextByDocId, opts.docTitleById, now)
 
-  const merged = [...metric, ...narrative].filter((issue) => !opts.dismissedIds.has(issue.id))
+  const merged = [...metric, ...arrMrr, ...narrative].filter((issue) => !opts.dismissedIds.has(issue.id))
   merged.sort((a, b) => {
     const dr = severityRank(a.severity) - severityRank(b.severity)
     if (dr !== 0) return dr

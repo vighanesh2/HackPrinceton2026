@@ -14,6 +14,7 @@ import {
   mergeClaimEvidence,
   mergeClaimRecords,
 } from '@/lib/platform/heuristicExtractClaims'
+import { getOllamaFastModel, ollamaChat, resolveChatModel, stripThinkingBlocks } from '@/lib/platform/ollama'
 
 type Body = {
   text?: string
@@ -77,14 +78,7 @@ function coerceExtractionPayload(obj: Record<string, unknown>): { claims: Claims
   }
 }
 
-async function extractWithAnthropic(plain: string): Promise<{ claims: ClaimsRecord; evidence: ClaimEvidenceRecord } | null> {
-  const key = process.env.ANTHROPIC_API_KEY
-  if (!key?.trim()) return null
-
-  const model =
-    process.env.ANTHROPIC_MODEL?.trim() || 'claude-sonnet-4-20250514'
-
-  const prompt = `Extract financial / operating figures from the text. Return ONLY valid JSON, no markdown fences.
+const EXTRACTION_PROMPT = `Extract financial / operating figures from the text. Return ONLY valid JSON, no markdown fences.
 
 Use this exact shape (nested object):
 ${NESTED_SCHEMA}
@@ -104,45 +98,39 @@ Rules for "evidence" (same keys):
 - For each non-null claim, a short phrase (8–20 words) copied or lightly trimmed from the text around that number, including labels like "pre-money valuation" or "Series A raise" so downstream logic can tell metrics apart.
 - null when the claim is null.
 
-Text:
-${plain.slice(0, 24_000)}`
+Text:`
 
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': key,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: 1600,
-      temperature: 0,
-      messages: [{ role: 'user', content: prompt }],
-    }),
-  })
+/**
+ * Local SLM via Ollama (`LLAMA_BASE_URL`, default 127.0.0.1:11434). Document text is not sent to cloud LLMs.
+ * Set `EXTRACT_CLAIMS_SKIP_LLM=1` to use regex heuristics only (no localhost call).
+ */
+async function extractWithOllama(plain: string): Promise<{ claims: ClaimsRecord; evidence: ClaimEvidenceRecord } | null> {
+  if (process.env.EXTRACT_CLAIMS_SKIP_LLM === '1') return null
 
-  const raw = await res.text()
-  if (!res.ok) {
-    console.warn('extract-claims Anthropic error', res.status, raw.slice(0, 400))
-    return null
-  }
+  const slice = plain.slice(0, 24_000).trim()
+  if (!slice) return null
 
-  let payload: unknown
+  const preferred = getOllamaFastModel()
+  const model = await resolveChatModel(preferred, ['qwen3:4b', 'qwen3:8b', 'llama3.2'])
+
+  const prompt = `${EXTRACTION_PROMPT}\n${slice}`
+
   try {
-    payload = JSON.parse(raw)
-  } catch {
+    const { content } = await ollamaChat({
+      model,
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0,
+    })
+    const parsed = extractJsonObject(stripThinkingBlocks(content))
+    if (!parsed) {
+      console.warn('extract-claims Ollama: could not parse JSON from model output')
+      return null
+    }
+    return coerceExtractionPayload(parsed as Record<string, unknown>)
+  } catch (e) {
+    console.warn('extract-claims Ollama error', e instanceof Error ? e.message : e)
     return null
   }
-
-  const blocks = (payload as { content?: Array<{ type?: string; text?: string }> }).content
-  const text = Array.isArray(blocks)
-    ? blocks.map((b) => (b.type === 'text' && b.text ? b.text : '')).join('')
-    : ''
-
-  const parsed = extractJsonObject(text)
-  if (!parsed) return null
-  return coerceExtractionPayload(parsed as Record<string, unknown>)
 }
 
 export async function POST(request: Request) {
@@ -155,7 +143,7 @@ export async function POST(request: Request) {
     }
 
     const heur = heuristicExtractClaimsWithEvidence(plain)
-    const llm = await extractWithAnthropic(plain)
+    const llm = await extractWithOllama(plain)
     const mergedClaims = llm
       ? mergeClaimRecords(heur.claims, llm.claims as unknown as Record<string, unknown>)
       : heur.claims

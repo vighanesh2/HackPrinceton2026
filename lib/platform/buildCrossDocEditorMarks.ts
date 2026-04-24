@@ -1,5 +1,6 @@
 import { surfaceStringsToHighlightClaim } from '@/lib/platform/claimSurfaceStrings'
 import type { ClaimsStore } from '@/lib/platform/docClaimsStore'
+import { formatCrossDocIssuePresentation } from '@/lib/platform/formatCrossDocIssueUi'
 import type { WorkspaceCrossDocIssue } from '@/lib/platform/crossDocWorkspace'
 import type { ClaimKey } from '@/lib/platform/claimsSchema'
 
@@ -39,27 +40,36 @@ export function buildCrossDocEditorMarks(params: {
 }): CrossDocEditorMark[] {
   const { docId, issues, claimsStore, docTitleById } = params
   const raw: CrossDocEditorMark[] = []
-  const otherTitle = (id: string) => docTitleById[id]?.trim() || 'Other document'
 
   for (const issue of issues) {
     if (issue.sourceDocId !== docId && issue.targetDocId !== docId) continue
-    const peerId = issue.sourceDocId === docId ? issue.targetDocId : issue.sourceDocId
+    const tip = formatCrossDocIssuePresentation(issue, docId, docTitleById).inlineTip
 
     if (issue.issueType === 'metric') {
+      if (issue.details?.kind === 'arr_mrr_coherence') {
+        for (const key of ['arr_usd', 'mrr_usd'] as const) {
+          const v = claimsStore[docId]?.claims[key]
+          if (v === null || v === undefined || typeof v !== 'number') continue
+          const phrases = surfaceStringsToHighlightClaim(key, v)
+          for (const phrase of phrases) {
+            if (phrase.length >= 2) raw.push({ phrase, title: tip })
+          }
+        }
+        continue
+      }
       const key = issue.details.claimKey as ClaimKey | undefined
       if (!key) continue
       const v = claimsStore[docId]?.claims[key]
       if (v === null || v === undefined || typeof v !== 'number') continue
       const phrases = surfaceStringsToHighlightClaim(key, v)
-      const title = `${issue.summary} (vs “${otherTitle(peerId)}”).`
       for (const phrase of phrases) {
-        if (phrase.length >= 2) raw.push({ phrase, title })
+        if (phrase.length >= 2) raw.push({ phrase, title: tip })
       }
     } else if (issue.issueType === 'narrative') {
       const phrasesByDocId = issue.details.phrasesByDocId as Record<string, string> | undefined
       const phrase = phrasesByDocId?.[docId]?.trim()
       if (phrase && phrase.length >= 2) {
-        raw.push({ phrase, title: `${issue.summary} (vs “${otherTitle(peerId)}”).` })
+        raw.push({ phrase, title: tip })
       }
     }
   }

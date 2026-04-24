@@ -11,6 +11,7 @@ import Link from '@tiptap/extension-link'
 import { crossDocHighlightRefreshKey, CrossDocHighlight } from '@/components/platform/crossDocHighlightExtension'
 import type { CrossDocEditorMark } from '@/lib/platform/buildCrossDocEditorMarks'
 import type { WorkspaceCrossDocIssue } from '@/lib/platform/crossDocWorkspace'
+import { formatCrossDocIssuePresentation } from '@/lib/platform/formatCrossDocIssueUi'
 
 type RichDocEditorProps = {
   value: string
@@ -22,6 +23,12 @@ type RichDocEditorProps = {
   crossDocMarks?: CrossDocEditorMark[]
   /** Open issues touching this document (for compact toolbar menu). */
   crossDocIssuesInDoc?: WorkspaceCrossDocIssue[]
+  /** Active document id — used for “you wrote X / other doc says Y” copy. */
+  viewerDocId?: string | null
+  /** Sidebar titles for cross-doc context lines. */
+  docTitleById?: Record<string, string>
+  /** Switch workspace tab to another document (e.g. the other side of a conflict). */
+  onOpenWorkspaceDoc?: (docId: string) => void
   onDismissCrossDocIssue?: (issueId: string) => void
   onRestoreDismissedCrossDoc?: () => void
   crossDocDismissedCount?: number
@@ -42,6 +49,9 @@ function Toolbar({
   editor,
   crossDocMarks,
   crossDocIssuesInDoc,
+  viewerDocId,
+  docTitleById,
+  onOpenWorkspaceDoc,
   onDismissCrossDocIssue,
   onRestoreDismissedCrossDoc,
   crossDocDismissedCount,
@@ -49,6 +59,9 @@ function Toolbar({
   editor: Editor | null
   crossDocMarks: CrossDocEditorMark[]
   crossDocIssuesInDoc: WorkspaceCrossDocIssue[]
+  viewerDocId?: string | null
+  docTitleById?: Record<string, string>
+  onOpenWorkspaceDoc?: (docId: string) => void
   onDismissCrossDocIssue?: (issueId: string) => void
   onRestoreDismissedCrossDoc?: () => void
   crossDocDismissedCount: number
@@ -129,12 +142,60 @@ function Toolbar({
                   <p className="notion-rte-flags-empty">No open flags in this file. Hover amber marks when they appear.</p>
                 ) : (
                   <ul className="notion-rte-flags-list">
-                    {crossDocIssuesInDoc.map((issue) => (
+                    {crossDocIssuesInDoc.map((issue) => {
+                      const pres = formatCrossDocIssuePresentation(
+                        issue,
+                        viewerDocId ?? undefined,
+                        docTitleById ?? {}
+                      )
+                      return (
                       <li key={issue.id} className="notion-rte-flags-row">
                         <span className={`notion-rte-flags-sev notion-rte-flags-sev--${issue.severity}`}>
                           {issue.severity}
                         </span>
-                        <span className="notion-rte-flags-summary">{issue.summary}</span>
+                        <div className="notion-rte-flags-copy">
+                          <span className="notion-rte-flags-headline">{pres.headline}</span>
+                          <span className="notion-rte-flags-explain">{pres.explanation}</span>
+                          {pres.contextLine ? (
+                            <span className="notion-rte-flags-context">{pres.contextLine}</span>
+                          ) : null}
+                          {pres.docPair && onOpenWorkspaceDoc ? (
+                            <div className="notion-rte-flags-pair" role="group" aria-label="Documents in this conflict">
+                              <span className="notion-rte-flags-pair-label">Between notes</span>
+                              <div className="notion-rte-flags-pair-actions">
+                                <button
+                                  type="button"
+                                  className={`notion-rte-flags-docjump${viewerDocId === pres.docPair.currentDocId ? ' is-active-doc' : ''}`}
+                                  onClick={() => {
+                                    onOpenWorkspaceDoc(pres.docPair!.currentDocId)
+                                    setFlagsOpen(false)
+                                  }}
+                                >
+                                  {pres.docPair.currentDocTitle}
+                                  {viewerDocId === pres.docPair.currentDocId ? (
+                                    <span className="notion-rte-flags-here"> · here</span>
+                                  ) : null}
+                                </button>
+                                <span className="notion-rte-flags-pair-sep" aria-hidden>
+                                  ·
+                                </span>
+                                <button
+                                  type="button"
+                                  className={`notion-rte-flags-docjump${viewerDocId === pres.docPair.otherDocId ? ' is-active-doc' : ''}`}
+                                  onClick={() => {
+                                    onOpenWorkspaceDoc(pres.docPair!.otherDocId)
+                                    setFlagsOpen(false)
+                                  }}
+                                >
+                                  {pres.docPair.otherDocTitle}
+                                  {viewerDocId === pres.docPair.otherDocId ? (
+                                    <span className="notion-rte-flags-here"> · here</span>
+                                  ) : null}
+                                </button>
+                              </div>
+                            </div>
+                          ) : null}
+                        </div>
                         {onDismissCrossDocIssue ? (
                           <button
                             type="button"
@@ -145,7 +206,8 @@ function Toolbar({
                           </button>
                         ) : null}
                       </li>
-                    ))}
+                      )
+                    })}
                   </ul>
                 )}
                 {crossDocDismissedCount > 0 && onRestoreDismissedCrossDoc ? (
@@ -169,6 +231,9 @@ export function RichDocEditor({
   surfaceClass,
   crossDocMarks = [],
   crossDocIssuesInDoc = [],
+  viewerDocId,
+  docTitleById,
+  onOpenWorkspaceDoc,
   onDismissCrossDocIssue,
   onRestoreDismissedCrossDoc,
   crossDocDismissedCount = 0,
@@ -261,6 +326,9 @@ export function RichDocEditor({
         editor={editor}
         crossDocMarks={crossDocMarks}
         crossDocIssuesInDoc={crossDocIssuesInDoc}
+        viewerDocId={viewerDocId}
+        docTitleById={docTitleById}
+        onOpenWorkspaceDoc={onOpenWorkspaceDoc}
         onDismissCrossDocIssue={onDismissCrossDocIssue}
         onRestoreDismissedCrossDoc={onRestoreDismissedCrossDoc}
         crossDocDismissedCount={crossDocDismissedCount}

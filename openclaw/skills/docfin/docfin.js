@@ -1,25 +1,28 @@
 /**
- * Make It Make Sense — API helpers for OpenClaw / Discord / local scripts.
+ * DocFin — API helpers for OpenClaw / Discord / local scripts.
  * Requires the Next app running and (for real data) a Supabase session cookie.
  *
  * Dev: copy your browser Cookie header after login:
- *   export MAKEITMAKESENSE_COOKIE='...'
+ *   export DOCFIN_COOKIE='...'
  *   (DevTools → Network → request headers → Cookie)
  *
  * Base URL:
- *   export MAKEITMAKESENSE_BASE_URL=http://localhost:3000
+ *   export DOCFIN_BASE_URL=http://localhost:3000
  */
 
-const BASE_URL = (process.env.MAKEITMAKESENSE_BASE_URL || 'http://localhost:3000').replace(
-  /\/$/,
-  ''
-)
+const BASE_URL = (
+  process.env.DOCFIN_BASE_URL ||
+  process.env.MAKEITMAKESENSE_BASE_URL ||
+  'http://localhost:3000'
+).replace(/\/$/, '')
 
 function headers(json = true) {
   const h = {}
   if (json) h['Content-Type'] = 'application/json'
   const cookie =
-    process.env.MAKEITMAKESENSE_COOKIE || process.env.RONTZEN_COOKIE
+    process.env.DOCFIN_COOKIE ||
+    process.env.MAKEITMAKESENSE_COOKIE ||
+    process.env.RONTZEN_COOKIE
   if (cookie) h['Cookie'] = cookie
   return h
 }
