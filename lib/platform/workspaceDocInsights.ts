@@ -68,7 +68,7 @@ function buildSuggestionsForDoc(params: {
   } else {
     if (relatedDocs.length > 0) {
       const names = relatedDocs.map((r) => `“${r.title}”`).join(', ')
-      pushUnique(`Tied to ${names} — compare figures and wording.`)
+      pushUnique(`Linked to ${names} via open workspace items.`)
     }
 
     if (workspaceDocCount > 1 && ins.claimCount === 0 && ins.chunkCount === 0) {
@@ -78,21 +78,15 @@ function buildSuggestionsForDoc(params: {
     }
 
     if (workspaceDocCount > 1 && ins.chunkCount > 0 && ins.claimCount === 0) {
-      pushUnique(
-        'Indexed for search. Claims (ARR, MRR, tone checks) run after save — edit both docs, wait a few seconds, then hover again.'
-      )
+      pushUnique('Indexed for search. Metric claims refresh after save — edit, pause, then hover again for counts.')
     }
 
     if (ins.claimCount > 0 && ins.openIssueCount === 0) {
-      pushUnique(
-        `${ins.claimCount} metric claim(s) here — if another doc states a different number or opposite tone, a flag appears after the workspace scan.`
-      )
+      pushUnique(`${ins.claimCount} metric claim(s) extracted here — workspace-wide review is client-driven for now.`)
     }
 
     if (suggestions.length === 0) {
-      pushUnique(
-        'Cross-doc checks: numbers, phrasing, and opposing tone across your workspace surface here after save.'
-      )
+      pushUnique('Workspace status: chunks, claims, and any open issues from the database show up here after save.')
       if (workspaceDocCount > 1) {
         pushUnique(`Workspace has ${workspaceDocCount} documents — use the folder on each to see status.`)
       } else {

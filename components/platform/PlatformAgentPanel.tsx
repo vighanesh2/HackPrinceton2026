@@ -30,7 +30,7 @@ export function PlatformAgentPanel({
     {
       role: 'assistant',
       content:
-        'Ask about your uploaded documents—figures, narrative, or conflicts. Answers use the text in this workspace first.',
+        'Ask about your uploaded documents—figures, narrative, or structure. Answers use the text in this workspace first.',
     },
   ])
   const [query, setQuery] = useState('')

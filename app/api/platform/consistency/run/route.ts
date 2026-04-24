@@ -1,12 +1,9 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import {
-  runMetricConsistencyScanForUser,
-  runNarrativeConsistencyScanForUser,
-} from '@/lib/platform/workspaceAnalyze'
 
 /**
- * Scan all of the user’s numeric claims and (re)open metric consistency issues.
+ * Legacy hook for OpenClaw / tools. Server-side cross-doc scans were removed until the
+ * detector is replaced; the app computes issues client-side (`computeWorkspaceCrossDocIssues`).
  */
 export async function POST() {
   try {
@@ -18,14 +15,13 @@ export async function POST() {
       return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 })
     }
 
-    try {
-      const { issueCount: metricIssues } = await runMetricConsistencyScanForUser(supabase, user.id)
-      const { issueCount: narrativeIssues } = await runNarrativeConsistencyScanForUser(supabase, user.id)
-      return NextResponse.json({ ok: true, issueCount: metricIssues + narrativeIssues, metricIssues, narrativeIssues })
-    } catch (inner) {
-      const msg = inner instanceof Error ? inner.message : 'consistency run failed'
-      return NextResponse.json({ error: msg }, { status: 500 })
-    }
+    return NextResponse.json({
+      ok: true,
+      issueCount: 0,
+      metricIssues: 0,
+      narrativeIssues: 0,
+      message: 'Server consistency scan disabled; cross-doc engine runs in the workspace client.',
+    })
   } catch (e) {
     const message = e instanceof Error ? e.message : 'consistency run failed'
     return NextResponse.json({ error: message }, { status: 500 })

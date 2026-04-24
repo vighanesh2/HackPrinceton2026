@@ -66,23 +66,10 @@ export function surfaceStringsToHighlightClaim(key: ClaimKey, value: number): st
     s.add(`${r}%`)
     s.add(`${value}%`)
   }
-  // Deck shorthand "raising 12" (no "M") still needs to ground against the bare integer.
-  if (key === 'raise_usd' && value >= 1_000_000) {
-    const mi = Math.round(value / 1_000_000)
-    if (mi >= 1 && mi <= 999 && Math.abs(value - mi * 1_000_000) < 1) {
-      s.add(String(mi))
-    }
-  }
+  // Intentionally do **not** add bare million integers for raise_usd — they false-positive on "18%" etc.
   return [...s]
     .filter((x) => {
       if (x.length >= 2 || x === '0') return true
-      if (
-        key === 'raise_usd' &&
-        /^\d{1,3}$/.test(x) &&
-        Number(x) * 1_000_000 === Math.round(value)
-      ) {
-        return true
-      }
       return false
     })
     .sort((a, b) => b.length - a.length)

@@ -11,8 +11,8 @@ export function OriginalPdfPreview({ url, docTitle }: { url: string; docTitle: s
         Original PDF <span className="notion-original-preview-badge">exact layout</span>
       </summary>
       <p className="notion-original-preview-note">
-        Below is your file as the browser renders it. The editor underneath is extracted text for search, conflicts,
-        and edits — it will not match page design pixel-for-pixel.
+        Below is your file as the browser renders it. The editor underneath is extracted text for search and edits —
+        it will not match page design pixel-for-pixel.
       </p>
       <div className="notion-original-preview-frame">
         <iframe title={`PDF: ${docTitle}`} src={url} className="notion-original-preview-iframe" />

@@ -1,19 +1,16 @@
 'use client'
 
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { EditorContent, useEditor } from '@tiptap/react'
 import type { Editor } from '@tiptap/core'
-import { TextSelection } from '@tiptap/pm/state'
-import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import Image from '@tiptap/extension-image'
 import { Table, TableRow, TableCell, TableHeader } from '@tiptap/extension-table'
 import Link from '@tiptap/extension-link'
-import {
-  ConflictUnderline,
-  conflictUnderlineRefreshKey,
-} from '@/components/platform/conflictUnderlineExtension'
+import { crossDocHighlightRefreshKey, CrossDocHighlight } from '@/components/platform/crossDocHighlightExtension'
+import type { CrossDocEditorMark } from '@/lib/platform/buildCrossDocEditorMarks'
+import type { WorkspaceCrossDocIssue } from '@/lib/platform/crossDocWorkspace'
 
 type RichDocEditorProps = {
   value: string
@@ -21,29 +18,13 @@ type RichDocEditorProps = {
   placeholder?: string
   /** Optional class on the editor shell (e.g. one-pager print template theme). */
   surfaceClass?: string
-  /** Substrings to underline in red when they appear in the doc (e.g. conflicting figures). */
-  conflictHighlightPhrases?: string[]
-  /** When `token` changes, scroll to the first case-insensitive match of `phrase` in the document. */
-  scrollToConflict?: { phrase: string; token: number } | null
-  onScrollToConflictComplete?: () => void
-}
-
-function findPhraseRangeCaseInsensitive(
-  doc: ProseMirrorNode,
-  phrase: string
-): { from: number; to: number } | null {
-  if (!phrase) return null
-  const needle = phrase.toLowerCase()
-  let found: { from: number; to: number } | null = null
-  doc.descendants((node, pos) => {
-    if (found || !node.isText || !node.text) return
-    const text = node.text
-    const tl = text.toLowerCase()
-    const idx = tl.indexOf(needle)
-    if (idx === -1) return
-    found = { from: pos + idx, to: pos + idx + phrase.length }
-  })
-  return found
+  /** In-document cross-workspace flags (native tooltip via `title` on hover). */
+  crossDocMarks?: CrossDocEditorMark[]
+  /** Open issues touching this document (for compact toolbar menu). */
+  crossDocIssuesInDoc?: WorkspaceCrossDocIssue[]
+  onDismissCrossDocIssue?: (issueId: string) => void
+  onRestoreDismissedCrossDoc?: () => void
+  crossDocDismissedCount?: number
 }
 
 function toStoredHtml(editor: Editor): string {
@@ -57,16 +38,43 @@ function fromStoredHtml(value: string): string {
   return value.trim() === '' ? '<p></p>' : value
 }
 
-function Toolbar({ editor }: { editor: Editor | null }) {
-  if (!editor) return null
+function Toolbar({
+  editor,
+  crossDocMarks,
+  crossDocIssuesInDoc,
+  onDismissCrossDocIssue,
+  onRestoreDismissedCrossDoc,
+  crossDocDismissedCount,
+}: {
+  editor: Editor | null
+  crossDocMarks: CrossDocEditorMark[]
+  crossDocIssuesInDoc: WorkspaceCrossDocIssue[]
+  onDismissCrossDocIssue?: (issueId: string) => void
+  onRestoreDismissedCrossDoc?: () => void
+  crossDocDismissedCount: number
+}) {
+  const [flagsOpen, setFlagsOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!flagsOpen) return
+    const onDocClick = (e: MouseEvent) => {
+      if (!menuRef.current?.contains(e.target as Node)) setFlagsOpen(false)
+    }
+    document.addEventListener('mousedown', onDocClick)
+    return () => document.removeEventListener('mousedown', onDocClick)
+  }, [flagsOpen])
+
+  const flagCount = crossDocIssuesInDoc.length
+  const showFlagsMenu = flagCount > 0 || crossDocDismissedCount > 0 || crossDocMarks.length > 0
 
   return (
     <div className="notion-rte-toolbar" role="toolbar" aria-label="Text formatting">
       <button
         type="button"
-        className={editor.isActive('bold') ? 'is-active' : ''}
-        onClick={() => editor.chain().focus().toggleBold().run()}
-        aria-pressed={editor.isActive('bold')}
+        className={editor?.isActive('bold') ? 'is-active' : ''}
+        onClick={() => editor?.chain().focus().toggleBold().run()}
+        aria-pressed={editor?.isActive('bold')}
         title="Bold"
         aria-label="Bold"
       >
@@ -74,9 +82,9 @@ function Toolbar({ editor }: { editor: Editor | null }) {
       </button>
       <button
         type="button"
-        className={editor.isActive('italic') ? 'is-active' : ''}
-        onClick={() => editor.chain().focus().toggleItalic().run()}
-        aria-pressed={editor.isActive('italic')}
+        className={editor?.isActive('italic') ? 'is-active' : ''}
+        onClick={() => editor?.chain().focus().toggleItalic().run()}
+        aria-pressed={editor?.isActive('italic')}
         title="Italic"
         aria-label="Italic"
       >
@@ -85,8 +93,8 @@ function Toolbar({ editor }: { editor: Editor | null }) {
       <span className="notion-rte-toolbar-sep" aria-hidden />
       <button
         type="button"
-        onClick={() => editor.chain().focus().undo().run()}
-        disabled={!editor.can().undo()}
+        onClick={() => editor?.chain().focus().undo().run()}
+        disabled={!editor?.can().undo()}
         title="Undo"
         aria-label="Undo"
       >
@@ -94,13 +102,62 @@ function Toolbar({ editor }: { editor: Editor | null }) {
       </button>
       <button
         type="button"
-        onClick={() => editor.chain().focus().redo().run()}
-        disabled={!editor.can().redo()}
+        onClick={() => editor?.chain().focus().redo().run()}
+        disabled={!editor?.can().redo()}
         title="Redo"
         aria-label="Redo"
       >
         ↪
       </button>
+
+      {showFlagsMenu ? (
+        <>
+          <span className="notion-rte-toolbar-sep" aria-hidden />
+          <div className="notion-rte-flags-wrap" ref={menuRef}>
+            <button
+              type="button"
+              className={`notion-rte-flags-btn ${flagCount > 0 ? 'has-flags' : ''}`}
+              aria-expanded={flagsOpen}
+              onClick={() => setFlagsOpen((o) => !o)}
+              title="Workspace flags on this document — hover highlighted text for details"
+            >
+              Flags{flagCount > 0 ? ` (${flagCount})` : ''}
+            </button>
+            {flagsOpen ? (
+              <div className="notion-rte-flags-menu" role="menu" aria-label="Workspace flags">
+                {flagCount === 0 ? (
+                  <p className="notion-rte-flags-empty">No open flags in this file. Hover amber marks when they appear.</p>
+                ) : (
+                  <ul className="notion-rte-flags-list">
+                    {crossDocIssuesInDoc.map((issue) => (
+                      <li key={issue.id} className="notion-rte-flags-row">
+                        <span className={`notion-rte-flags-sev notion-rte-flags-sev--${issue.severity}`}>
+                          {issue.severity}
+                        </span>
+                        <span className="notion-rte-flags-summary">{issue.summary}</span>
+                        {onDismissCrossDocIssue ? (
+                          <button
+                            type="button"
+                            className="notion-rte-flags-dismiss"
+                            onClick={() => onDismissCrossDocIssue(issue.id)}
+                          >
+                            Dismiss
+                          </button>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {crossDocDismissedCount > 0 && onRestoreDismissedCrossDoc ? (
+                  <button type="button" className="notion-rte-flags-restore" onClick={() => onRestoreDismissedCrossDoc()}>
+                    Restore {crossDocDismissedCount} dismissed
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        </>
+      ) : null}
     </div>
   )
 }
@@ -110,12 +167,14 @@ export function RichDocEditor({
   onChange,
   placeholder,
   surfaceClass,
-  conflictHighlightPhrases = [],
-  scrollToConflict = null,
-  onScrollToConflictComplete,
+  crossDocMarks = [],
+  crossDocIssuesInDoc = [],
+  onDismissCrossDocIssue,
+  onRestoreDismissedCrossDoc,
+  crossDocDismissedCount = 0,
 }: RichDocEditorProps) {
-  const conflictPhrasesRef = useRef<string[]>([])
-  conflictPhrasesRef.current = conflictHighlightPhrases
+  const marksRef = useRef<CrossDocEditorMark[]>([])
+  marksRef.current = crossDocMarks
 
   const extensions = useMemo(
     () => [
@@ -143,8 +202,8 @@ export function RichDocEditor({
           rel: 'noopener noreferrer',
         },
       }),
-      ConflictUnderline.configure({
-        getPhrases: () => conflictPhrasesRef.current,
+      CrossDocHighlight.configure({
+        getMarks: () => marksRef.current,
       }),
     ],
     [placeholder]
@@ -180,58 +239,32 @@ export function RichDocEditor({
     }
   }, [editor, value])
 
+  const marksKey = useMemo(
+    () =>
+      crossDocMarks.length === 0
+        ? ''
+        : crossDocMarks.map((m) => `${m.phrase}\n${m.title}`).join('\t'),
+    [crossDocMarks]
+  )
+
   useEffect(() => {
     if (!editor || editor.isDestroyed) return
-    const tr = editor.state.tr.setMeta(conflictUnderlineRefreshKey, true)
+    const tr = editor.state.tr.setMeta(crossDocHighlightRefreshKey, true)
     editor.view.dispatch(tr)
-  }, [editor, conflictHighlightPhrases])
-
-  useEffect(() => {
-    if (!editor || editor.isDestroyed || !scrollToConflict?.phrase) return
-    const phrase = scrollToConflict.phrase
-    const want = fromStoredHtml(value)
-    let cancelled = false
-    let attempts = 0
-    const maxAttempts = 20
-
-    const run = () => {
-      if (cancelled || !editor || editor.isDestroyed) return
-      attempts += 1
-      if (editor.getHTML() !== want) {
-        if (attempts < maxAttempts) requestAnimationFrame(run)
-        else onScrollToConflictComplete?.()
-        return
-      }
-      const range = findPhraseRangeCaseInsensitive(editor.state.doc, phrase)
-      if (!range) {
-        onScrollToConflictComplete?.()
-        return
-      }
-      const tr = editor.state.tr
-        .setSelection(TextSelection.create(editor.state.doc, range.from, range.to))
-        .scrollIntoView()
-      editor.view.dispatch(tr)
-      requestAnimationFrame(() => {
-        if (cancelled || !editor || editor.isDestroyed) return
-        const anchor = editor.view.domAtPos(range.from)
-        const raw = anchor.node
-        const scrollEl: HTMLElement | null =
-          raw.nodeType === Node.TEXT_NODE ? (raw.parentElement as HTMLElement | null) : (raw as HTMLElement)
-        scrollEl?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' })
-        onScrollToConflictComplete?.()
-      })
-    }
-    requestAnimationFrame(() => requestAnimationFrame(run))
-    return () => {
-      cancelled = true
-    }
-  }, [editor, value, scrollToConflict, onScrollToConflictComplete])
+  }, [editor, marksKey])
 
   const shellClass = ['notion-rte', surfaceClass].filter(Boolean).join(' ')
 
   return (
     <div className={shellClass}>
-      <Toolbar editor={editor} />
+      <Toolbar
+        editor={editor}
+        crossDocMarks={crossDocMarks}
+        crossDocIssuesInDoc={crossDocIssuesInDoc}
+        onDismissCrossDocIssue={onDismissCrossDocIssue}
+        onRestoreDismissedCrossDoc={onRestoreDismissedCrossDoc}
+        crossDocDismissedCount={crossDocDismissedCount}
+      />
       <EditorContent editor={editor} className="notion-rte-content" />
     </div>
   )

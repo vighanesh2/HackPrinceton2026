@@ -9,36 +9,24 @@ import { OriginalPdfPreview } from '@/components/platform/OriginalPdfPreview'
 import { PlatformAgentPanel } from '@/components/platform/PlatformAgentPanel'
 import { RichDocEditor } from '@/components/platform/RichDocEditor'
 import { aiMarkdownToEditorHtml, coerceStoredEditorHtml } from '@/components/platform/editorHtml'
+import { buildCrossDocEditorMarks } from '@/lib/platform/buildCrossDocEditorMarks'
 import {
-  appendDataLineageEvent,
-  formatLineageDisplayTime,
-  LINEAGE_KIND_LABEL,
-  loadDataLineageEvents,
-  type LineageEvent,
-} from '@/lib/platform/dataLineage'
-import {
-  claimValuesDiffer,
-  conflictCountForDoc,
-  detectClaimConflictGroups,
-  type ClaimsStore,
-  type StoredDocClaims,
-} from '@/lib/platform/claimsConflict'
-import { filterConflictGroupsDeterministic } from '@/lib/platform/deterministicConflictFilter'
-import { surfaceStringsToHighlightClaim } from '@/lib/platform/claimSurfaceStrings'
+  computeWorkspaceCrossDocIssues,
+  DEFAULT_CROSS_DOC_PREFS,
+  loadCrossDocPrefs,
+  saveCrossDocPrefs,
+  type CrossDocPrefsV1,
+} from '@/lib/platform/crossDocWorkspace'
+import type { ClaimsStore } from '@/lib/platform/docClaimsStore'
 import { groundedClaimsAndEvidence } from '@/lib/platform/claimsGrounding'
-import { formatClaimValue } from '@/lib/platform/claimsDisplay'
 import {
   CLAIM_KEYS,
-  CLAIM_LABEL,
   emptyClaimEvidenceRecord,
   emptyClaimsRecord,
   normalizeClaimEvidence,
   type ClaimEvidenceRecord,
-  type ClaimKey,
   type ClaimsRecord,
 } from '@/lib/platform/claimsSchema'
-import { pickScrollPhraseInPlainDoc } from '@/lib/platform/pickScrollPhraseForClaim'
-import { appendSyncFootnote, patchClaimInHtml } from '@/lib/platform/patchClaimInHtml'
 import {
   classifyWorkspaceFile,
   MAX_WORKSPACE_FOLDER_FILE_CHARS,
@@ -327,15 +315,7 @@ export default function PlatformPage() {
   const [docs, setDocs] = useState<PlatformDoc[]>([])
   const [activeDocId, setActiveDocId] = useState<string | null>(null)
   const [claimsStore, setClaimsStore] = useState<ClaimsStore>({})
-  const [lineageEvents, setLineageEvents] = useState<LineageEvent[]>([])
-  const [conflictPanelOpen, setConflictPanelOpen] = useState(false)
-  const [expandedConflictId, setExpandedConflictId] = useState<string | null>(null)
-  const [scrollConflict, setScrollConflict] = useState<{
-    docId: string
-    phrase: string
-    token: number
-  } | null>(null)
-  const [syncSourcePickerOpen, setSyncSourcePickerOpen] = useState(false)
+  const [crossDocPrefs, setCrossDocPrefs] = useState<CrossDocPrefsV1>(DEFAULT_CROSS_DOC_PREFS)
   const [agentPanelCollapsed, setAgentPanelCollapsed] = useState(false)
   const [extractStatus, setExtractStatus] = useState<string | null>(null)
   const hydratedRef = useRef(false)
@@ -361,63 +341,78 @@ export default function PlatformPage() {
     }
   }, [])
 
-  const docTitle = useCallback(
-    (id: string | undefined) =>
-      docs.find((d) => d.id === id)?.title ?? (id && id.length > 0 ? id.slice(0, 8) : 'Document'),
-    [docs]
+  const crossDocDismissed = useMemo(
+    () => new Set(crossDocPrefs.dismissedIssueIds),
+    [crossDocPrefs.dismissedIssueIds]
   )
 
-  const clearScrollConflict = useCallback(() => {
-    setScrollConflict(null)
-  }, [])
+  const docPlainById = useMemo(() => {
+    const o: Record<string, string> = {}
+    for (const d of docs) {
+      if (d.status === 'ready') o[d.id] = htmlToPlain(d.bodyHtml)
+    }
+    return o
+  }, [docs])
 
-  const openConflictInDoc = useCallback((docId: string, key: ClaimKey, value: number) => {
-    const d = docsRef.current.find((x) => x.id === docId && x.status === 'ready')
-    const plain = d ? htmlToPlain(d.bodyHtml) : ''
-    const picked = pickScrollPhraseInPlainDoc(plain, key, value)
-    const phrase = picked ?? formatClaimValue(key, value)
-    setActiveDocId(docId)
-    setScrollConflict((prev) => ({
-      docId,
-      phrase,
-      token: (prev?.token ?? 0) + 1,
+  const docTitleById = useMemo(() => {
+    const o: Record<string, string> = {}
+    for (const d of docs) o[d.id] = d.title
+    return o
+  }, [docs])
+
+  const crossDocIssues = useMemo(
+    () =>
+      computeWorkspaceCrossDocIssues(claimsStore, {
+        dismissedIds: crossDocDismissed,
+        plainTextByDocId: docPlainById,
+        docTitleById,
+      }),
+    [claimsStore, crossDocDismissed, docPlainById, docTitleById]
+  )
+
+  const issuesTouchingActiveDoc = useMemo(() => {
+    if (!activeDocId) return []
+    return crossDocIssues.filter((i) => i.sourceDocId === activeDocId || i.targetDocId === activeDocId)
+  }, [crossDocIssues, activeDocId])
+
+  const crossDocMarksForActive = useMemo(() => {
+    if (!activeDocId) return []
+    const doc = docs.find((d) => d.id === activeDocId)
+    if (!doc || doc.status !== 'ready') return []
+    return buildCrossDocEditorMarks({
+      docId: activeDocId,
+      issues: crossDocIssues,
+      claimsStore,
+      docTitleById,
+    })
+  }, [activeDocId, docs, crossDocIssues, claimsStore, docTitleById])
+
+  const crossDocIssueCountByDocId = useMemo(() => {
+    const m: Record<string, number> = {}
+    for (const i of crossDocIssues) {
+      m[i.sourceDocId] = (m[i.sourceDocId] ?? 0) + 1
+      m[i.targetDocId] = (m[i.targetDocId] ?? 0) + 1
+    }
+    return m
+  }, [crossDocIssues])
+
+  const dismissCrossDocIssue = useCallback((issueId: string) => {
+    setCrossDocPrefs((prev) => ({
+      ...prev,
+      dismissedIssueIds: prev.dismissedIssueIds.includes(issueId)
+        ? prev.dismissedIssueIds
+        : [...prev.dismissedIssueIds, issueId],
     }))
   }, [])
 
-  const rawConflictGroups = useMemo(() => detectClaimConflictGroups(claimsStore), [claimsStore])
-  const conflicts = useMemo(
-    () => filterConflictGroupsDeterministic(rawConflictGroups, claimsStore),
-    [rawConflictGroups, claimsStore]
-  )
-
-  useEffect(() => {
-    if (scrollConflict && activeDocId !== scrollConflict.docId) {
-      setScrollConflict(null)
-    }
-  }, [activeDocId, scrollConflict])
+  const clearDismissedCrossDoc = useCallback(() => {
+    setCrossDocPrefs((prev) => ({ ...prev, dismissedIssueIds: [] }))
+  }, [])
 
   const activeDoc = useMemo(
     () => (activeDocId ? docs.find((d) => d.id === activeDocId) ?? null : null),
     [activeDocId, docs]
   )
-
-  /** Literal substrings in the open doc that participate in a cross-doc conflict (for red underlines). */
-  const conflictHighlightPhrases = useMemo(() => {
-    if (!activeDocId) return []
-    const phrases = new Set<string>()
-    for (const g of conflicts) {
-      const row = g.docs.find((d) => d.docId === activeDocId)
-      if (!row) continue
-      for (const s of surfaceStringsToHighlightClaim(g.key, row.value)) {
-        phrases.add(s)
-      }
-    }
-    return [...phrases].sort((a, b) => b.length - a.length)
-  }, [conflicts, activeDocId])
-
-  const refreshLineage = useCallback(() => {
-    setLineageEvents(loadDataLineageEvents().filter((e) => e.kind === 'cross_doc_claim_synced').slice(0, 12))
-  }, [])
 
   useEffect(() => {
     if (!isSupabaseConfigured()) return
@@ -439,11 +434,11 @@ export default function PlatformPage() {
     initialClaims = pruneClaimsStore(initialClaims, new Set(initialDocs.map((d) => d.id)))
     setDocs(initialDocs)
     setClaimsStore(initialClaims)
+    setCrossDocPrefs(loadCrossDocPrefs())
     if (initialDocs.length) {
       const first = initialDocs.find((d) => d.status === 'ready') ?? initialDocs[0]
       setActiveDocId(first.id)
     }
-    refreshLineage()
 
     void (async () => {
       for (const doc of initialDocs) {
@@ -485,7 +480,7 @@ export default function PlatformPage() {
         }
       }
     })()
-  }, [refreshLineage])
+  }, [])
 
   /** Drop stored figures that do not literally appear in the doc (fixes stale / hallucinated extractions). */
   useEffect(() => {
@@ -528,23 +523,15 @@ export default function PlatformPage() {
   }, [claimsStore])
 
   useEffect(() => {
+    if (!hydratedRef.current) return
+    saveCrossDocPrefs(crossDocPrefs)
+  }, [crossDocPrefs])
+
+  useEffect(() => {
     if (activeDocId && !docs.some((d) => d.id === activeDocId)) {
       setActiveDocId(docs[0]?.id ?? null)
     }
   }, [activeDocId, docs])
-
-  useEffect(() => {
-    if (conflicts.length > 0) setConflictPanelOpen(true)
-  }, [conflicts.length])
-
-  useEffect(() => {
-    if (!syncSourcePickerOpen) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setSyncSourcePickerOpen(false)
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [syncSourcePickerOpen])
 
   const runClaimsExtract = useCallback(async (docId: string, html: string) => {
     const plain = htmlToPlain(html)
@@ -754,84 +741,6 @@ export default function PlatformPage() {
     router.refresh()
   }
 
-  function syncEverywhereFromDoc(sourceDocId: string) {
-    const truthEntry = claimsStore[sourceDocId]
-    if (!truthEntry) return
-    const truth = truthEntry.claims
-    const truthEv = truthEntry.evidence ?? emptyClaimEvidenceRecord()
-
-    const nextBodies: Record<string, string> = Object.fromEntries(docs.map((d) => [d.id, d.bodyHtml]))
-    const nextClaims: ClaimsStore = { ...claimsStore }
-    const lineageChanges: string[] = []
-    const affectedTitles = new Set<string>()
-    const updatedBodyIds = new Set<string>()
-
-    for (const doc of docs) {
-      if (doc.id === sourceDocId || doc.status !== 'ready') continue
-      let html = nextBodies[doc.id] ?? doc.bodyHtml
-      const prevEntry: StoredDocClaims = nextClaims[doc.id] ?? {
-        claims: emptyClaimsRecord(),
-        evidence: emptyClaimEvidenceRecord(),
-        updatedAt: new Date().toISOString(),
-      }
-      const merged = { ...prevEntry.claims }
-      const mergedEv: ClaimEvidenceRecord = {
-        ...(prevEntry.evidence ?? emptyClaimEvidenceRecord()),
-      }
-      const foot: { label: string; from: string; to: string }[] = []
-
-      for (const key of CLAIM_KEYS) {
-        const t = truth[key]
-        const v = merged[key]
-        if (t === null || v === null) continue
-        if (!claimValuesDiffer(key, t, v)) continue
-        html = patchClaimInHtml(html, key, v, t)
-        merged[key] = t
-        const evT = truthEv[key]
-        if (evT) mergedEv[key] = evT
-        foot.push({
-          label: CLAIM_LABEL[key],
-          from: formatClaimValue(key, v),
-          to: formatClaimValue(key, t),
-        })
-      }
-
-      if (foot.length) {
-        nextBodies[doc.id] = coerceStoredEditorHtml(appendSyncFootnote(html, foot))
-        nextClaims[doc.id] = { claims: merged, evidence: mergedEv, updatedAt: new Date().toISOString() }
-        updatedBodyIds.add(doc.id)
-        affectedTitles.add(doc.title)
-        for (const row of foot) {
-          lineageChanges.push(`${row.label} synced: ${row.from} → ${row.to}`)
-        }
-      }
-    }
-
-    if (affectedTitles.size === 0) return
-
-    setDocs((prev) =>
-      prev.map((d) =>
-        updatedBodyIds.has(d.id) ? { ...d, bodyHtml: nextBodies[d.id]!, status: 'ready' as const } : d
-      )
-    )
-    setClaimsStore(nextClaims)
-
-    appendDataLineageEvent({
-      kind: 'cross_doc_claim_synced',
-      summary: `Cross-doc sync applied to ${[...affectedTitles].join(', ')}`,
-      detail: `Source: Cross-doc sync · numbers taken from ${docTitle(sourceDocId)}`,
-      changes: [
-        ...lineageChanges.slice(0, 12),
-        `Source document: ${docTitle(sourceDocId)}`,
-        `Affected: ${[...affectedTitles].join(', ')}`,
-      ],
-    })
-    refreshLineage()
-    setSyncSourcePickerOpen(false)
-  }
-
-  const readyDocs = useMemo(() => docs.filter((d) => d.status === 'ready'), [docs])
-
   const agentChatContext = useMemo(() => {
     const maxPer = 7000
     const parts: string[] = []
@@ -853,12 +762,7 @@ export default function PlatformPage() {
   return (
     <main className="notion-page notion-page--claims-demo">
       <div
-        className={[
-          'notion-shell notion-shell--with-conflict-dock',
-          !agentPanelCollapsed ? 'notion-shell--with-agent' : '',
-        ]
-          .filter(Boolean)
-          .join(' ')}
+        className={['notion-shell', !agentPanelCollapsed ? 'notion-shell--with-agent' : ''].filter(Boolean).join(' ')}
       >
         <aside className="notion-sidebar" aria-label="Sidebar">
           <div className="notion-sidebar-brand-row">
@@ -927,7 +831,6 @@ export default function PlatformPage() {
               <p className="notion-sidebar-upload-hint">Use + to upload one or more files.</p>
             ) : (
               docs.map((doc) => {
-                const n = conflictCountForDoc(conflicts, doc.id)
                 return (
                   <div key={doc.id} className="notion-sidebar-doc-row">
                     <button
@@ -941,9 +844,12 @@ export default function PlatformPage() {
                         {doc.title}
                         {doc.status === 'loading' ? ' …' : ''}
                       </span>
-                      {n > 0 ? (
-                        <span className="notion-conflict-badge" aria-label={`${n} conflicts`}>
-                          {n}
+                      {(crossDocIssueCountByDocId[doc.id] ?? 0) > 0 ? (
+                        <span
+                          className="notion-sidebar-doc-flag-badge"
+                          title="Open workspace flags — highlighted in the editor when you select this file"
+                        >
+                          {crossDocIssueCountByDocId[doc.id]}
                         </span>
                       ) : null}
                     </button>
@@ -967,10 +873,10 @@ export default function PlatformPage() {
         </aside>
 
         <div className="notion-main notion-main--demo">
-          <header className="notion-demo-hero">
+          <header className="notion-demo-hero notion-demo-hero--muted">
             <p className="notion-demo-hero-line">
-              Your financial numbers lie to investors because they&apos;re inconsistent across documents. We fix that
-              automatically.
+              With two or more documents, disagreements show as amber highlights in the text — hover for the full
+              explanation. Use Flags in the editor toolbar to dismiss or restore.
             </p>
           </header>
 
@@ -980,7 +886,7 @@ export default function PlatformPage() {
                 <p>Upload your documents (as many as you need — up to {MAX_PLATFORM_DOCS}).</p>
                 <p className="notion-deck-empty-sub">
                   PDF, Word (.docx), and PowerPoint (.pptx) are supported. Legacy .ppt is not — save as .pptx first. We
-                  extract text, detect figure conflicts, and sync from the doc you trust.
+                  extract text, refresh figures per file, and run cross-document checks when you have two or more docs.
                 </p>
                 <button type="button" className="notion-empty-upload-cta" onClick={openFilePicker}>
                   Choose files
@@ -1026,42 +932,15 @@ export default function PlatformPage() {
                   applyLiveHeuristicClaims(activeDoc.id, html)
                   scheduleClaimsExtract(activeDoc.id, html)
                 }}
-                placeholder="Edit extracted text. Figures are compared across all uploaded documents after a short pause."
-                conflictHighlightPhrases={conflictHighlightPhrases}
-                scrollToConflict={
-                  scrollConflict && activeDocId === scrollConflict.docId
-                    ? { phrase: scrollConflict.phrase, token: scrollConflict.token }
-                    : null
-                }
-                onScrollToConflictComplete={clearScrollConflict}
+                placeholder="Edit extracted text. Figures refresh per document after a short pause."
+                crossDocMarks={crossDocMarksForActive}
+                crossDocIssuesInDoc={issuesTouchingActiveDoc}
+                onDismissCrossDocIssue={dismissCrossDocIssue}
+                onRestoreDismissedCrossDoc={clearDismissedCrossDoc}
+                crossDocDismissedCount={crossDocPrefs.dismissedIssueIds.length}
               />
             </article>
           )}
-
-          {lineageEvents.length > 0 ? (
-            <section className="notion-demo-lineage" aria-label="Sync activity">
-              <h2 className="notion-demo-lineage-title">Accountability trail</h2>
-              <ol className="notion-demo-lineage-list">
-                {lineageEvents.map((ev) => (
-                  <li key={ev.id} className="notion-demo-lineage-row">
-                    <span className="notion-demo-lineage-badge">{LINEAGE_KIND_LABEL[ev.kind]}</span>
-                    <time className="notion-demo-lineage-time" dateTime={ev.ts}>
-                      {formatLineageDisplayTime(ev.ts)}
-                    </time>
-                    <p className="notion-demo-lineage-summary">{ev.summary}</p>
-                    {ev.detail ? <p className="notion-demo-lineage-detail">{ev.detail}</p> : null}
-                    {ev.changes?.length ? (
-                      <ul className="notion-demo-lineage-changes">
-                        {ev.changes.map((c, i) => (
-                          <li key={i}>{c}</li>
-                        ))}
-                      </ul>
-                    ) : null}
-                  </li>
-                ))}
-              </ol>
-            </section>
-          ) : null}
         </div>
 
         <PlatformAgentPanel
@@ -1072,139 +951,6 @@ export default function PlatformPage() {
           collapsed={agentPanelCollapsed}
           onToggleCollapsed={() => setAgentPanelCollapsed((c) => !c)}
         />
-
-        <aside
-          className={`notion-conflict-dock ${conflictPanelOpen ? 'is-open' : ''}`}
-          aria-hidden={!conflictPanelOpen}
-        >
-          <div className="notion-conflict-dock-head">
-            <h2 className="notion-conflict-dock-title">Live conflicts</h2>
-            <button
-              type="button"
-              className="notion-conflict-dock-close"
-              onClick={() => setConflictPanelOpen(false)}
-              aria-label="Close conflict panel"
-            >
-              ×
-            </button>
-          </div>
-          {docs.length < 2 ? (
-            <p className="notion-conflict-dock-empty">Upload at least two documents to compare figures across files.</p>
-          ) : conflicts.length === 0 ? (
-            <p className="notion-conflict-dock-empty">
-              {rawConflictGroups.length > 0
-                ? `No conflicts shown (${rawConflictGroups.length} raw cluster${rawConflictGroups.length === 1 ? '' : 's'} filtered by stable rules — likely different metrics or bad extractions).`
-                : 'No figure conflicts across your uploaded documents.'}
-            </p>
-          ) : (
-            <>
-              <p className="notion-conflict-dock-lead">
-                ⚠️ {conflicts.length} mismatch{conflicts.length === 1 ? '' : 'es'} after stable checks (same result on
-                refresh).{' '}
-                {rawConflictGroups.length > conflicts.length ? (
-                  <>
-                    {rawConflictGroups.length - conflicts.length} raw cluster
-                    {rawConflictGroups.length - conflicts.length === 1 ? '' : 's'} hidden as likely false positives.
-                  </>
-                ) : null}{' '}
-                Sync picks one document you trust, then aligns the others.
-              </p>
-              <ul className="notion-conflict-dock-list">
-                {conflicts.map((g, idx) => {
-                  const rowId = `${g.key}-${g.docs.map((d) => d.docId).sort().join('+')}-${idx}`
-                  const expanded = expandedConflictId === rowId
-                  const summary = g.docs
-                    .map((d) => `${docTitle(d.docId)} ${formatClaimValue(g.key, d.value)}`)
-                    .join(' · ')
-                  return (
-                    <li key={rowId} className="notion-conflict-dock-row">
-                      <button
-                        type="button"
-                        className="notion-conflict-dock-row-toggle"
-                        aria-expanded={expanded}
-                        onClick={() => setExpandedConflictId((cur) => (cur === rowId ? null : rowId))}
-                      >
-                        <strong>{CLAIM_LABEL[g.key]}</strong>
-                        <span className="notion-conflict-dock-values">
-                          {g.docs.length} files disagree — {summary}
-                        </span>
-                        <span className="notion-conflict-dock-row-hint">{expanded ? 'Hide' : 'Show'} files</span>
-                      </button>
-                      {expanded ? (
-                        <ul className="notion-conflict-dock-file-list" aria-label="Open location in document">
-                          {g.docs.map((d) => (
-                            <li key={d.docId}>
-                              <button
-                                type="button"
-                                className="notion-conflict-dock-file-btn"
-                                onClick={() => openConflictInDoc(d.docId, g.key, d.value)}
-                              >
-                                <span className="notion-conflict-dock-file-name">{docTitle(d.docId)}</span>
-                                <span className="notion-conflict-dock-file-val">{formatClaimValue(g.key, d.value)}</span>
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      ) : null}
-                    </li>
-                  )
-                })}
-              </ul>
-              <button type="button" className="notion-conflict-sync-all" onClick={() => setSyncSourcePickerOpen(true)}>
-                Sync everywhere
-              </button>
-            </>
-          )}
-        </aside>
-
-        {conflicts.length > 0 && !conflictPanelOpen ? (
-          <button
-            type="button"
-            className="notion-conflict-fab"
-            onClick={() => setConflictPanelOpen(true)}
-            aria-label="Show conflicts"
-          >
-            {conflicts.length} conflict{conflicts.length === 1 ? '' : 's'}
-          </button>
-        ) : null}
-
-        {syncSourcePickerOpen ? (
-          <div
-            className="notion-sync-source-overlay"
-            role="presentation"
-            onClick={() => setSyncSourcePickerOpen(false)}
-          >
-            <div
-              className="notion-sync-source-dialog"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="sync-source-title"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h2 id="sync-source-title" className="notion-sync-source-title">
-                Which document has the right numbers?
-              </h2>
-              <p className="notion-sync-source-sub">
-                We&apos;ll copy matching figures from that doc into the others and log it in the accountability trail.
-              </p>
-              <div className="notion-sync-source-actions" role="group" aria-label="Choose source document">
-                {readyDocs.map((doc) => (
-                  <button
-                    key={doc.id}
-                    type="button"
-                    className="notion-sync-source-choice"
-                    onClick={() => syncEverywhereFromDoc(doc.id)}
-                  >
-                    {doc.title}
-                  </button>
-                ))}
-              </div>
-              <button type="button" className="notion-sync-source-cancel" onClick={() => setSyncSourcePickerOpen(false)}>
-                Cancel
-              </button>
-            </div>
-          </div>
-        ) : null}
       </div>
     </main>
   )

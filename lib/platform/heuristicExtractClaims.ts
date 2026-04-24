@@ -56,7 +56,7 @@ export type HeuristicExtractResult = {
 /**
  * Regex-first extraction when no LLM is configured. Intentionally conservative
  * so the demo stays credible (prefers explicit labels). Collects short evidence
- * windows for semantic conflict filtering.
+ * windows for downstream grounding and future cross-doc logic.
  */
 export function heuristicExtractClaimsWithEvidence(plain: string): HeuristicExtractResult {
   const t = plain.replace(/\s+/g, ' ')
@@ -174,6 +174,23 @@ export function heuristicExtractClaimsWithEvidence(plain: string): HeuristicExtr
     if (Number.isFinite(n) && n >= 0 && n <= 1000) {
       out.revenue_growth_pct = n
       evidence.revenue_growth_pct = snippetAround(t, growthM.index, growthM.index + growthM[0].length)
+    }
+  }
+
+  if (out.revenue_growth_pct == null) {
+    const momRe =
+      /(?:MoM|m\/m|month[-\s]over[-\s]month|monthly\s+growth|grown)\D{0,28}(\d{1,3})\s*%/gi
+    let momM = momRe.exec(t)
+    if (!momM) {
+      const pctBeforeMoM = /(\d{1,3})\s*%\s*(?:MoM|m\/m|month[-\s]over[-\s]month|monthly)/gi
+      momM = pctBeforeMoM.exec(t)
+    }
+    if (momM?.[1]) {
+      const n = Number(momM[1])
+      if (Number.isFinite(n) && n >= 0 && n <= 1000) {
+        out.revenue_growth_pct = n
+        evidence.revenue_growth_pct = snippetAround(t, momM.index, momM.index + momM[0].length)
+      }
     }
   }
 

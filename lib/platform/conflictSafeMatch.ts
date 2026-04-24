@@ -7,6 +7,11 @@ function boundariesOkAt(text: string, frag: string, start: number): boolean {
   const end = start + frag.length
   if (end > text.length || text.slice(start, end) !== frag) return false
 
+  /** Do not match a bare number that is actually the integer part of a percentage (e.g. raise 18M vs "18%"). */
+  if (!frag.includes('%') && /^\d/.test(frag) && end < text.length && text.charAt(end) === '%') {
+    return false
+  }
+
   if (frag.startsWith('$')) {
     if (end < text.length && /\d/.test(text.charAt(end))) return false
     return true

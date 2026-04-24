@@ -195,11 +195,11 @@ export function CloudWorkspaceEditor({
             placeholder="Write here — saves to Supabase; chunks index for retrieval, agent, and analysis."
           />
           <div className="notion-editor-insight-dock notion-editor-insight-dock--persistent" title={editorInsightTip}>
-            <button type="button" className="notion-editor-insight-fab" aria-label="Cross-doc intelligence for this file">
+            <button type="button" className="notion-editor-insight-fab" aria-label="Workspace insights for this file">
               <FolderGlyph size={18} />
             </button>
-            <div className="notion-editor-insight-popover" role="dialog" aria-label="Cross-doc intelligence">
-              <p className="notion-editor-insight-popover-title">Cross-doc intelligence</p>
+            <div className="notion-editor-insight-popover" role="dialog" aria-label="Workspace insights">
+              <p className="notion-editor-insight-popover-title">Workspace insights</p>
               {activeInsight.headlineLines.length > 0 ? (
                 <div className="notion-editor-insight-headlines" aria-live="polite">
                   {activeInsight.headlineLines.map((h, i) => (
